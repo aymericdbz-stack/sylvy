@@ -1,478 +1,302 @@
-import {
-  ArrowRight,
-  BarChart3,
-  Coins,
-  Leaf,
-  Search,
-  ShieldCheck,
-} from "lucide-react";
+"use client";
 
-import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
+import { useState, type ChangeEvent, type FormEvent } from "react";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import logo from "../../logo/Logo Noir sans Fond.png";
 
-const stats = [
-  {
-    label: "Minimum entry",
-    value: "10 EUR",
-    detail: "Start with a simple amount and grow over time.",
+const copy = {
+  en: {
+    trial: "Trial: 9 days",
+    nav: ["Overview", "Projects", "Impact", "Access"],
+    headline: "Invest in restoration",
+    subhead: "Small. Verified. Transparent.",
+    metrics: {
+      minimum: { label: "Minimum", value: "10 EUR" },
+      target: { label: "Target", value: "6-9%/yr" },
+      impact: { label: "Impact", value: "Biodiversity" },
+      status: { label: "Status", value: "Opening soon" },
+    },
+    pilot: { label: "Pilot", title: "Agroforestry", region: "Bolivia" },
+    waitlist: { label: "Waitlist", value: "Early access" },
+    actions: { access: "Get Early Access", join: "Join" },
+    modal: {
+      title: "Get Early Access",
+      description: "Join the waitlist.",
+      firstName: "First name",
+      lastName: "Last name",
+      email: "Email address",
+      submit: "Submit",
+      cancel: "Cancel",
+      success: "Thanks. We will reach out.",
+      error: "Something went wrong.",
+    },
+    sidebarNote: "Nature-first investing.",
   },
-  {
-    label: "Target return",
-    value: "Up to 10% per year",
-    detail: "Illustrative returns based on pilot modeling.",
+  fr: {
+    trial: "Essai: 9 jours",
+    nav: ["Apercu", "Projets", "Impact", "Acces"],
+    headline: "Investir dans la restauration",
+    subhead: "Simple. Verifie. Transparent.",
+    metrics: {
+      minimum: { label: "Minimum", value: "10 EUR" },
+      target: { label: "Cible", value: "6-9%/an" },
+      impact: { label: "Impact", value: "Biodiversite" },
+      status: { label: "Statut", value: "Bientot" },
+    },
+    pilot: { label: "Pilote", title: "Agroforesterie", region: "Bolivie" },
+    waitlist: { label: "Liste", value: "Acces anticipe" },
+    actions: { access: "Acces anticipe", join: "Rejoindre" },
+    modal: {
+      title: "Acces anticipe",
+      description: "Liste d'attente.",
+      firstName: "Prenom",
+      lastName: "Nom",
+      email: "Email",
+      submit: "Envoyer",
+      cancel: "Annuler",
+      success: "Merci. On revient vers vous.",
+      error: "Erreur. Reessayer.",
+    },
+    sidebarNote: "Investissement nature.",
   },
-  {
-    label: "Verified projects",
-    value: "Independent review",
-    detail: "Due diligence by restoration specialists.",
-  },
-];
+} as const;
 
-const steps = [
-  {
-    number: "01",
-    title: "Select a restoration project",
-    description:
-      "Browse verified ecosystem restoration opportunities built by local partners.",
-    icon: Search,
-  },
-  {
-    number: "02",
-    title: "Invest from a few euros",
-    description:
-      "Access institutional grade nature investments with an accessible minimum.",
-    icon: Coins,
-  },
-  {
-    number: "03",
-    title: "Funds are deployed on the ground",
-    description:
-      "Capital flows directly into reforestation, biodiversity, and carbon programs.",
-    icon: Leaf,
-  },
-  {
-    number: "04",
-    title: "Impact is monitored over time",
-    description:
-      "Track progress through transparent reporting on ecological and financial metrics.",
-    icon: BarChart3,
-  },
-];
+type Language = keyof typeof copy;
 
-const projects = [
-  {
-    region: "Bolivia",
-    title: "Tropical Agroforestry Corridor",
-    description:
-      "Restore soil health while supporting long-term environmental value creation.",
-    duration: "10 to 15 years",
-    returnRange: "6 to 9% per year",
-    impact: "Biodiversity corridors and soil regeneration",
-  },
-  {
-    region: "Brazil",
-    title: "Amazonian Forest Restoration",
-    description:
-      "Large scale restoration combining reforestation, habitat recovery, and carbon capture.",
-    duration: "10 to 12 years",
-    returnRange: "6 to 8% per year",
-    impact: "Forest regeneration and biodiversity protection",
-  },
-  {
-    region: "Indonesia",
-    title: "Mangrove Restoration",
-    description:
-      "Coastal ecosystem restoration improving carbon capture and shoreline resilience.",
-    duration: "8 to 10 years",
-    returnRange: "7 to 10% per year",
-    impact: "Blue carbon and climate adaptation",
-  },
-];
-
-const valueProps = [
-  {
-    title: "Verified project pipeline",
-    description:
-      "Only projects with on-the-ground partners and third-party verification.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Simple portfolio view",
-    description:
-      "Track commitments, impact, and returns in a single clean dashboard.",
-    icon: BarChart3,
-  },
-  {
-    title: "Aligned with nature",
-    description:
-      "Investments focus on measurable restoration and community benefit.",
-    icon: Leaf,
-  },
-];
-
-const investmentRanges = [
-  "Below 100 EUR",
-  "100 to 1,000 EUR",
-  "1,000 to 5,000 EUR",
-  "Above 5,000 EUR",
-];
+type FormStatus = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
+  const [language, setLanguage] = useState<Language>("en");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formStatus, setFormStatus] = useState<FormStatus>("idle");
+  const [formState, setFormState] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
+
+  const t = copy[language];
+  const metrics = [
+    t.metrics.minimum,
+    t.metrics.target,
+    t.metrics.impact,
+    t.metrics.status,
+  ];
+
+  const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    setFormState((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const openModal = () => {
+    setIsModalOpen(true);
+    setFormStatus("idle");
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormStatus("idle");
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormStatus("loading");
+
+    try {
+      const response = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formState.firstName.trim(),
+          lastName: formState.lastName.trim(),
+          email: formState.email.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Submit failed");
+      }
+
+      setFormStatus("success");
+      setFormState({ firstName: "", lastName: "", email: "" });
+    } catch {
+      setFormStatus("error");
+    }
+  };
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_20%_15%,rgba(64,120,88,0.18),transparent_45%),radial-gradient(circle_at_80%_20%,rgba(120,170,140,0.18),transparent_45%),radial-gradient(circle_at_50%_90%,rgba(64,120,88,0.12),transparent_50%)]" />
-
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      <div className="mx-auto grid min-h-screen w-full max-w-6xl md:grid-cols-[220px_1fr]">
+        <aside className="flex flex-col border-r border-neutral-200 bg-white px-5 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-card">
-              <Leaf className="h-4 w-4 text-foreground" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 bg-white">
+              <Image
+                src={logo}
+                alt="Sylvy logo"
+                width={26}
+                height={26}
+                className="h-6 w-6 object-contain"
+                priority
+              />
             </div>
-            <span className="text-lg font-semibold tracking-tight">Sylvy</span>
+            <span className="text-lg font-semibold">Sylvy</span>
           </div>
-          <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <a className="transition hover:text-foreground" href="#projects">
-              Projects
-            </a>
-            <a className="transition hover:text-foreground" href="#how-it-works">
-              How it works
-            </a>
-            <a className="transition hover:text-foreground" href="#early-access">
-              Early access
-            </a>
+
+          <nav className="mt-10 flex flex-col gap-1 text-sm">
+            {t.nav.map((item, index) => (
+              <button
+                key={item}
+                className={`rounded-md px-3 py-2 text-left transition ${
+                  index === 0
+                    ? "bg-neutral-100 font-semibold text-neutral-900"
+                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                }`}
+                type="button"
+              >
+                {item}
+              </button>
+            ))}
           </nav>
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-border/70 px-3 py-1 text-xs text-muted-foreground md:flex">
-              <span className="font-medium text-foreground">EN</span>
-              <span>/</span>
-              <span>FR</span>
-            </div>
-            <Button size="sm">Get Early Access</Button>
-          </div>
-        </div>
-      </header>
 
-      <main className="relative">
-        <section className="mx-auto max-w-6xl px-6 pb-16 pt-14 lg:pt-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="animate-fade-up">
-              <Badge variant="outline" className="mb-4 w-fit text-xs uppercase tracking-[0.25em]">
-                Opening Soon
-              </Badge>
-              <h1 className="font-display text-4xl leading-tight sm:text-5xl lg:text-6xl">
-                Invest in ecosystem restoration
-              </h1>
-              <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-                Finance real-world nature restoration projects starting with a
-                small amount. Simple, transparent, and designed to grow trust.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button size="lg">
-                  Get Early Access
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button size="lg" variant="outline">
-                  View available projects
-                </Button>
-              </div>
-              <div className="mt-8 flex flex-wrap gap-6 text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-foreground/80" />
-                  Transparent reporting
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-foreground/80" />
-                  Verified restoration partners
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-foreground/80" />
-                  Simple portfolio view
-                </div>
-              </div>
-            </div>
-
-            <Card
-              className="animate-fade-up border-border/70 bg-card/90 shadow-sm"
-              style={{ animationDelay: "120ms" }}
-            >
-              <CardHeader className="space-y-4">
-                <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-emerald-50 to-white p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    Pilot project
-                  </p>
-                  <CardTitle className="font-display text-2xl">
-                    Tropical Agroforestry Corridor
-                  </CardTitle>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Restore soil health while generating long-term environmental value.
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Duration
-                    </p>
-                    <p className="text-base font-semibold">10 to 15 years</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Target return
-                    </p>
-                    <p className="text-base font-semibold">6 to 9% per year</p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Impact
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Soil regeneration and biodiversity corridors
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                      Revenue sources
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Carbon credits and sustainable land value
-                    </p>
-                  </div>
-                </div>
-                <Button variant="outline" className="w-full">
-                  View available projects
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardHeader>
-            </Card>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-6 pb-12">
-          <div className="grid gap-6 md:grid-cols-3">
-            {stats.map((stat, index) => (
-              <Card
-                key={stat.label}
-                className="animate-fade-up border-border/70 bg-card/80 shadow-sm"
-                style={{ animationDelay: `${200 + index * 120}ms` }}
-              >
-                <CardHeader className="space-y-2">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    {stat.label}
-                  </p>
-                  <CardTitle className="text-2xl font-semibold">
-                    {stat.value}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">{stat.detail}</p>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section id="how-it-works" className="mx-auto max-w-6xl px-6 py-16">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <Badge variant="outline" className="mb-4 text-xs uppercase tracking-[0.25em]">
-                How it works
-              </Badge>
-              <h2 className="font-display text-3xl sm:text-4xl">
-                How investing will work
-              </h2>
-            </div>
-            <p className="max-w-lg text-sm text-muted-foreground">
-              A simple flow inspired by Kubera's clarity, focused on clear
-              steps and transparent reporting.
-            </p>
-          </div>
-          <div className="mt-8 grid gap-4">
-            {steps.map((step, index) => (
-              <Card
-                key={step.number}
-                className="animate-fade-up border-border/70 bg-card/80 shadow-sm"
-                style={{ animationDelay: `${index * 120}ms` }}
-              >
-                <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="text-sm font-semibold text-muted-foreground">
-                      {step.number}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">{step.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full border border-border/70 bg-background">
-                    <step.icon className="h-5 w-5 text-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section id="projects" className="mx-auto max-w-6xl px-6 py-16">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <Badge variant="outline" className="mb-4 text-xs uppercase tracking-[0.25em]">
-                Pre-launch phase
-              </Badge>
-              <h2 className="font-display text-3xl sm:text-4xl">
-                Examples of projects
-              </h2>
-            </div>
-            <Button variant="outline">View all projects</Button>
-          </div>
-          <div className="mt-10 grid gap-6 lg:grid-cols-3">
-            {projects.map((project, index) => (
-              <Card
-                key={project.title}
-                className="animate-fade-up border-border/70 bg-card/80 shadow-sm"
-                style={{ animationDelay: `${index * 120}ms` }}
-              >
-                <CardHeader className="space-y-3">
-                  <div className="h-36 rounded-2xl border border-border/70 bg-gradient-to-br from-emerald-100 via-white to-emerald-50" />
-                  <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                    {project.region}
-                  </p>
-                  <CardTitle className="font-display text-2xl">
-                    {project.title}
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {project.description}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">{project.duration}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Target return</span>
-                    <span className="font-medium">{project.returnRange}</span>
-                  </div>
-                  <div className="text-muted-foreground">{project.impact}</div>
-                  <Button variant="outline" className="w-full">
-                    View project details
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <p className="mt-6 text-xs text-muted-foreground">
-            Project details and returns are illustrative pilot simulations.
+          <p className="mt-auto pt-6 text-xs text-neutral-500">
+            {t.sidebarNote}
           </p>
-        </section>
+        </aside>
 
-        <section className="mx-auto max-w-6xl px-6 pb-16">
-          <div className="grid gap-6 md:grid-cols-3">
-            {valueProps.map((item, index) => (
-              <Card
-                key={item.title}
-                className="animate-fade-up border-border/70 bg-card/80 shadow-sm"
-                style={{ animationDelay: `${index * 120}ms` }}
-              >
-                <CardHeader className="space-y-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-background">
-                    <item.icon className="h-5 w-5 text-foreground" />
-                  </div>
-                  <CardTitle className="text-lg">{item.title}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{item.description}</p>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section id="early-access" className="mx-auto max-w-6xl px-6 pb-20">
-          <Card className="animate-fade-up border-border/70 bg-card/90 shadow-sm">
-            <CardContent className="grid gap-8 p-8 lg:grid-cols-[1.1fr_0.9fr]">
-              <div>
-                <Badge variant="outline" className="mb-4 text-xs uppercase tracking-[0.25em]">
-                  Get early access
-                </Badge>
-                <h2 className="font-display text-3xl sm:text-4xl">
-                  Join the waitlist
-                </h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Be the first to access pilot projects and receive launch
-                  incentives when the platform opens.
-                </p>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <Input className="sm:flex-1" placeholder="Email address" type="email" />
-                  <Button size="lg">Request early access</Button>
-                </div>
-                <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  {investmentRanges.map((range) => (
-                    <Button key={range} variant="outline" className="justify-start">
-                      {range}
-                    </Button>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs text-muted-foreground">
-                  No investment offer is made at this stage. Target returns are
-                  illustrative only.
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-emerald-100 via-white to-emerald-50 p-6">
-                <div className="space-y-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
-                    Early access benefits
-                  </p>
-                  <div className="space-y-3 text-sm text-muted-foreground">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-foreground" />
-                      Priority access to upcoming restoration offerings.
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-foreground" />
-                      Personalized onboarding to set up your portfolio.
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <span className="mt-1 h-2 w-2 rounded-full bg-foreground" />
-                      First look at impact reports and live progress updates.
-                    </div>
-                  </div>
-                  <Separator className="opacity-60" />
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Waitlist size</span>
-                    <span className="font-semibold text-foreground">1,248</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Next cohort</span>
-                    <span className="font-semibold text-foreground">Q3 2025</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      </main>
-
-      <footer className="border-t border-border/60 bg-background/80">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-6 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3 text-foreground">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border/70 bg-card">
-              <Leaf className="h-4 w-4 text-foreground" />
-            </div>
-            <span className="font-semibold">Sylvy</span>
-            <span className="text-muted-foreground">
-              2025 Sylvy. All rights reserved.
+        <main className="px-6 py-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <span className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+              {t.trial}
             </span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center rounded-full border border-neutral-200 bg-white p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setLanguage("en")}
+                  className={`rounded-full px-3 py-1 font-medium transition ${
+                    language === "en"
+                      ? "bg-neutral-900 text-white"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  EN
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLanguage("fr")}
+                  className={`rounded-full px-3 py-1 font-medium transition ${
+                    language === "fr"
+                      ? "bg-neutral-900 text-white"
+                      : "text-neutral-500 hover:text-neutral-900"
+                  }`}
+                >
+                  FR
+                </button>
+              </div>
+              <Button size="sm" onClick={openModal}>
+                {t.actions.access}
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-6">
-            <a className="transition hover:text-foreground" href="#">
-              Privacy Policy
-            </a>
-            <a className="transition hover:text-foreground" href="#">
-              Legal Notice
-            </a>
+
+          <div className="mt-10 max-w-xl">
+            <h1 className="text-3xl font-semibold">{t.headline}</h1>
+            <p className="mt-2 text-sm text-neutral-500">{t.subhead}</p>
+          </div>
+
+          <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {metrics.map((metric) => (
+              <div
+                key={metric.label}
+                className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm"
+              >
+                <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                  {metric.label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold">{metric.value}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                {t.pilot.label}
+              </p>
+              <p className="mt-2 text-lg font-semibold">{t.pilot.title}</p>
+              <p className="text-sm text-neutral-500">{t.pilot.region}</p>
+            </div>
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+                {t.waitlist.label}
+              </p>
+              <p className="mt-2 text-lg font-semibold">{t.waitlist.value}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={openModal}>
+                {t.actions.join}
+              </Button>
+            </div>
+          </section>
+        </main>
+      </div>
+
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">{t.modal.title}</h2>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {t.modal.description}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="text-sm text-neutral-500 hover:text-neutral-900"
+              >
+                {t.modal.cancel}
+              </button>
+            </div>
+
+            <form className="mt-5 grid gap-3" onSubmit={handleSubmit}>
+              <Input
+                name="firstName"
+                placeholder={t.modal.firstName}
+                value={formState.firstName}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                name="lastName"
+                placeholder={t.modal.lastName}
+                value={formState.lastName}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                name="email"
+                type="email"
+                placeholder={t.modal.email}
+                value={formState.email}
+                onChange={handleChange}
+                required
+              />
+              <Button type="submit" disabled={formStatus === "loading"}>
+                {formStatus === "loading" ? "..." : t.modal.submit}
+              </Button>
+              {formStatus === "success" ? (
+                <p className="text-xs text-emerald-600">{t.modal.success}</p>
+              ) : null}
+              {formStatus === "error" ? (
+                <p className="text-xs text-red-600">{t.modal.error}</p>
+              ) : null}
+            </form>
           </div>
         </div>
-      </footer>
+      ) : null}
     </div>
   );
 }
