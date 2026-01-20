@@ -196,7 +196,11 @@ export default function Home() {
                   FR
                 </button>
               </div>
-              <Button size="sm" onClick={openModal}>
+              <Button
+                size="sm"
+                className="bg-blue-600 text-white hover:bg-blue-500"
+                onClick={openModal}
+              >
                 {t.actions.access}
               </Button>
             </div>
