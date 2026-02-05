@@ -1,18 +1,14 @@
 import type { Metadata } from "next";
-import {
-  Cormorant_Garamond,
-  JetBrains_Mono,
-  Outfit,
-} from "next/font/google";
+import { JetBrains_Mono, Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const bodyFont = Outfit({
+const bodyFont = Manrope({
   variable: "--font-body",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const displayFont = Cormorant_Garamond({
+const displayFont = Space_Grotesk({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -25,9 +21,9 @@ const monoFont = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sylvy | Invest in ecosystem restoration",
+  title: "Sylvy | SaaS for pharmaceutical labs",
   description:
-    "Access verified ecosystem restoration projects with simple, transparent investing.",
+    "Sylvy is the B2B SaaS platform helping pharmaceutical labs digitize workflows, manage samples, and accelerate discovery.",
 };
 
 export default function RootLayout({

@@ -48,25 +48,25 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.985 0.02 140);
-  --foreground: oklch(0.2 0.02 140);
-  --card: oklch(0.99 0.015 140);
-  --card-foreground: oklch(0.2 0.02 140);
-  --popover: oklch(0.99 0.015 140);
-  --popover-foreground: oklch(0.2 0.02 140);
-  --primary: oklch(0.33 0.08 140);
-  --primary-foreground: oklch(0.985 0.02 140);
-  --secondary: oklch(0.95 0.02 140);
-  --secondary-foreground: oklch(0.25 0.02 140);
-  --muted: oklch(0.95 0.015 140);
-  --muted-foreground: oklch(0.5 0.02 140);
-  --accent: oklch(0.94 0.03 140);
-  --accent-foreground: oklch(0.2 0.02 140);
+  --radius: 1.25rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0 0);
+  --primary: oklch(0.3 0.09 155);
+  --primary-foreground: oklch(0.99 0.01 155);
+  --secondary: oklch(0.95 0.035 155);
+  --secondary-foreground: oklch(0.25 0.01 155);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.5 0 0);
+  --accent: oklch(0.94 0.02 155);
+  --accent-foreground: oklch(0.2 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.02 140);
-  --input: oklch(0.9 0.02 140);
-  --ring: oklch(0.7 0.04 140);
+  --border: oklch(0.9 0 0);
+  --input: oklch(0.9 0 0);
+  --ring: oklch(0.55 0.06 155);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -148,6 +148,15 @@
   }
 }
 
+@keyframes logo-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @layer utilities {
   .animate-fade-up {
     animation: fade-up 0.8s ease-out both;
@@ -155,11 +164,31 @@
   .animate-fade-in {
     animation: fade-in 0.8s ease-out both;
   }
+  .logo-marquee {
+    overflow: hidden;
+  }
+  .logo-track {
+    display: flex;
+    width: max-content;
+    gap: 2.5rem;
+    padding: 0 1.5rem;
+    animation: logo-marquee 28s linear infinite;
+  }
+  .logo-item {
+    display: flex;
+    min-width: 320px;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in {
+    animation: none;
+  }
+  .logo-track {
     animation: none;
   }
 }
