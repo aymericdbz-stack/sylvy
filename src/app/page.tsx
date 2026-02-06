@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import {
-  ArrowRight,
-  ChevronDown,
-} from "lucide-react";
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,9 +21,7 @@ import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
 import chimieParisLogo from "../../carrousel/chimie_paris.webp";
 import merckLogo from "../../carrousel/merck.webp";
 import sanofiLogo from "../../carrousel/sanofi.webp";
-import labResearcherPhoto from "../../photos_videos/montage.webp";
 import moleculeDiagram from "../../photos_videos/molecule.webp";
-import notebookChecksImage from "../../photos_videos/molecule2.webp";
 import towerImage from "../../public/tower.webp";
 
 const copy = {
@@ -488,9 +489,12 @@ type Language = keyof typeof copy;
 
 type FormStatus = "idle" | "loading" | "success" | "error";
 
+const SCROLL_THRESHOLD = 60;
+
 export default function Home() {
   const [language, setLanguage] = useState<Language>("en");
   const [phraseIndex, setPhraseIndex] = useState(0);
+  const [isCompact, setIsCompact] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
   const [formState, setFormState] = useState({
@@ -516,6 +520,31 @@ export default function Home() {
     { src: merckLogo, alt: "Merck" },
     { src: sanofiLogo, alt: "Sanofi" },
   ];
+  const protocolLines = [
+    "Protocol: Western blot — v3.2",
+    "1. Prepare lysis buffer (RIPA + inhibitors).",
+    "2. Quantify protein concentration (BCA).",
+    "3. Load 20 µg per lane; run SDS-PAGE 120V, 55 min.",
+    "4. Transfer 90 min wet @ 4°C.",
+    "5. Block membrane in 5% milk, 45 min.",
+    "Note (Alex): Use fresh DTT; improves band sharpness.",
+    "Note (Mina): Pre-wet PVDF in methanol.",
+    "6. Primary antibody 1:1000 overnight.",
+    "7. Wash 3x TBST; add secondary 1:5000.",
+  ];
+  const protocolTitle =
+    "Step 1 – 2 min – Fill the beaker with reactive to the mark";
+  const protocolDescriptions = [
+    "Gently swirl to dissolve until the line is reached.",
+    "Confirm the meniscus touches the mark before mixing.",
+    "Use a sterile glass rod to avoid contamination.",
+    "Label the tube and log the reagent batch in the notebook.",
+    "Rinse the beaker with DI water between repeats.",
+    "Proceed to calibration once the volume is stable.",
+  ];
+  const lastScrollY = useRef(0);
+  const isCompactRef = useRef(false);
+  const ticking = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -523,6 +552,38 @@ export default function Home() {
     }, 2000);
     return () => clearInterval(interval);
   }, [rotatingPhrases.length]);
+
+  useEffect(() => {
+    lastScrollY.current = window.scrollY;
+    const handleScroll = () => {
+      if (ticking.current) {
+        return;
+      }
+      ticking.current = true;
+      window.requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        const scrollingDown = currentY > lastScrollY.current;
+        let nextCompact = isCompactRef.current;
+
+        if (scrollingDown && currentY > SCROLL_THRESHOLD) {
+          nextCompact = true;
+        } else if (!scrollingDown && currentY < SCROLL_THRESHOLD) {
+          nextCompact = false;
+        }
+
+        if (nextCompact !== isCompactRef.current) {
+          isCompactRef.current = nextCompact;
+          setIsCompact(nextCompact);
+        }
+
+        lastScrollY.current = currentY;
+        ticking.current = false;
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -572,106 +633,151 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(120,180,150,0.25),transparent_40%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,9,0.4),rgba(6,12,9,0)_35%,rgba(6,12,9,0.65))]" />
         <div className="relative">
-          <div className="border-b border-emerald-200/10 text-xs">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-              <div className="flex flex-wrap items-center gap-3 text-emerald-100/70">
-                <span>{t.topBar.message}</span>
-                <a
-                  className="text-emerald-100 underline underline-offset-4 transition hover:text-white"
-                  href="#resources"
-                >
-                  {t.topBar.linkText}
-                </a>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  className="text-emerald-100/70 transition hover:text-white"
-                >
-                  {t.topBar.login}
-                </button>
-                <div className="flex items-center gap-1 rounded-full border border-emerald-200/20 bg-emerald-950/60 p-1 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("en")}
-                    className={`rounded-full px-3 py-1 font-medium transition ${
-                      language === "en"
-                        ? "bg-emerald-100 text-emerald-950"
-                        : "text-emerald-100/70 hover:text-white"
+          <header
+            className={`fixed left-0 right-0 z-40 transition-all duration-300 ease-out ${
+              isCompact ? "top-3" : "top-0"
+            }`}
+          >
+            <div
+              className={`transition-all duration-300 ease-out ${
+                isCompact
+                  ? "mx-auto w-[min(100%-2rem,72rem)] rounded-full bg-white/70 shadow-lg backdrop-blur-md"
+                  : "w-full"
+              }`}
+            >
+              <div
+                className={`mx-auto flex items-center justify-between transition-all duration-300 ease-out ${
+                  isCompact ? "px-6 py-3" : "px-6 py-5"
+                } ${isCompact ? "max-w-none" : "max-w-6xl"}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300 ${
+                      isCompact
+                        ? "border-emerald-950/10 bg-white/70"
+                        : "border-emerald-200/20 bg-emerald-950/50"
                     }`}
                   >
-                    EN
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLanguage("fr")}
-                    className={`rounded-full px-3 py-1 font-medium transition ${
-                      language === "fr"
-                        ? "bg-emerald-100 text-emerald-950"
-                        : "text-emerald-100/70 hover:text-white"
+                    <Image
+                      src={logo}
+                      alt="Sylvy logo"
+                      width={26}
+                      height={26}
+                      className="h-6 w-6 object-contain"
+                      priority
+                    />
+                  </div>
+                  <span
+                    className={`text-sm font-semibold tracking-[0.2em] uppercase transition-colors duration-300 ${
+                      isCompact ? "text-emerald-950" : "text-emerald-50"
                     }`}
                   >
-                    FR
-                  </button>
+                    Sylvy
+                  </span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <header className="sticky top-0 z-40 border-b border-emerald-200/10 bg-[#0f2a1f]/80 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-950/50">
-                  <Image
-                    src={logo}
-                    alt="Sylvy logo"
-                    width={26}
-                    height={26}
-                    className="h-6 w-6 object-contain"
-                    priority
-                  />
-                </div>
-                <span className="text-sm font-semibold tracking-[0.2em] uppercase text-emerald-50">
-                  Sylvy
-                </span>
-              </div>
-              <nav className="hidden items-center gap-8 text-xs text-emerald-100/70 lg:flex">
-                {navItems.map((item) => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    className="flex items-center gap-1 transition hover:text-white"
+                <nav
+                  className={`hidden items-center gap-8 text-xs transition-colors duration-300 lg:flex ${
+                    isCompact ? "text-emerald-900/70" : "text-emerald-100/70"
+                  }`}
+                >
+                  {navItems.map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      className={`flex items-center gap-1 transition ${
+                        isCompact ? "hover:text-emerald-950" : "hover:text-white"
+                      }`}
+                    >
+                      {item.label}
+                      <ChevronDown
+                        className={`h-3 w-3 transition-colors duration-300 ${
+                          isCompact
+                            ? "text-emerald-900/60"
+                            : "text-emerald-100/60"
+                        }`}
+                      />
+                    </a>
+                  ))}
+                </nav>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`rounded-full px-5 transition-all duration-300 ${
+                      isCompact
+                        ? "border-emerald-950/20 bg-white/60 text-emerald-950 hover:bg-white"
+                        : "border-emerald-200/30 bg-transparent text-emerald-100 hover:bg-emerald-100/10 hover:text-white"
+                    }`}
                   >
-                    {item.label}
-                    <ChevronDown className="h-3 w-3 text-emerald-100/60" />
-                  </a>
-                ))}
-              </nav>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-emerald-200/30 bg-transparent px-5 text-emerald-100 hover:bg-emerald-100/10 hover:text-white"
-                >
-                  {t.hero.secondaryCta}
-                </Button>
-                <Button
-                  size="sm"
-                  className="rounded-full bg-emerald-100 px-5 text-emerald-950 hover:bg-emerald-50"
-                  onClick={openModal}
-                >
-                  {t.hero.primaryCta}
-                </Button>
+                    {t.hero.secondaryCta}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className={`rounded-full px-5 transition-all duration-300 ${
+                      isCompact
+                        ? "bg-emerald-950 text-white hover:bg-emerald-900"
+                        : "bg-emerald-100 text-emerald-950 hover:bg-emerald-50"
+                    }`}
+                    onClick={openModal}
+                  >
+                    {t.hero.primaryCta}
+                  </Button>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    className={`text-xs transition-colors duration-300 ${
+                      isCompact ? "text-emerald-900/70 hover:text-emerald-950" : "text-emerald-100/70 hover:text-white"
+                    }`}
+                  >
+                    {t.topBar.login}
+                  </button>
+                  <div
+                    className={`flex items-center gap-1 rounded-full border p-1 text-[10px] transition-colors duration-300 ${
+                      isCompact
+                        ? "border-emerald-950/10 bg-white/70"
+                        : "border-emerald-200/20 bg-emerald-950/60"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setLanguage("en")}
+                      className={`rounded-full px-3 py-1 font-medium transition ${
+                        language === "en"
+                          ? isCompact
+                            ? "bg-emerald-950 text-white"
+                            : "bg-emerald-100 text-emerald-950"
+                          : isCompact
+                            ? "text-emerald-900/70 hover:text-emerald-950"
+                            : "text-emerald-100/70 hover:text-white"
+                      }`}
+                    >
+                      EN
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLanguage("fr")}
+                      className={`rounded-full px-3 py-1 font-medium transition ${
+                        language === "fr"
+                          ? isCompact
+                            ? "bg-emerald-950 text-white"
+                            : "bg-emerald-100 text-emerald-950"
+                          : isCompact
+                            ? "text-emerald-900/70 hover:text-emerald-950"
+                            : "text-emerald-100/70 hover:text-white"
+                      }`}
+                    >
+                      FR
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </header>
 
-          <section id="solutions" className="relative">
-            <div className="mx-auto max-w-6xl px-6 pb-10 pt-16 lg:pt-24">
+          <section id="solutions" className="relative pt-28">
+            <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:pt-16">
               <div className="relative z-10 max-w-3xl lg:pr-72">
-                <span className="inline-flex items-center rounded-full border border-emerald-200/20 bg-emerald-950/60 px-4 py-1 text-xs uppercase tracking-[0.25em] text-emerald-100/80">
-                  {t.hero.tagline}
-                </span>
                 <div className="mt-6 space-y-3">
                   <p className="whitespace-nowrap text-3xl font-medium text-emerald-100 sm:text-4xl lg:text-5xl">
                     {t.hero.prefix}
@@ -742,90 +848,58 @@ export default function Home() {
 
       <main className="relative">
         <section className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid items-center gap-12 lg:grid-cols-[1fr_1fr]">
-            <div className="animate-fade-up">
-              <Badge
-                variant="outline"
-                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
-              >
-                {t.why.badge}
-              </Badge>
-              <h2 className="font-display text-3xl text-primary sm:text-4xl">
-                {t.why.title}
+          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+            <div className="flex min-h-[18rem] items-center">
+              <h2 className="font-display text-3xl text-primary sm:text-4xl lg:text-5xl">
+                Show me the history of protocols in the lab
               </h2>
-              <p className="mt-4 text-sm text-muted-foreground">
-                {t.why.description}
-              </p>
-              <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
-                {t.why.bullets.map((bullet) => (
-                  <div key={bullet} className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                    {bullet}
-                  </div>
-                ))}
-              </div>
-              <Button
-                variant="outline"
-                className="mt-6 rounded-full px-6"
-                asChild
-              >
-                <a href="#resources">
-                  {t.why.cta}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
-              </Button>
             </div>
-            <div className="animate-fade-up" style={{ animationDelay: "120ms" }}>
-              <div className="mx-auto w-fit overflow-hidden lg:ml-auto">
-                <Image
-                  src={labResearcherPhoto}
-                  alt="Lab researcher in a pharmaceutical lab"
-                  width={labResearcherPhoto.width}
-                  height={labResearcherPhoto.height}
-                  className="h-[37.44rem] w-auto object-contain"
-                  priority
-                />
+            <div
+              className="relative min-h-[22rem] animate-fade-up"
+              style={{ animationDelay: "120ms" }}
+            >
+              <div className="pointer-events-none absolute right-6 top-0 flex flex-col gap-3 sm:right-10">
+                <div className="float-card float-card--one">Western blot</div>
+                <div className="float-card float-card--two">ELISA assay</div>
+                <div className="float-card float-card--three">RNA extraction</div>
+              </div>
+              <div className="relative mt-28 rounded-3xl border border-border/60 bg-white/70 p-6 shadow-sm backdrop-blur sm:mt-32">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-b from-white/40 via-white/10 to-white/60" />
+                <div className="relative space-y-2 text-xs text-muted-foreground blur-sm sm:text-sm">
+                  {protocolLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="ai" className="mx-auto max-w-6xl px-6 pb-16 pt-[3.25rem]">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="animate-fade-up">
-              <Badge
-                variant="outline"
-                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
-              >
-                {t.ai.badge}
-              </Badge>
-              <h2 className="font-display text-3xl text-primary sm:text-4xl">
-                {t.ai.title}
-              </h2>
-              <p className="mt-4 text-sm text-muted-foreground">
-                {t.ai.description}
-              </p>
-              <div className="mt-6 grid gap-3 text-sm text-muted-foreground">
-                {t.ai.points.map((point) => (
-                  <div key={point} className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                    {point}
-                  </div>
-                ))}
-              </div>
-              <Button className="mt-6 rounded-full px-6" asChild>
-                <a href="#platform">{t.ai.cta}</a>
-              </Button>
-            </div>
-            <div className="animate-fade-up" style={{ animationDelay: "120ms" }}>
-              <div className="rounded-3xl bg-card/90 p-6">
-                <div className="overflow-hidden rounded-2xl bg-background">
-                  <Image
-                    src={notebookChecksImage}
-                    alt="Sylvy notebook checks overview"
-                    className="h-auto w-full object-contain"
-                  />
-                </div>
+        <section
+          id="ai"
+          className="flex min-h-screen items-center bg-black text-white"
+        >
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16">
+            <h2 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+              Execute your lab workflows in very simple steps !
+            </h2>
+            <div className="protocol-marquee">
+              <div className="protocol-track">
+                {[...protocolDescriptions, ...protocolDescriptions].map(
+                  (description, index) => (
+                    <article
+                      key={`protocol-${index}`}
+                      className="protocol-card"
+                    >
+                      <h3 className="text-lg font-semibold text-white">
+                        {protocolTitle}
+                      </h3>
+                      <p className="mt-3 text-sm text-white/70">
+                        {description}
+                      </p>
+                    </article>
+                  )
+                )}
               </div>
             </div>
           </div>
