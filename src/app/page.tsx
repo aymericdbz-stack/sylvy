@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -21,6 +21,7 @@ import sanofiLogo from "../../carrousel/sanofi.webp";
 import labResearcherPhoto from "../../photos_videos/montage.webp";
 import moleculeDiagram from "../../photos_videos/molecule.webp";
 import notebookChecksImage from "../../photos_videos/molecule2.webp";
+import towerImage from "../../public/tower.webp";
 
 const copy = {
   en: {
@@ -39,9 +40,14 @@ const copy = {
     },
     hero: {
       badge: "Pharma cloud platform",
-      title: "Everything your lab needs for cutting-edge science",
-      subtitle:
-        "Sylvy is the B2B SaaS platform for pharmaceutical labs. Unify ELN, LIMS, and analytics in one secure cloud.",
+      tagline: "Built for reproducible lab workflows",
+      prefix: "Create your protocol for :",
+      rotating: [
+        "Protein extraction",
+        "Western blot",
+        "ELISA assay",
+        "RNA extraction",
+      ],
       points: [
         "Validated workflows",
         "Secure, compliant data",
@@ -263,9 +269,14 @@ const copy = {
     },
     hero: {
       badge: "Plateforme cloud pharma",
-      title: "Tout ce dont votre labo a besoin pour accelerer la science",
-      subtitle:
-        "Sylvy est la plateforme SaaS B2B pour les labos pharmaceutiques. Unifiez ELN, LIMS et analytics dans un cloud securise.",
+      tagline: "Concu pour des workflows reproductibles",
+      prefix: "Creez votre protocole pour :",
+      rotating: [
+        "Protein extraction",
+        "Western blot",
+        "ELISA assay",
+        "RNA extraction",
+      ],
       points: [
         "Workflows valides",
         "Donnees securisees",
@@ -479,6 +490,7 @@ type FormStatus = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
   const [language, setLanguage] = useState<Language>("en");
+  const [phraseIndex, setPhraseIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
   const [formState, setFormState] = useState({
@@ -488,6 +500,7 @@ export default function Home() {
   });
 
   const t = copy[language];
+  const rotatingPhrases = t.hero.rotating;
   const navItems = [
     { label: t.nav.products, href: "#platform" },
     { label: t.nav.ai, href: "#ai" },
@@ -503,6 +516,13 @@ export default function Home() {
     { src: merckLogo, alt: "Merck" },
     { src: sanofiLogo, alt: "Sanofi" },
   ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPhraseIndex((prev) => (prev + 1) % rotatingPhrases.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [rotatingPhrases.length]);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -547,155 +567,180 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <div className="border-b border-border/60 bg-secondary text-xs">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-2">
-          <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-            <span>{t.topBar.message}</span>
-            <a
-              className="text-foreground underline underline-offset-4 transition hover:text-foreground"
-              href="#resources"
-            >
-              {t.topBar.linkText}
-            </a>
-          </div>
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="text-muted-foreground transition hover:text-foreground"
-            >
-              {t.topBar.login}
-            </button>
-            <div className="flex items-center gap-1 rounded-full border border-border/70 bg-background/80 p-1 text-[10px]">
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                className={`rounded-full px-3 py-1 font-medium transition ${
-                  language === "en"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage("fr")}
-                className={`rounded-full px-3 py-1 font-medium transition ${
-                  language === "fr"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                FR
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-secondary backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
-              <Image
-                src={logo}
-                alt="Sylvy logo"
-                width={26}
-                height={26}
-                className="h-6 w-6 object-contain"
-                priority
-              />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">Sylvy</span>
-          </div>
-          <nav className="hidden items-center gap-6 text-sm text-muted-foreground lg:flex">
-            {navItems.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-1 transition hover:text-foreground"
-              >
-                {item.label}
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="rounded-full px-5">
-              {t.hero.secondaryCta}
-            </Button>
-            <Button size="sm" className="rounded-full px-5" onClick={openModal}>
-              {t.hero.primaryCta}
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="relative">
-        <section
-          id="solutions"
-          className="mx-auto max-w-6xl px-6 pb-32 pt-14 lg:pt-20"
-        >
-          <div className="grid items-center gap-12">
-            <div className="animate-fade-up">
-              <Badge
-                variant="outline"
-                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
-              >
-                {t.hero.badge}
-              </Badge>
-              <h1 className="font-display text-4xl leading-tight text-primary sm:text-5xl lg:text-6xl">
-                {t.hero.title}
-              </h1>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button size="lg" className="rounded-full px-7" onClick={openModal}>
-                  {t.hero.primaryCta}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full px-7"
-                  asChild
+      <section className="relative isolate overflow-hidden bg-[#0f2a1f] text-emerald-50">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(64,130,100,0.4),transparent_45%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(120,180,150,0.25),transparent_40%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,9,0.4),rgba(6,12,9,0)_35%,rgba(6,12,9,0.65))]" />
+        <div className="relative">
+          <div className="border-b border-emerald-200/10 text-xs">
+            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+              <div className="flex flex-wrap items-center gap-3 text-emerald-100/70">
+                <span>{t.topBar.message}</span>
+                <a
+                  className="text-emerald-100 underline underline-offset-4 transition hover:text-white"
+                  href="#resources"
                 >
-                  <a href="#demo">{t.hero.secondaryCta}</a>
-                </Button>
+                  {t.topBar.linkText}
+                </a>
               </div>
-              <div className="mt-8 flex flex-wrap gap-6 text-xs text-muted-foreground">
-                {t.hero.points.map((point) => (
-                  <div key={point} className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-primary" />
-                    {point}
-                  </div>
-                ))}
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  className="text-emerald-100/70 transition hover:text-white"
+                >
+                  {t.topBar.login}
+                </button>
+                <div className="flex items-center gap-1 rounded-full border border-emerald-200/20 bg-emerald-950/60 p-1 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("en")}
+                    className={`rounded-full px-3 py-1 font-medium transition ${
+                      language === "en"
+                        ? "bg-emerald-100 text-emerald-950"
+                        : "text-emerald-100/70 hover:text-white"
+                    }`}
+                  >
+                    EN
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLanguage("fr")}
+                    className={`rounded-full px-3 py-1 font-medium transition ${
+                      language === "fr"
+                        ? "bg-emerald-100 text-emerald-950"
+                        : "text-emerald-100/70 hover:text-white"
+                    }`}
+                  >
+                    FR
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </section>
 
-        <section id="customers" className="pb-14">
-          <div className="mx-auto max-w-6xl px-6">
-            <p className="text-xs uppercase tracking-[0.35em] text-primary">
-              {t.logos.title}
-            </p>
-          </div>
-          <div className="logo-marquee mt-8 w-full">
-            <div className="logo-track">
-              {[...logoItems, ...logoItems].map((logoItem, index) => (
-                <div key={`${logoItem.alt}-${index}`} className="logo-item">
+          <header className="sticky top-0 z-40 border-b border-emerald-200/10 bg-[#0f2a1f]/80 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-950/50">
                   <Image
-                    src={logoItem.src}
-                    alt={logoItem.alt}
-                    width={320}
-                    height={150}
-                    className="h-24 w-auto object-contain"
+                    src={logo}
+                    alt="Sylvy logo"
+                    width={26}
+                    height={26}
+                    className="h-6 w-6 object-contain"
+                    priority
                   />
                 </div>
-              ))}
+                <span className="text-sm font-semibold tracking-[0.2em] uppercase text-emerald-50">
+                  Sylvy
+                </span>
+              </div>
+              <nav className="hidden items-center gap-8 text-xs text-emerald-100/70 lg:flex">
+                {navItems.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center gap-1 transition hover:text-white"
+                  >
+                    {item.label}
+                    <ChevronDown className="h-3 w-3 text-emerald-100/60" />
+                  </a>
+                ))}
+              </nav>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-emerald-200/30 bg-transparent px-5 text-emerald-100 hover:bg-emerald-100/10 hover:text-white"
+                >
+                  {t.hero.secondaryCta}
+                </Button>
+                <Button
+                  size="sm"
+                  className="rounded-full bg-emerald-100 px-5 text-emerald-950 hover:bg-emerald-50"
+                  onClick={openModal}
+                >
+                  {t.hero.primaryCta}
+                </Button>
+              </div>
             </div>
-          </div>
-        </section>
+          </header>
 
+          <section id="solutions" className="relative">
+            <div className="mx-auto max-w-6xl px-6 pb-10 pt-16 lg:pt-24">
+              <div className="relative z-10 max-w-3xl lg:pr-72">
+                <span className="inline-flex items-center rounded-full border border-emerald-200/20 bg-emerald-950/60 px-4 py-1 text-xs uppercase tracking-[0.25em] text-emerald-100/80">
+                  {t.hero.tagline}
+                </span>
+                <div className="mt-6 space-y-3">
+                  <p className="whitespace-nowrap text-3xl font-medium text-emerald-100 sm:text-4xl lg:text-5xl">
+                    {t.hero.prefix}
+                  </p>
+                  <div className="min-h-[3.5rem] text-5xl font-semibold leading-tight text-emerald-50 sm:min-h-[4.5rem] sm:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
+                    <span
+                      key={rotatingPhrases[phraseIndex]}
+                      className="hero-phrase font-display whitespace-nowrap"
+                    >
+                      {rotatingPhrases[phraseIndex]}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mt-10 pb-16">
+              <div className="mx-auto max-w-6xl px-6">
+                <p className="text-xs uppercase tracking-[0.35em] text-emerald-100/70">
+                  {t.logos.title}
+                </p>
+              </div>
+              <div className="relative mt-8">
+                <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-24 bg-gradient-to-r from-[#0f2a1f] to-transparent" />
+                <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-24 bg-gradient-to-l from-[#0f2a1f] to-transparent" />
+                {/* NOTE: screen_recording.mp4 not accessible here; carousel behavior follows provided spec. */}
+                <div className="logo-marquee hero-carousel">
+                  <div className="logo-track">
+                    {[...logoItems, ...logoItems].map((logoItem, index) => (
+                      <div key={`${logoItem.alt}-${index}`} className="logo-item">
+                        <Image
+                          src={logoItem.src}
+                          alt={logoItem.alt}
+                          width={320}
+                          height={150}
+                          className="h-20 w-auto object-contain opacity-90"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="logo-track logo-track--alt">
+                    {[...logoItems, ...logoItems].map((logoItem, index) => (
+                      <div key={`${logoItem.alt}-alt-${index}`} className="logo-item">
+                        <Image
+                          src={logoItem.src}
+                          alt={logoItem.alt}
+                          width={320}
+                          height={150}
+                          className="h-20 w-auto object-contain opacity-80"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <Image
+          src={towerImage}
+          alt="Tower illustration"
+          width={towerImage.width}
+          height={towerImage.height}
+          className="pointer-events-none absolute bottom-0 right-0 z-20 h-[40vh] w-auto translate-x-6 sm:h-[55vh] lg:h-[75vh]"
+          priority
+        />
+      </section>
+
+      <main className="relative">
         <section className="mx-auto max-w-6xl px-6 py-16">
           <div className="grid items-center gap-12 lg:grid-cols-[1fr_1fr]">
             <div className="animate-fade-up">
