@@ -8,19 +8,24 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { ChevronDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import HeroIntroGreen from "@/components/HeroIntroGreen";
 import logo from "../../logo/Logo Noir sans Fond.png";
 import abbvieLogo from "../../carrousel/abbvie.webp";
+import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
 import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
 import chimieParisLogo from "../../carrousel/chimie_paris.webp";
 import merckLogo from "../../carrousel/merck.webp";
+import pasteurLogo from "../../carrousel/pasteur.webp";
+import pierreFabreLogo from "../../carrousel/pierre_fabre.png";
+import ucBerkeleyLogo from "../../carrousel/uc_berkeley.webp";
 import sanofiLogo from "../../carrousel/sanofi.webp";
+import servierLogo from "../../carrousel/servier.webp";
 import moleculeDiagram from "../../photos_videos/molecule.webp";
 import towerImage from "../../public/tower.webp";
 
@@ -42,12 +47,13 @@ const copy = {
     hero: {
       badge: "Pharma cloud platform",
       tagline: "Built for reproducible lab workflows",
-      prefix: "Create your protocol for :",
+      prefixPrimary: "Sylvy",
+      prefixSecondary: "Your wetlab copilot.",
       rotating: [
-        "Protein extraction",
-        "Western blot",
-        "ELISA assay",
-        "RNA extraction",
+        "Generate protocols",
+        "Execute workflows",
+        "Explore results with AI",
+        "Collaborate on cloud",
       ],
       points: [
         "Validated workflows",
@@ -77,7 +83,7 @@ const copy = {
       },
     ],
     logos: {
-      title: "Trusted by labs and biopharma teams",
+      title: "",
       items: ["Sanofi", "Moderna", "Novartis", "Roche", "Gilead"],
     },
     why: {
@@ -189,7 +195,7 @@ const copy = {
     },
     footer: {
       addressTitle: "Sylvy",
-      address: "22 Rue de la Paix, 75002 Paris, France",
+      address: "20 rue Torricelli, 75017 Paris, France",
       buttons: {
         contact: "Contact us",
         support: "Support",
@@ -240,7 +246,7 @@ const copy = {
           ],
         },
       ],
-      legal: "Copyright 2025 Sylvy. All rights reserved.",
+      legal: "Copyright 2026 Sylvy. All rights reserved.",
     },
     modal: {
       title: "Request a demo",
@@ -271,7 +277,8 @@ const copy = {
     hero: {
       badge: "Plateforme cloud pharma",
       tagline: "Concu pour des workflows reproductibles",
-      prefix: "Creez votre protocole pour :",
+      prefixPrimary: "Recherche.",
+      prefixSecondary: "Sylvy fait le reste :",
       rotating: [
         "Protein extraction",
         "Western blot",
@@ -306,7 +313,7 @@ const copy = {
       },
     ],
     logos: {
-      title: "Adopte par des labos et equipes biopharma",
+      title: "",
       items: ["Sanofi", "Moderna", "Novartis", "Roche", "Gilead"],
     },
     why: {
@@ -485,14 +492,11 @@ const copy = {
   },
 } as const;
 
-type Language = keyof typeof copy;
-
 type FormStatus = "idle" | "loading" | "success" | "error";
 
 const SCROLL_THRESHOLD = 60;
 
 export default function Home() {
-  const [language, setLanguage] = useState<Language>("en");
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -503,16 +507,8 @@ export default function Home() {
     email: "",
   });
 
-  const t = copy[language];
+  const t = copy.en;
   const rotatingPhrases = t.hero.rotating;
-  const navItems = [
-    { label: t.nav.products, href: "#platform" },
-    { label: t.nav.ai, href: "#ai" },
-    { label: t.nav.solutions, href: "#solutions" },
-    { label: t.nav.customers, href: "#customers" },
-    { label: t.nav.resources, href: "#resources" },
-    { label: t.nav.company, href: "#company" },
-  ];
   const logoItems = [
     { src: abbvieLogo, alt: "Abbvie" },
     { src: berkeleyLabsLogo, alt: "Berkeley Labs" },
@@ -520,28 +516,104 @@ export default function Home() {
     { src: merckLogo, alt: "Merck" },
     { src: sanofiLogo, alt: "Sanofi" },
   ];
-  const protocolLines = [
-    "Protocol: Western blot — v3.2",
-    "1. Prepare lysis buffer (RIPA + inhibitors).",
-    "2. Quantify protein concentration (BCA).",
-    "3. Load 20 µg per lane; run SDS-PAGE 120V, 55 min.",
-    "4. Transfer 90 min wet @ 4°C.",
-    "5. Block membrane in 5% milk, 45 min.",
-    "Note (Alex): Use fresh DTT; improves band sharpness.",
-    "Note (Mina): Pre-wet PVDF in methanol.",
-    "6. Primary antibody 1:1000 overnight.",
-    "7. Wash 3x TBST; add secondary 1:5000.",
+  const logoItemsAlt = [
+    { src: astraZenecaLogo, alt: "AstraZeneca" },
+    { src: pasteurLogo, alt: "Pasteur" },
+    { src: pierreFabreLogo, alt: "Pierre Fabre" },
+    { src: ucBerkeleyLogo, alt: "UC Berkeley" },
+    { src: servierLogo, alt: "Servier" },
   ];
-  const protocolTitle =
-    "Step 1 – 2 min – Fill the beaker with reactive to the mark";
-  const protocolDescriptions = [
-    "Gently swirl to dissolve until the line is reached.",
-    "Confirm the meniscus touches the mark before mixing.",
-    "Use a sterile glass rod to avoid contamination.",
-    "Label the tube and log the reagent batch in the notebook.",
-    "Rinse the beaker with DI water between repeats.",
-    "Proceed to calibration once the volume is stable.",
+  const protocolFrames = [
+    {
+      label: "Western blot",
+      title: "Protocol: Western blot — v3.2",
+      lines: [
+        "1. Prepare lysis buffer (RIPA + inhibitors).",
+        "2. Quantify protein concentration (BCA).",
+        "3. Load 20 µg per lane; run SDS-PAGE 120V, 55 min.",
+        "Note (Alex): Use fresh DTT for sharper bands.",
+      ],
+    },
+    {
+      label: "ELISA assay",
+      title: "Protocol: ELISA assay — v2.1",
+      lines: [
+        "1. Coat plate with capture antibody overnight.",
+        "2. Block with 1% BSA for 45 min.",
+        "3. Add samples in triplicate; incubate 60 min.",
+        "Note (Mina): Use fresh standards for curve accuracy.",
+      ],
+    },
+    {
+      label: "RNA extraction",
+      title: "Protocol: RNA extraction — v4.0",
+      lines: [
+        "1. Lyse cells in guanidinium buffer.",
+        "2. Bind RNA to column; wash twice.",
+        "3. Elute in RNase-free water; keep on ice.",
+        "Note (Sam): Warm elution buffer to 60°C.",
+      ],
+    },
   ];
+  const protocolSteps = [
+    {
+      step: 1,
+      duration: "45 sec",
+      action: "Label tubes and scan sample IDs",
+      description:
+        "Record identifiers and verify barcode matches the run sheet before any prep.",
+    },
+    {
+      step: 2,
+      duration: "3 min",
+      action: "Prepare buffer and verify pH range",
+      description:
+        "Mix reagents thoroughly and confirm pH is within the validated range.",
+    },
+    {
+      step: 3,
+      duration: "1 min",
+      action: "Pipette aliquots into the plate",
+      description:
+        "Dispense uniform volumes into each well to ensure consistent readouts.",
+    },
+    {
+      step: 4,
+      duration: "7 min",
+      action: "Vortex mix and quick-spin down",
+      description:
+        "Homogenize samples and remove bubbles before incubation begins.",
+    },
+    {
+      step: 5,
+      duration: "12 min",
+      action: "Incubate at 37°C with gentle agitation",
+      description:
+        "Maintain steady temperature and movement to optimize binding kinetics.",
+    },
+    {
+      step: 6,
+      duration: "2 min",
+      action: "Wash wells with rinse solution (x3)",
+      description:
+        "Clear unbound material between cycles using measured rinse volumes.",
+    },
+    {
+      step: 7,
+      duration: "5 min",
+      action: "Add detection reagent and protect from light",
+      description:
+        "Dispense reagent evenly and keep plates shielded until readout.",
+    },
+    {
+      step: 8,
+      duration: "90 sec",
+      action: "Capture readout and auto-log results",
+      description:
+        "Record signal intensity and sync the run to your lab notebook.",
+    },
+  ];
+  const [protocolIndex, setProtocolIndex] = useState(0);
   const lastScrollY = useRef(0);
   const isCompactRef = useRef(false);
   const ticking = useRef(false);
@@ -552,6 +624,14 @@ export default function Home() {
     }, 2000);
     return () => clearInterval(interval);
   }, [rotatingPhrases.length]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setProtocolIndex((prev) => (prev + 1) % protocolFrames.length);
+    }, 2600);
+    return () => clearInterval(interval);
+  }, [protocolFrames.length]);
+
 
   useEffect(() => {
     lastScrollY.current = window.scrollY;
@@ -628,160 +708,76 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      <section className="relative isolate overflow-hidden bg-[#0f2a1f] text-emerald-50">
+      <header
+        className={`fixed left-0 right-0 z-[9999] transition-all duration-300 ease-out ${
+          isCompact ? "top-3" : "top-0"
+        }`}
+      >
+        <div
+          className={`transition-all duration-300 ease-out ${
+            isCompact
+              ? "mx-auto w-[min(100%-2rem,64rem)] rounded-full bg-white/70 shadow-lg backdrop-blur-md"
+              : "mx-auto w-[min(100%-2rem,70rem)]"
+          }`}
+        >
+          <div
+            className={`flex w-full items-center justify-between transition-all duration-300 ease-out ${
+              isCompact ? "px-6 py-3" : "px-6 py-5"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-950/10 bg-white">
+                <Image
+                  src={logo}
+                  alt="Sylvy logo"
+                  width={26}
+                  height={26}
+                  className="h-6 w-6 object-contain"
+                  priority
+                />
+              </div>
+              <span
+                className={`text-sm font-semibold tracking-[0.2em] uppercase transition-colors duration-300 ${
+                  isCompact ? "text-emerald-950" : "text-emerald-50"
+                }`}
+              >
+                Sylvy
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button
+                size="sm"
+                className={`rounded-full px-5 transition-all duration-300 ${
+                  isCompact
+                    ? "bg-emerald-950 text-white hover:bg-emerald-900"
+                    : "bg-emerald-100 text-emerald-950 hover:bg-emerald-50"
+                }`}
+                onClick={openModal}
+              >
+                {t.hero.primaryCta}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <HeroIntroGreen />
+      <section className="relative isolate min-h-screen overflow-hidden bg-[#0f2a1f] text-emerald-50">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(64,130,100,0.4),transparent_45%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(120,180,150,0.25),transparent_40%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,9,0.4),rgba(6,12,9,0)_35%,rgba(6,12,9,0.65))]" />
         <div className="relative">
-          <header
-            className={`fixed left-0 right-0 z-40 transition-all duration-300 ease-out ${
-              isCompact ? "top-3" : "top-0"
-            }`}
-          >
-            <div
-              className={`transition-all duration-300 ease-out ${
-                isCompact
-                  ? "mx-auto w-[min(100%-2rem,72rem)] rounded-full bg-white/70 shadow-lg backdrop-blur-md"
-                  : "w-full"
-              }`}
-            >
-              <div
-                className={`mx-auto flex items-center justify-between transition-all duration-300 ease-out ${
-                  isCompact ? "px-6 py-3" : "px-6 py-5"
-                } ${isCompact ? "max-w-none" : "max-w-6xl"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-300 ${
-                      isCompact
-                        ? "border-emerald-950/10 bg-white/70"
-                        : "border-emerald-200/20 bg-emerald-950/50"
-                    }`}
-                  >
-                    <Image
-                      src={logo}
-                      alt="Sylvy logo"
-                      width={26}
-                      height={26}
-                      className="h-6 w-6 object-contain"
-                      priority
-                    />
-                  </div>
-                  <span
-                    className={`text-sm font-semibold tracking-[0.2em] uppercase transition-colors duration-300 ${
-                      isCompact ? "text-emerald-950" : "text-emerald-50"
-                    }`}
-                  >
-                    Sylvy
-                  </span>
-                </div>
-                <nav
-                  className={`hidden items-center gap-8 text-xs transition-colors duration-300 lg:flex ${
-                    isCompact ? "text-emerald-900/70" : "text-emerald-100/70"
-                  }`}
-                >
-                  {navItems.map((item) => (
-                    <a
-                      key={item.label}
-                      href={item.href}
-                      className={`flex items-center gap-1 transition ${
-                        isCompact ? "hover:text-emerald-950" : "hover:text-white"
-                      }`}
-                    >
-                      {item.label}
-                      <ChevronDown
-                        className={`h-3 w-3 transition-colors duration-300 ${
-                          isCompact
-                            ? "text-emerald-900/60"
-                            : "text-emerald-100/60"
-                        }`}
-                      />
-                    </a>
-                  ))}
-                </nav>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`rounded-full px-5 transition-all duration-300 ${
-                      isCompact
-                        ? "border-emerald-950/20 bg-white/60 text-emerald-950 hover:bg-white"
-                        : "border-emerald-200/30 bg-transparent text-emerald-100 hover:bg-emerald-100/10 hover:text-white"
-                    }`}
-                  >
-                    {t.hero.secondaryCta}
-                  </Button>
-                  <Button
-                    size="sm"
-                    className={`rounded-full px-5 transition-all duration-300 ${
-                      isCompact
-                        ? "bg-emerald-950 text-white hover:bg-emerald-900"
-                        : "bg-emerald-100 text-emerald-950 hover:bg-emerald-50"
-                    }`}
-                    onClick={openModal}
-                  >
-                    {t.hero.primaryCta}
-                  </Button>
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    className={`text-xs transition-colors duration-300 ${
-                      isCompact ? "text-emerald-900/70 hover:text-emerald-950" : "text-emerald-100/70 hover:text-white"
-                    }`}
-                  >
-                    {t.topBar.login}
-                  </button>
-                  <div
-                    className={`flex items-center gap-1 rounded-full border p-1 text-[10px] transition-colors duration-300 ${
-                      isCompact
-                        ? "border-emerald-950/10 bg-white/70"
-                        : "border-emerald-200/20 bg-emerald-950/60"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setLanguage("en")}
-                      className={`rounded-full px-3 py-1 font-medium transition ${
-                        language === "en"
-                          ? isCompact
-                            ? "bg-emerald-950 text-white"
-                            : "bg-emerald-100 text-emerald-950"
-                          : isCompact
-                            ? "text-emerald-900/70 hover:text-emerald-950"
-                            : "text-emerald-100/70 hover:text-white"
-                      }`}
-                    >
-                      EN
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setLanguage("fr")}
-                      className={`rounded-full px-3 py-1 font-medium transition ${
-                        language === "fr"
-                          ? isCompact
-                            ? "bg-emerald-950 text-white"
-                            : "bg-emerald-100 text-emerald-950"
-                          : isCompact
-                            ? "text-emerald-900/70 hover:text-emerald-950"
-                            : "text-emerald-100/70 hover:text-white"
-                      }`}
-                    >
-                      FR
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </header>
-
           <section id="solutions" className="relative pt-28">
             <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:pt-16">
               <div className="relative z-10 max-w-3xl lg:pr-72">
                 <div className="mt-6 space-y-3">
-                  <p className="whitespace-nowrap text-3xl font-medium text-emerald-100 sm:text-4xl lg:text-5xl">
-                    {t.hero.prefix}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="whitespace-nowrap text-4xl font-medium text-emerald-100 sm:text-5xl lg:text-6xl">
+                      {t.hero.prefixPrimary}
+                    </p>
+                    <p className="whitespace-nowrap text-xl font-medium text-emerald-100 sm:text-2xl lg:text-3xl">
+                      {t.hero.prefixSecondary}
+                    </p>
+                  </div>
                   <div className="min-h-[3.5rem] text-5xl font-semibold leading-tight text-emerald-50 sm:min-h-[4.5rem] sm:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
                     <span
                       key={rotatingPhrases[phraseIndex]}
@@ -819,7 +815,7 @@ export default function Home() {
                     ))}
                   </div>
                   <div className="logo-track logo-track--alt">
-                    {[...logoItems, ...logoItems].map((logoItem, index) => (
+                    {[...logoItemsAlt, ...logoItemsAlt].map((logoItem, index) => (
                       <div key={`${logoItem.alt}-alt-${index}`} className="logo-item">
                         <Image
                           src={logoItem.src}
@@ -850,26 +846,41 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-6 py-16">
           <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="flex min-h-[18rem] items-center">
-              <h2 className="font-display text-3xl text-primary sm:text-4xl lg:text-5xl">
-                Show me the history of protocols in the lab
+              <h2 className="text-balance text-3xl text-primary sm:text-4xl lg:text-5xl">
+                Execute your lab workflows in very simple steps !
               </h2>
             </div>
-            <div
-              className="relative min-h-[22rem] animate-fade-up"
-              style={{ animationDelay: "120ms" }}
-            >
-              <div className="pointer-events-none absolute right-6 top-0 flex flex-col gap-3 sm:right-10">
-                <div className="float-card float-card--one">Western blot</div>
-                <div className="float-card float-card--two">ELISA assay</div>
-                <div className="float-card float-card--three">RNA extraction</div>
-              </div>
-              <div className="relative mt-28 rounded-3xl border border-border/60 bg-white/70 p-6 shadow-sm backdrop-blur sm:mt-32">
-                <div className="absolute inset-0 rounded-3xl bg-gradient-to-b from-white/40 via-white/10 to-white/60" />
-                <div className="relative space-y-2 text-xs text-muted-foreground blur-sm sm:text-sm">
-                  {protocolLines.map((line) => (
-                    <p key={line}>{line}</p>
+            <div className="relative">
+              <div className="protocol-panel">
+                <div className="protocol-frame-stack">
+                  {protocolFrames.map((frame, index) => (
+                    <div
+                      key={frame.label}
+                      className={`protocol-frame ${
+                        index === protocolIndex ? "is-active" : ""
+                      }`}
+                    >
+                      <h3 className="protocol-frame-title">{frame.title}</h3>
+                      <div className="protocol-frame-lines">
+                        {frame.lines.map((line) => (
+                          <p key={line}>{line}</p>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
+              </div>
+              <div className="protocol-pills">
+                {protocolFrames.map((frame, index) => (
+                  <span
+                    key={frame.label}
+                    className={`protocol-pill ${
+                      index === protocolIndex ? "is-active" : ""
+                    }`}
+                  >
+                    {frame.label}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -879,27 +890,22 @@ export default function Home() {
           id="ai"
           className="flex min-h-screen items-center bg-black text-white"
         >
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 px-6 py-16 text-center">
             <h2 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
               Execute your lab workflows in very simple steps !
             </h2>
-            <div className="protocol-marquee">
+            <div className="protocol-viewport mx-auto">
               <div className="protocol-track">
-                {[...protocolDescriptions, ...protocolDescriptions].map(
-                  (description, index) => (
-                    <article
-                      key={`protocol-${index}`}
-                      className="protocol-card"
-                    >
-                      <h3 className="text-lg font-semibold text-white">
-                        {protocolTitle}
-                      </h3>
-                      <p className="mt-3 text-sm text-white/70">
-                        {description}
-                      </p>
-                    </article>
-                  )
-                )}
+                {[...protocolSteps, ...protocolSteps].map((step, index) => (
+                  <article key={`${step.step}-${index}`} className="protocol-card">
+                    <h3 className="protocol-title">
+                      Step {step.step} —{" "}
+                      <span className="duration">{step.duration}</span> —{" "}
+                      {step.action}
+                    </h3>
+                    <p className="protocol-description">{step.description}</p>
+                  </article>
+                ))}
               </div>
             </div>
           </div>
@@ -1002,9 +1008,9 @@ export default function Home() {
         </section>
       </main>
 
-      <footer id="company" className="border-t border-border/70 bg-secondary">
+      <footer id="company" className="border-t border-border/70 bg-[#0c1d17]">
         <div className="mx-auto max-w-6xl px-6 py-12">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_2fr]">
+          <div className="flex flex-col gap-10">
             <div>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
@@ -1036,18 +1042,6 @@ export default function Home() {
                   <span key={item}>{item}</span>
                 ))}
               </div>
-            </div>
-            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-              {t.footer.columns.map((column) => (
-                <div key={column.title} className="space-y-3 text-sm">
-                  <p className="font-semibold text-primary">{column.title}</p>
-                  <div className="space-y-2 text-muted-foreground">
-                    {column.links.map((link) => (
-                      <p key={link}>{link}</p>
-                    ))}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
           <Separator className="my-8 opacity-60" />
