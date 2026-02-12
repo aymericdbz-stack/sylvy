@@ -887,7 +887,11 @@ export default function Home() {
               isCompact ? "px-6 py-3" : "px-6 py-5"
             }`}
           >
-            <div className="flex flex-1 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex flex-1 cursor-pointer items-center gap-3"
+            >
               <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--theme-logo-border)] bg-white">
                 <Image
                   src={logo}
@@ -907,7 +911,7 @@ export default function Home() {
               >
                 Sylvy
               </span>
-            </div>
+            </button>
             {!isCompact && (
               <div className="flex items-center gap-2">
                 {themeOptions.map((option) => {
