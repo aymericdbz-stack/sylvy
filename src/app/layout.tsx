@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     "Sylvy is the B2B SaaS platform helping pharmaceutical labs digitize workflows, manage samples, and accelerate discovery.",
 };
 
+///test
+
 export default function RootLayout({
   children,
 }: Readonly<{
