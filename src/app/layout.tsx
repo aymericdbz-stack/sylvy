@@ -3,9 +3,9 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sylvy | SaaS for pharmaceutical labs",
+  title: "Sylvy | AI Lab Assistant for Wet Lab Research",
   description:
-    "Sylvy is the B2B SaaS platform helping pharmaceutical labs digitize workflows, manage samples, and accelerate discovery.",
+    "Sylvy is an AI-native lab assistant that structures experiments, analyzes results, and learns from your lab's own data to accelerate wet lab and pharma research.",
 };
 
 const suppressExtensionErrorsScript = `
