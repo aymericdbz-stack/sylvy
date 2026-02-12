@@ -1112,7 +1112,7 @@ export default function Home() {
         >
           <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16">
             <h2 className="text-balance text-center text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-              Execute your lab workflows in very simple steps !
+              Snap your notebook. Sylvy structures it.
             </h2>
             <div className="mt-12 w-full max-w-3xl">
               <div ref={workflowContainerRef} className="workflow-steps-track">
