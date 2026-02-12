@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,6 +8,30 @@ export const metadata: Metadata = {
     "Sylvy is the B2B SaaS platform helping pharmaceutical labs digitize workflows, manage samples, and accelerate discovery.",
 };
 
+const suppressExtensionErrorsScript = `
+(function () {
+  var message = "Cannot redefine property: ethereum";
+  window.addEventListener(
+    "error",
+    function (event) {
+      if (!event) {
+        return;
+      }
+      var filename = event.filename || "";
+      var errorMessage = event.message || "";
+      if (
+        filename.startsWith("chrome-extension://") &&
+        errorMessage.indexOf(message) !== -1
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    },
+    true
+  );
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -14,9 +39,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className="antialiased"
-      >
+      <body className="antialiased">
+        {process.env.NODE_ENV === "development" && (
+          <Script id="suppress-extension-errors" strategy="beforeInteractive">
+            {suppressExtensionErrorsScript}
+          </Script>
+        )}
         {children}
       </body>
     </html>

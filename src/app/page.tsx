@@ -28,6 +28,8 @@ import sanofiLogo from "../../carrousel/sanofi.webp";
 import servierLogo from "../../carrousel/servier.webp";
 import moleculeDiagram from "../../photos_videos/molecule.webp";
 import towerImage from "../../public/tower.webp";
+import towerOrangeImage from "../../public/tower-orange.webp";
+import towerPurpleImage from "../../public/tower-purple.webp";
 
 const copy = {
   en: {
@@ -48,7 +50,7 @@ const copy = {
       badge: "Pharma cloud platform",
       tagline: "Built for reproducible lab workflows",
       prefixPrimary: "Sylvy",
-      prefixSecondary: "Your wetlab copilot.",
+      prefixSecondary: "Your wet lab copilot",
       rotating: [
         "Generate protocols",
         "Execute workflows",
@@ -493,12 +495,20 @@ const copy = {
 } as const;
 
 type FormStatus = "idle" | "loading" | "success" | "error";
+type ThemeName = "green" | "purple" | "orange";
+
+const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
+  { id: "orange", label: "Deep orange", swatch: "#D65400" },
+  { id: "purple", label: "Deep purple", swatch: "#C074FF" },
+  { id: "green", label: "Deep green", swatch: "#00AC73" },
+];
 
 const SCROLL_THRESHOLD = 60;
 
 export default function Home() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
+  const [theme, setTheme] = useState<ThemeName>("green");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
   const [formState, setFormState] = useState({
@@ -555,68 +565,38 @@ export default function Home() {
       ],
     },
   ];
-  const protocolSteps = [
+  const notebookFeatures = [
+    "Capture handwritten notes",
+    "Parameter detection",
+    "Protocol writing",
+    "Smart tab acquisition",
+    "Sketch generation",
+    "Searchable memory",
+  ];
+  const workflowSteps = [
     {
-      step: 1,
-      duration: "45 sec",
-      action: "Label tubes and scan sample IDs",
-      description:
-        "Record identifiers and verify barcode matches the run sheet before any prep.",
-    },
-    {
-      step: 2,
-      duration: "3 min",
-      action: "Prepare buffer and verify pH range",
-      description:
-        "Mix reagents thoroughly and confirm pH is within the validated range.",
-    },
-    {
-      step: 3,
-      duration: "1 min",
-      action: "Pipette aliquots into the plate",
-      description:
-        "Dispense uniform volumes into each well to ensure consistent readouts.",
-    },
-    {
-      step: 4,
+      step: "Step 7",
       duration: "7 min",
-      action: "Vortex mix and quick-spin down",
-      description:
-        "Homogenize samples and remove bubbles before incubation begins.",
+      title: "Add detection reagent and protect from light",
+      detail: "Dispense reagent evenly and keep plates shielded until readout.",
     },
     {
-      step: 5,
-      duration: "12 min",
-      action: "Incubate at 37°C with gentle agitation",
-      description:
-        "Maintain steady temperature and movement to optimize binding kinetics.",
-    },
-    {
-      step: 6,
-      duration: "2 min",
-      action: "Wash wells with rinse solution (x3)",
-      description:
-        "Clear unbound material between cycles using measured rinse volumes.",
-    },
-    {
-      step: 7,
-      duration: "5 min",
-      action: "Add detection reagent and protect from light",
-      description:
-        "Dispense reagent evenly and keep plates shielded until readout.",
-    },
-    {
-      step: 8,
+      step: "Step 8",
       duration: "90 sec",
-      action: "Capture readout and auto-log results",
-      description:
-        "Record signal intensity and sync the run to your lab notebook.",
+      title: "Capture readout and auto-log results",
+      detail: "Record signal intensity and sync the run to your lab notebook.",
     },
   ];
   const [protocolIndex, setProtocolIndex] = useState(0);
   const lastScrollY = useRef(0);
   const isCompactRef = useRef(false);
   const ticking = useRef(false);
+  const towerAsset =
+    theme === "orange"
+      ? towerOrangeImage
+      : theme === "purple"
+        ? towerPurpleImage
+        : towerImage;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -706,8 +686,17 @@ export default function Home() {
     }
   };
 
+  const themeToggleBase =
+    "h-8 w-8 rounded-full border transition hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  const themeToggleTone = isCompact
+    ? "border-black/10 ring-black/25 ring-offset-white/80"
+    : "border-white/40 ring-white/70 ring-offset-transparent";
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+    <div
+      className="relative min-h-screen overflow-hidden bg-background text-foreground"
+      data-theme={theme}
+    >
       <header
         className={`fixed left-0 right-0 z-[9999] transition-all duration-300 ease-out ${
           isCompact ? "top-3" : "top-0"
@@ -721,12 +710,12 @@ export default function Home() {
           }`}
         >
           <div
-            className={`flex w-full items-center justify-between transition-all duration-300 ease-out ${
+            className={`flex w-full items-center gap-4 transition-all duration-300 ease-out ${
               isCompact ? "px-6 py-3" : "px-6 py-5"
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-950/10 bg-white">
+            <div className="flex flex-1 items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--theme-logo-border)] bg-white">
                 <Image
                   src={logo}
                   alt="Sylvy logo"
@@ -738,19 +727,44 @@ export default function Home() {
               </div>
               <span
                 className={`text-sm font-semibold tracking-[0.2em] uppercase transition-colors duration-300 ${
-                  isCompact ? "text-emerald-950" : "text-emerald-50"
+                  isCompact
+                    ? "text-[color:var(--theme-logo-text-compact)]"
+                    : "text-[color:var(--theme-hero-text)]"
                 }`}
               >
                 Sylvy
               </span>
             </div>
-            <div className="flex items-center gap-4">
+            {!isCompact && (
+              <div className="flex items-center gap-2">
+                {themeOptions.map((option) => {
+                  const isActive = theme === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      aria-label={`Switch to ${option.label} theme`}
+                      aria-pressed={isActive}
+                      title={option.label}
+                      onClick={() => setTheme(option.id)}
+                      className={`${themeToggleBase} ${themeToggleTone} ${
+                        isActive
+                          ? "ring-2 opacity-100"
+                          : "opacity-70 hover:opacity-100"
+                      }`}
+                      style={{ backgroundColor: option.swatch }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex flex-1 justify-end">
               <Button
                 size="sm"
                 className={`rounded-full px-5 transition-all duration-300 ${
                   isCompact
-                    ? "bg-emerald-950 text-white hover:bg-emerald-900"
-                    : "bg-emerald-100 text-emerald-950 hover:bg-emerald-50"
+                    ? "bg-[var(--theme-button-compact-bg)] text-[color:var(--theme-button-compact-text)] hover:bg-[var(--theme-button-compact-hover)]"
+                    : "bg-[var(--theme-button-expanded-bg)] text-[color:var(--theme-button-expanded-text)] hover:bg-[var(--theme-button-expanded-hover)]"
                 }`}
                 onClick={openModal}
               >
@@ -761,24 +775,33 @@ export default function Home() {
         </div>
       </header>
       <HeroIntroGreen />
-      <section className="relative isolate min-h-screen overflow-hidden bg-[#0f2a1f] text-emerald-50">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(64,130,100,0.4),transparent_45%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(120,180,150,0.25),transparent_40%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(6,12,9,0.4),rgba(6,12,9,0)_35%,rgba(6,12,9,0.65))]" />
+      <section
+        className="snap-section relative isolate min-h-screen overflow-hidden text-[color:var(--theme-hero-text)]"
+        style={{ background: "var(--theme-hero-bg)" }}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,var(--theme-hero-glow-one),transparent_45%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,var(--theme-hero-glow-two),transparent_40%)]" />
         <div className="relative">
-          <section id="solutions" className="relative pt-28">
-            <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:pt-16">
+          <section id="solutions" className="relative flex min-h-screen flex-col pt-28">
+            <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:ml-0 lg:mr-auto lg:pt-16">
               <div className="relative z-10 max-w-3xl lg:pr-72">
                 <div className="mt-6 space-y-3">
-                  <div className="space-y-1">
-                    <p className="whitespace-nowrap text-4xl font-medium text-emerald-100 sm:text-5xl lg:text-6xl">
-                      {t.hero.prefixPrimary}
-                    </p>
-                    <p className="whitespace-nowrap text-xl font-medium text-emerald-100 sm:text-2xl lg:text-3xl">
+                  <div>
+                    <p className="whitespace-nowrap text-4xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-5xl lg:text-6xl">
                       {t.hero.prefixSecondary}
+                      <span
+                        aria-hidden="true"
+                        className="ml-3 inline-block h-[0.85em] w-[0.85em] align-[-0.12em]"
+                        style={{
+                          backgroundImage: `url(${logo.src})`,
+                          backgroundRepeat: "no-repeat",
+                          backgroundPosition: "center",
+                          backgroundSize: "contain",
+                        }}
+                      />
                     </p>
                   </div>
-                  <div className="min-h-[3.5rem] text-5xl font-semibold leading-tight text-emerald-50 sm:min-h-[4.5rem] sm:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
+                  <div className="min-h-[3.5rem] text-5xl font-semibold leading-tight text-[color:var(--theme-hero-text)] sm:min-h-[4.5rem] sm:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
                     <span
                       key={rotatingPhrases[phraseIndex]}
                       className="hero-phrase font-display whitespace-nowrap"
@@ -790,15 +813,13 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="relative mt-10 pb-16">
+            <div className="relative mt-auto pb-16 pt-6">
               <div className="mx-auto max-w-6xl px-6">
-                <p className="text-xs uppercase tracking-[0.35em] text-emerald-100/70">
+                <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--theme-hero-text-soft)]">
                   {t.logos.title}
                 </p>
               </div>
               <div className="relative mt-8">
-                <div className="pointer-events-none absolute inset-y-0 left-0 z-20 w-24 bg-gradient-to-r from-[#0f2a1f] to-transparent" />
-                <div className="pointer-events-none absolute inset-y-0 right-0 z-20 w-24 bg-gradient-to-l from-[#0f2a1f] to-transparent" />
                 {/* NOTE: screen_recording.mp4 not accessible here; carousel behavior follows provided spec. */}
                 <div className="logo-marquee hero-carousel">
                   <div className="logo-track">
@@ -833,85 +854,107 @@ export default function Home() {
           </section>
         </div>
         <Image
-          src={towerImage}
+          src={towerAsset}
           alt="Tower illustration"
-          width={towerImage.width}
-          height={towerImage.height}
+          width={towerAsset.width}
+          height={towerAsset.height}
           className="pointer-events-none absolute bottom-0 right-0 z-20 h-[40vh] w-auto translate-x-6 sm:h-[55vh] lg:h-[75vh]"
           priority
         />
       </section>
 
       <main className="relative">
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="flex min-h-[18rem] items-center">
-              <h2 className="text-balance text-3xl text-primary sm:text-4xl lg:text-5xl">
+        <section className="snap-section relative min-h-screen bg-white">
+          <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-start gap-16 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:gap-24">
+            <div className="max-w-[26rem] sm:max-w-[30rem]">
+              <h2 className="text-balance text-4xl font-medium leading-tight text-primary sm:text-5xl lg:text-6xl xl:text-7xl">
                 Execute your lab workflows in very simple steps !
               </h2>
             </div>
-            <div className="relative">
-              <div className="protocol-panel">
-                <div className="protocol-frame-stack">
+            <div className="relative w-full max-w-[44rem] lg:ml-auto">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
+                <div className="protocol-panel w-full lg:w-[28rem]">
+                  <div className="protocol-frame-stack">
+                    {protocolFrames.map((frame, index) => (
+                      <div
+                        key={frame.label}
+                        className={`protocol-frame ${
+                          index === protocolIndex ? "is-active" : ""
+                        }`}
+                      >
+                        <h3 className="protocol-frame-title">{frame.title}</h3>
+                        <div className="protocol-frame-lines">
+                          {frame.lines.map((line) => (
+                            <p key={line}>{line}</p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="protocol-pills protocol-pills--stack">
                   {protocolFrames.map((frame, index) => (
-                    <div
+                    <span
                       key={frame.label}
-                      className={`protocol-frame ${
+                      className={`protocol-pill ${
                         index === protocolIndex ? "is-active" : ""
                       }`}
                     >
-                      <h3 className="protocol-frame-title">{frame.title}</h3>
-                      <div className="protocol-frame-lines">
-                        {frame.lines.map((line) => (
-                          <p key={line}>{line}</p>
-                        ))}
-                      </div>
-                    </div>
+                      {frame.label}
+                    </span>
                   ))}
                 </div>
               </div>
-              <div className="protocol-pills">
-                {protocolFrames.map((frame, index) => (
-                  <span
-                    key={frame.label}
-                    className={`protocol-pill ${
-                      index === protocolIndex ? "is-active" : ""
-                    }`}
-                  >
-                    {frame.label}
-                  </span>
-                ))}
-              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="ai" className="snap-section bg-white text-primary">
+          <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-between px-6 py-16">
+            <h2 className="mx-auto max-w-3xl text-balance text-center text-3xl font-medium leading-tight sm:text-4xl lg:text-5xl">
+              Snap your notebook. Sylvy structures it.
+            </h2>
+            <div className="grid w-full grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-10">
+              {notebookFeatures.map((feature, index) => (
+                <button
+                  key={feature}
+                  type="button"
+                  className="feature-pill"
+                  style={{ animationDelay: `${index * 1}s` }}
+                >
+                  {feature}
+                </button>
+              ))}
             </div>
           </div>
         </section>
 
         <section
-          id="ai"
-          className="flex min-h-screen items-center bg-black text-white"
+          id="workflow-steps"
+          className="snap-section bg-black text-white"
         >
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-10 px-6 py-16 text-center">
-            <h2 className="text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
+            <h2 className="text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
               Execute your lab workflows in very simple steps !
             </h2>
-            <div className="protocol-viewport mx-auto">
-              <div className="protocol-track">
-                {[...protocolSteps, ...protocolSteps].map((step, index) => (
-                  <article key={`${step.step}-${index}`} className="protocol-card">
-                    <h3 className="protocol-title">
-                      Step {step.step} —{" "}
-                      <span className="duration">{step.duration}</span> —{" "}
-                      {step.action}
-                    </h3>
-                    <p className="protocol-description">{step.description}</p>
-                  </article>
-                ))}
-              </div>
+            <div className="mt-12 flex w-full flex-col items-center gap-6">
+              {workflowSteps.map((step) => (
+                <div key={step.title} className="protocol-card protocol-card--wide">
+                  <p className="protocol-title">
+                    {step.step} — <span className="duration">{step.duration}</span>{" "}
+                    — {step.title}
+                  </p>
+                  <p className="protocol-description">{step.detail}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
 
-        <section id="resources" className="mx-auto max-w-6xl px-6 py-16">
+        <section
+          id="resources"
+          className="snap-section mx-auto max-w-6xl px-6 py-16"
+        >
           <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="rounded-3xl border border-border/70 bg-card p-8 shadow-sm">
               <Badge
@@ -954,7 +997,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="platform" className="mx-auto max-w-6xl px-6 py-16">
+        <section
+          id="platform"
+          className="snap-section mx-auto max-w-6xl px-6 py-16"
+        >
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
               <Badge
@@ -984,7 +1030,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="demo" className="mx-auto max-w-6xl px-6 pb-20">
+        <section id="demo" className="snap-section mx-auto max-w-6xl px-6 pb-20">
           <Card className="rounded-3xl border-border/70 bg-card/90 p-0 shadow-sm">
             <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1008,7 +1054,10 @@ export default function Home() {
         </section>
       </main>
 
-      <footer id="company" className="border-t border-border/70 bg-[#0c1d17]">
+      <footer
+        id="company"
+        className="snap-section border-t border-border/70 bg-[#0c1d17]"
+      >
         <div className="mx-auto max-w-6xl px-6 py-12">
           <div className="flex flex-col gap-10">
             <div>
@@ -1095,7 +1144,7 @@ export default function Home() {
                 {formStatus === "loading" ? "..." : t.modal.submit}
               </Button>
               {formStatus === "success" ? (
-                <p className="text-xs text-emerald-600">{t.modal.success}</p>
+                <p className="text-xs text-[color:var(--theme-accent-strong)]">{t.modal.success}</p>
               ) : null}
               {formStatus === "error" ? (
                 <p className="text-xs text-red-600">{t.modal.error}</p>

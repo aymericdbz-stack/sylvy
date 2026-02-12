@@ -1,6 +1,9 @@
 export default function HeroIntroGreen() {
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#063B2B] text-white">
+    <section
+      className="snap-section relative min-h-screen overflow-hidden text-[color:var(--theme-hero-intro-text)]"
+      style={{ background: "var(--theme-hero-intro-bg)" }}
+    >
       <div className="pointer-events-none absolute inset-0">
         <div className="hero-intro-blob hero-intro-blob--one" />
         <div className="hero-intro-blob hero-intro-blob--two" />
@@ -9,10 +12,10 @@ export default function HeroIntroGreen() {
       </div>
       <div className="relative z-10 flex min-h-screen items-center justify-center px-6 text-center">
         <div>
-          <p className="text-[16rem] font-semibold tracking-[0.1em] text-white sm:text-7xl lg:text-7xl">
+          <p className="text-[16rem] font-semibold tracking-[0.1em] text-[color:var(--theme-hero-intro-text)] sm:text-7xl lg:text-7xl">
             FOCUS ON RESEARCH !
           </p>
-          <p className="mt-4 text-2xl font-medium text-white/80 sm:text-3xl lg:text-4xl">
+          <p className="mt-4 text-2xl font-medium text-[color:var(--theme-hero-intro-subtext)] sm:text-3xl lg:text-4xl">
             Sylvy does the boring stuff
           </p>
         </div>
