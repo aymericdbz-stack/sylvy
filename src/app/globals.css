@@ -650,34 +650,46 @@ body {
     display: flex;
     width: 100%;
     max-width: 28rem;
-    height: 12rem;
+    min-height: 12rem;
     flex-direction: column;
     justify-content: center;
     border-radius: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.08);
     padding: 1.25rem;
-    aspect-ratio: 1.586 / 1;
   }
   .protocol-card--wide {
     max-width: 36rem;
+  }
+  .workflow-steps-track {
+    display: grid;
+    justify-items: center;
+    gap: 1.5rem;
+    width: 100%;
+    max-height: clamp(18rem, 55vh, 30rem);
+    padding-block: calc(50% - 6rem);
+    scroll-padding-block: calc(50% - 6rem);
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+  .workflow-steps-track::-webkit-scrollbar {
+    display: none;
+  }
+  .workflow-step {
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
   }
   .protocol-title {
     font-size: 1.05rem;
     font-weight: 600;
     color: #ffffff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   .protocol-description {
     margin-top: 0.75rem;
     font-size: 0.95rem;
     color: rgba(255, 255, 255, 0.7);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
   .duration {
     color: var(--theme-accent-strong);
@@ -774,5 +786,8 @@ body {
   }
   .feature-pill {
     animation: none;
+  }
+  .workflow-steps-track {
+    scroll-behavior: auto;
   }
 }

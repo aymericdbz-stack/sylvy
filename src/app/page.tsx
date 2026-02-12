@@ -504,6 +504,8 @@ const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
 ];
 
 const SCROLL_THRESHOLD = 60;
+const WORKFLOW_AUTO_SCROLL_INTERVAL = 3200;
+const WORKFLOW_AUTO_SCROLL_RESUME_DELAY = 3000;
 
 export default function Home() {
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -575,9 +577,43 @@ export default function Home() {
   ];
   const workflowSteps = [
     {
-      step: "Step 7",
+      step: "Step 1",
+      duration: "45 sec",
+      title: "Label tubes and scan sample IDs",
+      detail:
+        "Record identifiers and verify barcode matches the run sheet before any prep.",
+    },
+    {
+      step: "Step 2",
+      duration: "3 min",
+      title: "Prepare buffer and verify pH range",
+      detail:
+        "Mix reagents thoroughly and confirm pH is within the validated range.",
+    },
+    {
+      step: "Step 3",
+      duration: "1 min",
+      title: "Pipette aliquots into the plate",
+      detail:
+        "Dispense uniform volumes into each well to ensure consistent readouts.",
+    },
+    {
+      step: "Step 4",
       duration: "7 min",
-      title: "Add detection reagent and protect from light",
+      title: "Vortex mix and quick-spin down",
+      detail: "Homogenize samples and remove bubbles before incubation begins.",
+    },
+    {
+      step: "Step 5",
+      duration: "12 min",
+      title: "Incubate at 37°C with gentle agitation",
+      detail:
+        "Maintain steady temperature and movement to optimize binding kinetics.",
+    },
+    {
+      step: "Step 7",
+      duration: "5 min",
+      title: "Add detection reagent and protect plates from light",
       detail: "Dispense reagent evenly and keep plates shielded until readout.",
     },
     {
@@ -588,6 +624,11 @@ export default function Home() {
     },
   ];
   const [protocolIndex, setProtocolIndex] = useState(0);
+  const workflowContainerRef = useRef<HTMLDivElement | null>(null);
+  const workflowIndexRef = useRef(0);
+  const workflowIntervalRef = useRef<number | null>(null);
+  const workflowResumeTimeoutRef = useRef<number | null>(null);
+  const workflowScrollRafRef = useRef<number | null>(null);
   const lastScrollY = useRef(0);
   const isCompactRef = useRef(false);
   const ticking = useRef(false);
@@ -611,6 +652,138 @@ export default function Home() {
     }, 2600);
     return () => clearInterval(interval);
   }, [protocolFrames.length]);
+
+  useEffect(() => {
+    const container = workflowContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const steps = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-workflow-step]"),
+    );
+    if (steps.length === 0) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let isReducedMotion = mediaQuery.matches;
+
+    const scrollToIndex = (index: number) => {
+      const step = steps[index];
+      if (!step) {
+        return;
+      }
+      const target =
+        step.offsetTop - (container.clientHeight - step.clientHeight) / 2;
+      container.scrollTo({
+        top: target,
+        behavior: isReducedMotion ? "auto" : "smooth",
+      });
+    };
+
+    const updateActiveIndex = () => {
+      const center = container.scrollTop + container.clientHeight / 2;
+      let nearestIndex = 0;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      steps.forEach((step, index) => {
+        const stepCenter = step.offsetTop + step.clientHeight / 2;
+        const distance = Math.abs(stepCenter - center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+
+      workflowIndexRef.current = nearestIndex;
+    };
+
+    const stopAutoScroll = () => {
+      if (workflowIntervalRef.current !== null) {
+        window.clearInterval(workflowIntervalRef.current);
+        workflowIntervalRef.current = null;
+      }
+    };
+
+    const scheduleResume = () => {
+      if (workflowResumeTimeoutRef.current !== null) {
+        window.clearTimeout(workflowResumeTimeoutRef.current);
+      }
+      workflowResumeTimeoutRef.current = window.setTimeout(() => {
+        if (!isReducedMotion) {
+          startAutoScroll();
+        }
+      }, WORKFLOW_AUTO_SCROLL_RESUME_DELAY);
+    };
+
+    const startAutoScroll = () => {
+      stopAutoScroll();
+      workflowIntervalRef.current = window.setInterval(() => {
+        const nextIndex = (workflowIndexRef.current + 1) % steps.length;
+        workflowIndexRef.current = nextIndex;
+        scrollToIndex(nextIndex);
+      }, WORKFLOW_AUTO_SCROLL_INTERVAL);
+    };
+
+    const handleUserInput = () => {
+      if (isReducedMotion) {
+        return;
+      }
+      stopAutoScroll();
+      scheduleResume();
+    };
+
+    const handleScroll = () => {
+      if (workflowScrollRafRef.current !== null) {
+        return;
+      }
+      workflowScrollRafRef.current = window.requestAnimationFrame(() => {
+        workflowScrollRafRef.current = null;
+        updateActiveIndex();
+      });
+    };
+
+    const handleMotionChange = () => {
+      isReducedMotion = mediaQuery.matches;
+      if (isReducedMotion) {
+        stopAutoScroll();
+      } else {
+        startAutoScroll();
+      }
+    };
+
+    container.addEventListener("wheel", handleUserInput, { passive: true });
+    container.addEventListener("touchstart", handleUserInput, {
+      passive: true,
+    });
+    container.addEventListener("pointerdown", handleUserInput);
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    mediaQuery.addEventListener("change", handleMotionChange);
+
+    updateActiveIndex();
+    scrollToIndex(workflowIndexRef.current);
+    if (!isReducedMotion) {
+      startAutoScroll();
+    }
+
+    return () => {
+      stopAutoScroll();
+      if (workflowResumeTimeoutRef.current !== null) {
+        window.clearTimeout(workflowResumeTimeoutRef.current);
+        workflowResumeTimeoutRef.current = null;
+      }
+      if (workflowScrollRafRef.current !== null) {
+        window.cancelAnimationFrame(workflowScrollRafRef.current);
+        workflowScrollRafRef.current = null;
+      }
+      container.removeEventListener("wheel", handleUserInput);
+      container.removeEventListener("touchstart", handleUserInput);
+      container.removeEventListener("pointerdown", handleUserInput);
+      container.removeEventListener("scroll", handleScroll);
+      mediaQuery.removeEventListener("change", handleMotionChange);
+    };
+  }, [workflowSteps.length]);
 
 
   useEffect(() => {
@@ -933,20 +1106,27 @@ export default function Home() {
           id="workflow-steps"
           className="snap-section bg-black text-white"
         >
-          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
-            <h2 className="text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16">
+            <h2 className="text-balance text-center text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
               Execute your lab workflows in very simple steps !
             </h2>
-            <div className="mt-12 flex w-full flex-col items-center gap-6">
-              {workflowSteps.map((step) => (
-                <div key={step.title} className="protocol-card protocol-card--wide">
-                  <p className="protocol-title">
-                    {step.step} — <span className="duration">{step.duration}</span>{" "}
-                    — {step.title}
-                  </p>
-                  <p className="protocol-description">{step.detail}</p>
-                </div>
-              ))}
+            <div className="mt-12 w-full max-w-3xl">
+              <div ref={workflowContainerRef} className="workflow-steps-track">
+                {workflowSteps.map((step) => (
+                  <div
+                    key={step.title}
+                    data-workflow-step
+                    className="workflow-step protocol-card protocol-card--wide"
+                  >
+                    <p className="protocol-title">
+                      {step.step} —{" "}
+                      <span className="duration">{step.duration}</span> —{" "}
+                      {step.title}
+                    </p>
+                    <p className="protocol-description">{step.detail}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
