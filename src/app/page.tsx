@@ -843,8 +843,8 @@ export default function Home() {
       </section>
 
       <main className="relative">
-        <section className="mx-auto max-w-6xl px-6 py-16">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="flex min-h-screen items-center bg-white">
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-12 px-6 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="flex min-h-[18rem] items-center">
               <h2 className="text-balance text-3xl text-primary sm:text-4xl lg:text-5xl">
                 Execute your lab workflows in very simple steps !
