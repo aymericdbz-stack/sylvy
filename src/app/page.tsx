@@ -14,11 +14,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import logo from "../../logo/Logo Noir sans Fond.png";
-import logoWhite from "../../logo/Logo Blanc sans Fond.png";
-import sylvyNoteImage from "../../logo/Sylvy note.png";
-import sylvyClockImage from "../../logo/Sylvy clock.png";
-import sylvyBrainImage from "../../logo/Sylvy brain.png";
+import logo from "../../logo/Logo Noir sans Fond.webp";
+import logoWhite from "../../logo/Logo Blanc sans Fond.webp";
+import sylvyNoteImage from "../../logo/Sylvy note.webp";
+import sylvyClockImage from "../../logo/Sylvy clock.webp";
+import sylvyBrainImage from "../../logo/Sylvy brain.webp";
 import abbvieLogo from "../../carrousel/abbvie.webp";
 import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
 import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
@@ -506,9 +506,9 @@ type FormStatus = "idle" | "loading" | "success" | "error";
 type ThemeName = "green" | "purple" | "orange";
 
 const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
+  { id: "green", label: "Deep green", swatch: "#00AC73" },
   { id: "orange", label: "Deep orange", swatch: "#D65400" },
   { id: "purple", label: "Deep purple", swatch: "#C074FF" },
-  { id: "green", label: "Deep green", swatch: "#00AC73" },
 ];
 
 const SCROLL_THRESHOLD = 60;
@@ -1109,41 +1109,12 @@ export default function Home() {
         </section>
 
         <section
-          id="workflow-steps"
+          id="planner"
           className="snap-section bg-black text-white"
         >
-          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 pb-16 pt-24 sm:px-6 sm:pt-32">
-            <h2 className="text-balance text-center text-2xl font-semibold leading-tight sm:text-3xl md:text-4xl lg:text-5xl">
-              Write in your lab notebook. Sylvy structures it.
-            </h2>
-            <div className="mt-6 w-full max-w-3xl">
-              <div ref={workflowContainerRef} className="workflow-steps-track">
-                {workflowSteps.map((step) => (
-                  <div
-                    key={step.title}
-                    data-workflow-step
-                    className="workflow-step protocol-card protocol-card--wide"
-                  >
-                    <p className="protocol-title">
-                      {step.step} —{" "}
-                      <span className="duration">{step.duration}</span> —{" "}
-                      {step.title}
-                    </p>
-                    <p className="protocol-description">{step.detail}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section
-          id="resources"
-          className="snap-section bg-white"
-        >
-          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
+          <div className="flex min-h-screen items-center justify-center px-4 pb-52 sm:px-6">
             <div
-              className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
+              className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-white sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
             >
               <span>Sylvy</span>
