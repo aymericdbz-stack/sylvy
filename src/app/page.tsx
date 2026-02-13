@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator";
 import logo from "../../logo/Logo Noir sans Fond.png";
 import logoWhite from "../../logo/Logo Blanc sans Fond.png";
 import sylvyNoteImage from "../../logo/Sylvy note.png";
+import sylvyClockImage from "../../logo/Sylvy clock.png";
+import sylvyBrainImage from "../../logo/Sylvy brain.png";
 import abbvieLogo from "../../carrousel/abbvie.webp";
 import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
 import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
@@ -634,12 +636,12 @@ export default function Home() {
     },
   ];
   const [protocolIndex, setProtocolIndex] = useState(0);
+  const protocolIntervalRef = useRef<number | null>(null);
+  const protocolResumeTimeoutRef = useRef<number | null>(null);
   const workflowContainerRef = useRef<HTMLDivElement | null>(null);
-  const workflowSectionRef = useRef<HTMLElement | null>(null);
   const workflowIndexRef = useRef(0);
   const workflowIntervalRef = useRef<number | null>(null);
   const workflowResumeTimeoutRef = useRef<number | null>(null);
-  const workflowScrollRafRef = useRef<number | null>(null);
   const lastScrollY = useRef(0);
   const isCompactRef = useRef(false);
   const ticking = useRef(false);
@@ -657,56 +659,56 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [rotatingPhrases.length]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
+  const startProtocolAutoScroll = () => {
+    if (protocolIntervalRef.current !== null) {
+      window.clearInterval(protocolIntervalRef.current);
+    }
+    protocolIntervalRef.current = window.setInterval(() => {
       setProtocolIndex((prev) => (prev + 1) % protocolFrames.length);
     }, 3200);
-    return () => clearInterval(interval);
+  };
+
+  useEffect(() => {
+    startProtocolAutoScroll();
+    return () => {
+      if (protocolIntervalRef.current !== null) {
+        window.clearInterval(protocolIntervalRef.current);
+      }
+      if (protocolResumeTimeoutRef.current !== null) {
+        window.clearTimeout(protocolResumeTimeoutRef.current);
+      }
+    };
   }, [protocolFrames.length]);
+
+  const handleProtocolPillClick = (index: number) => {
+    setProtocolIndex(index);
+    if (protocolIntervalRef.current !== null) {
+      window.clearInterval(protocolIntervalRef.current);
+      protocolIntervalRef.current = null;
+    }
+    if (protocolResumeTimeoutRef.current !== null) {
+      window.clearTimeout(protocolResumeTimeoutRef.current);
+    }
+    protocolResumeTimeoutRef.current = window.setTimeout(() => {
+      startProtocolAutoScroll();
+    }, 10000);
+  };
 
   useEffect(() => {
     const container = workflowContainerRef.current;
-    const section = workflowSectionRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     const steps = Array.from(
       container.querySelectorAll<HTMLElement>("[data-workflow-step]"),
     );
-    if (steps.length === 0) {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let isReducedMotion = mediaQuery.matches;
-    let isInView = false;
+    if (steps.length === 0) return;
 
     const scrollToIndex = (index: number) => {
       const step = steps[index];
-      if (!step) {
-        return;
-      }
+      if (!step) return;
       const target =
         step.offsetTop - (container.clientHeight - step.clientHeight) / 2;
       container.scrollTo({ top: target, behavior: "smooth" });
-    };
-
-    const updateActiveIndex = () => {
-      const center = container.scrollTop + container.clientHeight / 2;
-      let nearestIndex = 0;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      steps.forEach((step, index) => {
-        const stepCenter = step.offsetTop + step.clientHeight / 2;
-        const distance = Math.abs(stepCenter - center);
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestIndex = index;
-        }
-      });
-
-      workflowIndexRef.current = nearestIndex;
     };
 
     const stopAutoScroll = () => {
@@ -714,17 +716,6 @@ export default function Home() {
         window.clearInterval(workflowIntervalRef.current);
         workflowIntervalRef.current = null;
       }
-    };
-
-    const scheduleResume = () => {
-      if (workflowResumeTimeoutRef.current !== null) {
-        window.clearTimeout(workflowResumeTimeoutRef.current);
-      }
-      workflowResumeTimeoutRef.current = window.setTimeout(() => {
-        if (!isReducedMotion && isInView) {
-          startAutoScroll();
-        }
-      }, WORKFLOW_AUTO_SCROLL_RESUME_DELAY);
     };
 
     const startAutoScroll = () => {
@@ -737,87 +728,29 @@ export default function Home() {
     };
 
     const handleUserInput = () => {
-      if (isReducedMotion) {
-        return;
-      }
       stopAutoScroll();
-      scheduleResume();
-    };
-
-    const handleScroll = () => {
-      if (workflowScrollRafRef.current !== null) {
-        return;
+      if (workflowResumeTimeoutRef.current !== null) {
+        window.clearTimeout(workflowResumeTimeoutRef.current);
       }
-      workflowScrollRafRef.current = window.requestAnimationFrame(() => {
-        workflowScrollRafRef.current = null;
-        updateActiveIndex();
-      });
-    };
-
-    const handleMotionChange = () => {
-      isReducedMotion = mediaQuery.matches;
-      if (isReducedMotion) {
-        stopAutoScroll();
-      } else if (isInView) {
+      workflowResumeTimeoutRef.current = window.setTimeout(() => {
         startAutoScroll();
-      }
+      }, WORKFLOW_AUTO_SCROLL_RESUME_DELAY);
     };
 
-    container.addEventListener("touchstart", handleUserInput, {
-      passive: true,
-    });
+    container.addEventListener("touchstart", handleUserInput, { passive: true });
     container.addEventListener("pointerdown", handleUserInput);
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    mediaQuery.addEventListener("change", handleMotionChange);
 
-    updateActiveIndex();
-    scrollToIndex(workflowIndexRef.current);
-
-    let startDelayTimeout: number | null = null;
-
-    let observer: IntersectionObserver | null = null;
-    if (section && "IntersectionObserver" in window) {
-      observer = new IntersectionObserver(
-        ([entry]) => {
-          isInView = entry.isIntersecting;
-          if (isInView && !isReducedMotion) {
-            startDelayTimeout = window.setTimeout(() => {
-              if (isInView && !isReducedMotion) startAutoScroll();
-            }, 500);
-          } else {
-            if (startDelayTimeout !== null) {
-              window.clearTimeout(startDelayTimeout);
-              startDelayTimeout = null;
-            }
-            stopAutoScroll();
-          }
-        },
-        { threshold: 0.9 },
-      );
-      observer.observe(section);
-    } else {
-      isInView = true;
-      if (!isReducedMotion) {
-        startAutoScroll();
-      }
-    }
+    // Start auto-scroll immediately
+    startAutoScroll();
 
     return () => {
       stopAutoScroll();
-      observer?.disconnect();
-      if (startDelayTimeout !== null) window.clearTimeout(startDelayTimeout);
       if (workflowResumeTimeoutRef.current !== null) {
         window.clearTimeout(workflowResumeTimeoutRef.current);
         workflowResumeTimeoutRef.current = null;
       }
-      if (workflowScrollRafRef.current !== null) {
-        window.cancelAnimationFrame(workflowScrollRafRef.current);
-        workflowScrollRafRef.current = null;
-      }
       container.removeEventListener("touchstart", handleUserInput);
       container.removeEventListener("pointerdown", handleUserInput);
-      container.removeEventListener("scroll", handleScroll);
-      mediaQuery.removeEventListener("change", handleMotionChange);
     };
   }, [workflowSteps.length]);
 
@@ -1002,10 +935,10 @@ export default function Home() {
         {/* Intro — premier écran */}
         <div className="relative z-10 flex min-h-screen items-center justify-center px-6 text-center">
           <div>
-            <p className="text-7xl font-semibold tracking-[0.05em] text-[color:var(--theme-hero-text)] sm:text-8xl lg:text-7xl">
+            <p className="text-3xl font-semibold tracking-[0.05em] text-[color:var(--theme-hero-text)] sm:text-5xl md:text-7xl lg:text-7xl">
               FOCUS ON RESEARCH
             </p>
-            <p className="mt-4 text-2xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-3xl lg:text-4xl">
+            <p className="mt-4 text-base font-medium text-[color:var(--theme-hero-text-muted)] sm:text-2xl md:text-3xl lg:text-4xl">
               Sylvy does the boring stuff
             </p>
           </div>
@@ -1013,11 +946,11 @@ export default function Home() {
         {/* Hero — deuxième écran */}
         <div className="relative">
           <section id="solutions" className="relative flex min-h-screen flex-col pt-28">
-            <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:ml-0 lg:mr-auto lg:pt-16">
+            <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-6 lg:ml-0 lg:mr-auto lg:pt-16">
               <div className="relative z-10 max-w-3xl lg:pr-72">
                 <div className="mt-6 space-y-3">
                   <div>
-                    <p className="whitespace-nowrap text-4xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-5xl lg:text-6xl">
+                    <p className="text-2xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-4xl md:whitespace-nowrap md:text-5xl lg:text-6xl">
                       {t.hero.prefixSecondary}
                       <span
                         aria-hidden="true"
@@ -1031,10 +964,10 @@ export default function Home() {
                       />
                     </p>
                   </div>
-                  <div className="min-h-[3.5rem] text-5xl font-semibold leading-tight text-[color:var(--theme-hero-text)] sm:min-h-[4.5rem] sm:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
+                  <div className="min-h-[2.5rem] text-3xl font-semibold leading-tight text-[color:var(--theme-hero-text)] sm:min-h-[4.5rem] sm:text-5xl md:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
                     <span
                       key={rotatingPhrases[phraseIndex]}
-                      className="hero-phrase font-display whitespace-nowrap"
+                      className="hero-phrase font-display sm:whitespace-nowrap"
                     >
                       {rotatingPhrases[phraseIndex]}
                     </span>
@@ -1060,7 +993,7 @@ export default function Home() {
                           alt={logoItem.alt}
                           width={320}
                           height={150}
-                          className="h-20 w-auto object-contain opacity-90"
+                          className="h-12 w-auto object-contain opacity-90 sm:h-20"
                         />
                       </div>
                     ))}
@@ -1073,7 +1006,7 @@ export default function Home() {
                           alt={logoItem.alt}
                           width={320}
                           height={150}
-                          className="h-20 w-auto object-contain opacity-80"
+                          className="h-12 w-auto object-contain opacity-80 sm:h-20"
                         />
                       </div>
                     ))}
@@ -1088,17 +1021,17 @@ export default function Home() {
           alt="Tower illustration"
           width={towerAsset.width}
           height={towerAsset.height}
-          className="pointer-events-none absolute bottom-0 right-0 z-20 h-[40vh] w-auto translate-x-6 sm:h-[55vh] lg:h-[75vh]"
+          className="pointer-events-none absolute bottom-0 right-0 z-20 h-[25vh] w-auto translate-x-6 sm:h-[40vh] md:h-[55vh] lg:h-[75vh]"
           priority
         />
       </section>
 
       <main className="relative">
         <section className="snap-section relative min-h-screen bg-white">
-          <div className="flex items-center justify-center px-6 pb-16 pt-56">
+          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
             <div
-              className="flex items-center gap-4 font-semibold leading-none tracking-tight text-black"
-              style={{ fontSize: "clamp(2rem, 7vw, 6rem)" }}
+              className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
+              style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
             >
               <span>Sylvy</span>
               <Image
@@ -1112,7 +1045,7 @@ export default function Home() {
               <span>notebook</span>
             </div>
           </div>
-          <div className="mx-auto w-full max-w-5xl px-6 pb-16">
+          <div className="mx-auto w-full max-w-5xl px-4 pb-16 sm:px-6">
             <NotebookMorphDrag
               beforeSrc={notebookAfter}
               afterSrc={notebookBefore}
@@ -1122,15 +1055,29 @@ export default function Home() {
               aspectRatio="16/9"
             />
           </div>
-          <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-start gap-16 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:gap-24">
-            <div className="max-w-[26rem] sm:max-w-[30rem]">
-              <h2 className="text-balance text-4xl font-medium leading-tight text-primary sm:text-5xl lg:text-6xl xl:text-7xl">
+          <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-10 px-4 py-16 sm:gap-16 sm:px-6">
+            <div className="w-full">
+              <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
                 Snap your notebook, Sylvy structures it.
               </h2>
             </div>
-            <div className="relative w-full max-w-[44rem] lg:ml-auto">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-8">
-                <div className="protocol-panel w-full lg:w-[28rem]">
+            <div className="relative w-full">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+                <div className="protocol-pills protocol-pills--stack shrink-0 sm:w-auto">
+                  {protocolFrames.map((frame, index) => (
+                    <button
+                      type="button"
+                      key={frame.label}
+                      onClick={() => handleProtocolPillClick(index)}
+                      className={`protocol-pill ${
+                        index === protocolIndex ? "is-active" : ""
+                      }`}
+                    >
+                      {frame.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="protocol-panel protocol-panel--large w-full">
                   <div className="protocol-frame-stack">
                     {protocolFrames.map((frame, index) => (
                       <div
@@ -1156,18 +1103,6 @@ export default function Home() {
                     ))}
                   </div>
                 </div>
-                <div className="protocol-pills protocol-pills--stack">
-                  {protocolFrames.map((frame, index) => (
-                    <span
-                      key={frame.label}
-                      className={`protocol-pill ${
-                        index === protocolIndex ? "is-active" : ""
-                      }`}
-                    >
-                      {frame.label}
-                    </span>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -1176,10 +1111,9 @@ export default function Home() {
         <section
           id="workflow-steps"
           className="snap-section bg-black text-white"
-          ref={workflowSectionRef}
         >
-          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 pb-16 pt-32">
-            <h2 className="text-balance text-center text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-4 pb-16 pt-24 sm:px-6 sm:pt-32">
+            <h2 className="text-balance text-center text-2xl font-semibold leading-tight sm:text-3xl md:text-4xl lg:text-5xl">
               Write in your lab notebook. Sylvy structures it.
             </h2>
             <div className="mt-6 w-full max-w-3xl">
@@ -1205,53 +1139,53 @@ export default function Home() {
 
         <section
           id="resources"
-          className="snap-section mx-auto max-w-6xl px-6 py-16"
+          className="snap-section bg-white"
         >
-          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-3xl border border-border/70 bg-card p-8 shadow-sm">
-              <Badge
-                variant="outline"
-                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
-              >
-                {t.resources.badge}
-              </Badge>
-              <h3 className="font-display text-2xl text-primary sm:text-3xl">
-                {t.resources.reportTitle}
-              </h3>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {t.resources.reportDescription}
-              </p>
-              <Button className="mt-6 rounded-full px-6" variant="outline">
-                {t.resources.reportCta}
-              </Button>
-              <div className="mt-6 rounded-2xl border border-border/60 bg-white p-4 text-xs text-muted-foreground">
-                {t.resources.reportNote}
-              </div>
+          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
+            <div
+              className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
+              style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
+            >
+              <span>Sylvy</span>
+              <Image
+                src={sylvyClockImage}
+                alt="Sylvy clock"
+                width={120}
+                height={120}
+                className="w-auto object-contain"
+                style={{ height: "1.3em" }}
+              />
+              <span>planner</span>
             </div>
-            <div className="grid gap-4">
-              {t.resources.stats.map((stat, index) => (
-                <Card
-                  key={stat.value}
-                  className="animate-fade-up rounded-3xl border-border/70 bg-card/80 p-0 shadow-sm"
-                  style={{ animationDelay: `${index * 120}ms` }}
-                >
-                  <div className="space-y-2 p-6">
-                    <p className="text-3xl font-semibold text-foreground">
-                      {stat.value}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {stat.label}
-                    </p>
-                  </div>
-                </Card>
-              ))}
+          </div>
+        </section>
+
+        <section
+          id="labmind"
+          className="snap-section bg-white"
+        >
+          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
+            <div
+              className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
+              style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
+            >
+              <span>Sylvy</span>
+              <Image
+                src={sylvyBrainImage}
+                alt="Sylvy labmind"
+                width={120}
+                height={120}
+                className="w-auto object-contain"
+                style={{ height: "1.3em" }}
+              />
+              <span>labmind</span>
             </div>
           </div>
         </section>
 
         <section
           id="platform"
-          className="snap-section mx-auto max-w-6xl px-6 py-16"
+          className="snap-section mx-auto max-w-6xl px-4 py-16 sm:px-6"
         >
           <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div>
@@ -1282,7 +1216,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="demo" className="snap-section mx-auto max-w-6xl px-6 pb-20">
+        <section id="demo" className="snap-section mx-auto max-w-6xl px-4 pb-20 sm:px-6">
           <Card className="rounded-3xl border-border/70 bg-card/90 p-0 shadow-sm">
             <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1310,37 +1244,55 @@ export default function Home() {
         id="company"
         className="snap-section border-t border-border/70 bg-[#0c1d17]"
       >
-        <div className="mx-auto max-w-6xl px-6 py-12">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <div className="flex flex-col gap-10">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
-                  <Image
-                    src={logo}
-                    alt="Sylvy logo"
-                    width={26}
-                    height={26}
-                    className="h-6 w-6 object-contain"
-                  />
+            <div className="flex flex-col gap-10 sm:flex-row sm:gap-16">
+              <div className="shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
+                    <Image
+                      src={logo}
+                      alt="Sylvy logo"
+                      width={26}
+                      height={26}
+                      className="h-6 w-6 object-contain"
+                    />
+                  </div>
+                  <span className="text-lg font-semibold tracking-tight">
+                    {t.footer.addressTitle}
+                  </span>
                 </div>
-                <span className="text-lg font-semibold tracking-tight">
-                  {t.footer.addressTitle}
-                </span>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  {t.footer.address}
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button variant="outline" className="rounded-full px-5">
+                    {t.footer.buttons.contact}
+                  </Button>
+                  <Button variant="secondary" className="rounded-full px-5">
+                    {t.footer.buttons.support}
+                  </Button>
+                </div>
+                <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  {t.footer.social.map((item) => (
+                    <span key={item}>{item}</span>
+                  ))}
+                </div>
               </div>
-              <p className="mt-4 text-sm text-muted-foreground">
-                {t.footer.address}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button variant="outline" className="rounded-full px-5">
-                  {t.footer.buttons.contact}
-                </Button>
-                <Button variant="secondary" className="rounded-full px-5">
-                  {t.footer.buttons.support}
-                </Button>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                {t.footer.social.map((item) => (
-                  <span key={item}>{item}</span>
+              <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
+                {t.footer.columns.map((col) => (
+                  <div key={col.title}>
+                    <p className="text-sm font-semibold text-white">{col.title}</p>
+                    <ul className="mt-3 space-y-2">
+                      {col.links.map((link) => (
+                        <li key={link}>
+                          <span className="text-xs text-muted-foreground hover:text-white cursor-pointer transition-colors">
+                            {link}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
               </div>
             </div>
