@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import logo from "../../logo/Logo Noir sans Fond.png";
+import logoWhite from "../../logo/Logo Blanc sans Fond.png";
 import sylvyNoteImage from "../../logo/Sylvy note.png";
 import abbvieLogo from "../../carrousel/abbvie.webp";
 import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
@@ -27,6 +28,9 @@ import ucBerkeleyLogo from "../../carrousel/uc_berkeley.webp";
 import sanofiLogo from "../../carrousel/sanofi.webp";
 import servierLogo from "../../carrousel/servier.webp";
 import moleculeDiagram from "../../photos_videos/molecule.webp";
+import notebookBefore from "../../photos_videos/Pierre_et_Marie_Curie.png";
+import notebookAfter from "../../photos_videos/Sylvy_notebook.png";
+import NotebookMorphDrag from "@/components/NotebookMorphDrag";
 import towerImage from "../../public/tower.webp";
 import towerOrangeImage from "../../public/tower-orange.webp";
 import towerPurpleImage from "../../public/tower-purple.webp";
@@ -920,19 +924,21 @@ export default function Home() {
               isCompact ? "px-6 py-3" : "px-6 py-5"
             }`}
           >
-            <div className="flex flex-1 items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--theme-logo-border)] bg-white">
-                <Image
-                  src={logo}
-                  alt="Sylvy logo"
-                  width={26}
-                  height={26}
-                  className="h-6 w-6 object-contain"
-                  priority
-                />
-              </div>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="flex flex-1 items-center gap-3"
+            >
+              <Image
+                src={isCompact ? logo : logoWhite}
+                alt="Sylvy logo"
+                width={26}
+                height={26}
+                className="h-6 w-6 object-contain"
+                priority
+              />
               <span
-                className={`text-sm font-semibold tracking-[0.2em] uppercase transition-colors duration-300 ${
+                className={`text-sm font-semibold tracking-[0.2em] transition-colors duration-300 ${
                   isCompact
                     ? "text-[color:var(--theme-logo-text-compact)]"
                     : "text-[color:var(--theme-hero-text)]"
@@ -940,7 +946,7 @@ export default function Home() {
               >
                 Sylvy
               </span>
-            </div>
+            </button>
             {!isCompact && (
               <div className="flex items-center gap-2">
                 {themeOptions.map((option) => {
@@ -1089,7 +1095,7 @@ export default function Home() {
 
       <main className="relative">
         <section className="snap-section relative min-h-screen bg-white">
-          <div className="flex items-center justify-center px-6 py-24">
+          <div className="flex items-center justify-center px-6 pb-16 pt-56">
             <div
               className="flex items-center gap-4 font-semibold leading-none tracking-tight text-black"
               style={{ fontSize: "clamp(2rem, 7vw, 6rem)" }}
@@ -1103,8 +1109,18 @@ export default function Home() {
                 className="w-auto object-contain"
                 style={{ height: "1.3em" }}
               />
-              <span>note.β</span>
+              <span>notebook</span>
             </div>
+          </div>
+          <div className="mx-auto w-full max-w-5xl px-6 pb-16">
+            <NotebookMorphDrag
+              beforeSrc={notebookAfter}
+              afterSrc={notebookBefore}
+              beforeAlt="Carnet numérique Sylvy"
+              afterAlt="Notes manuscrites"
+              initial={0.5}
+              aspectRatio="16/9"
+            />
           </div>
           <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-start gap-16 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:gap-24">
             <div className="max-w-[26rem] sm:max-w-[30rem]">
