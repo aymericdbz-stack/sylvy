@@ -62,7 +62,7 @@ const copy = {
         "Secure, compliant data",
         "Cross-site collaboration",
       ],
-      primaryCta: "Request a demo",
+      primaryCta: "Try it !",
       secondaryCta: "Sign up",
     },
     modalitiesLabel: "Therapies",
@@ -192,7 +192,7 @@ const copy = {
       title: "Ready to modernize your lab?",
       description:
         "See how Sylvy unifies ELN, LIMS, and analytics for faster decisions.",
-      primary: "Request a demo",
+      primary: "Try it !",
       secondary: "Sign up",
     },
     footer: {
@@ -251,12 +251,13 @@ const copy = {
       legal: "Copyright 2026 Sylvy. All rights reserved.",
     },
     modal: {
-      title: "Request a demo",
+      title: "Try it !",
       description: "Tell us about your lab and we will reach out.",
       firstName: "First name",
       lastName: "Last name",
       email: "Work email",
-      submit: "Request demo",
+      phone: "Phone number",
+      submit: "Try it !",
       cancel: "Cancel",
       success: "Thanks. We will reach out.",
       error: "Something went wrong.",
@@ -292,7 +293,7 @@ const copy = {
         "Donnees securisees",
         "Collaboration multi-sites",
       ],
-      primaryCta: "Request a demo",
+      primaryCta: "Try it !",
       secondaryCta: "Sign up",
     },
     modalitiesLabel: "Therapies",
@@ -422,7 +423,7 @@ const copy = {
       title: "Pret a moderniser votre labo ?",
       description:
         "Voyez comment Sylvy unifie ELN, LIMS et analytics pour des decisions rapides.",
-      primary: "Request a demo",
+      primary: "Try it !",
       secondary: "Sign up",
     },
     footer: {
@@ -481,12 +482,13 @@ const copy = {
       legal: "Copyright 2025 Sylvy. Tous droits reserves.",
     },
     modal: {
-      title: "Request a demo",
+      title: "Try it !",
       description: "Parlez-nous de votre labo, nous vous recontacterons.",
       firstName: "Prenom",
       lastName: "Nom",
       email: "Email pro",
-      submit: "Request demo",
+      phone: "Telephone",
+      submit: "Try it !",
       cancel: "Annuler",
       success: "Merci. Nous vous recontactons.",
       error: "Une erreur est survenue.",
@@ -504,8 +506,8 @@ const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
 ];
 
 const SCROLL_THRESHOLD = 60;
-const WORKFLOW_AUTO_SCROLL_INTERVAL = 3200;
-const WORKFLOW_AUTO_SCROLL_RESUME_DELAY = 3000;
+const WORKFLOW_AUTO_SCROLL_INTERVAL = 6500;
+const WORKFLOW_AUTO_SCROLL_RESUME_DELAY = 4000;
 
 export default function Home() {
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -517,6 +519,7 @@ export default function Home() {
     firstName: "",
     lastName: "",
     email: "",
+    phone: "",
   });
 
   const t = copy.en;
@@ -537,33 +540,36 @@ export default function Home() {
   ];
   const protocolFrames = [
     {
-      label: "Western blot",
-      title: "Protocol: Western blot — v3.2",
+      label: "Handwritten notes structuring",
+      title: "Handwritten notes structuring",
       lines: [
-        "1. Prepare lysis buffer (RIPA + inhibitors).",
-        "2. Quantify protein concentration (BCA).",
-        "3. Load 20 µg per lane; run SDS-PAGE 120V, 55 min.",
-        "Note (Alex): Use fresh DTT for sharper bands.",
+        "• Take picture of your notes,",
+        "• Sylvy automatically structures all of it,",
+        "• Tables, formulas and sketchs are digitalized,",
+        "",
+        "Your lab notebook is now updated !",
       ],
     },
     {
-      label: "ELISA assay",
-      title: "Protocol: ELISA assay — v2.1",
+      label: "Smart protocols generation",
+      title: "Smart protocols generation",
       lines: [
-        "1. Coat plate with capture antibody overnight.",
-        "2. Block with 1% BSA for 45 min.",
-        "3. Add samples in triplicate; incubate 60 min.",
-        "Note (Mina): Use fresh standards for curve accuracy.",
+        "• Simply explain what you want to do,",
+        "• Sylvy detects key parameters and techniques,",
+        "• Lab equipment and previous experiment are explored,",
+        "",
+        "You get a entirely taylor-made protocol !",
       ],
     },
     {
-      label: "RNA extraction",
-      title: "Protocol: RNA extraction — v4.0",
+      label: "Explore your notebook history",
+      title: "Explore your notebook history",
       lines: [
-        "1. Lyse cells in guanidinium buffer.",
-        "2. Bind RNA to column; wash twice.",
-        "3. Elute in RNase-free water; keep on ice.",
-        "Note (Sam): Warm elution buffer to 60°C.",
+        "• Your lab notebook history is stored,",
+        "• Ask Sylvy any question about you previous work,",
+        "• Sylvy answers according to everything you did,",
+        "",
+        "You just saved a life time !",
       ],
     },
   ];
@@ -625,6 +631,7 @@ export default function Home() {
   ];
   const [protocolIndex, setProtocolIndex] = useState(0);
   const workflowContainerRef = useRef<HTMLDivElement | null>(null);
+  const workflowSectionRef = useRef<HTMLElement | null>(null);
   const workflowIndexRef = useRef(0);
   const workflowIntervalRef = useRef<number | null>(null);
   const workflowResumeTimeoutRef = useRef<number | null>(null);
@@ -649,12 +656,13 @@ export default function Home() {
   useEffect(() => {
     const interval = setInterval(() => {
       setProtocolIndex((prev) => (prev + 1) % protocolFrames.length);
-    }, 2600);
+    }, 3200);
     return () => clearInterval(interval);
   }, [protocolFrames.length]);
 
   useEffect(() => {
     const container = workflowContainerRef.current;
+    const section = workflowSectionRef.current;
     if (!container) {
       return;
     }
@@ -668,6 +676,7 @@ export default function Home() {
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     let isReducedMotion = mediaQuery.matches;
+    let isInView = false;
 
     const scrollToIndex = (index: number) => {
       const step = steps[index];
@@ -676,10 +685,7 @@ export default function Home() {
       }
       const target =
         step.offsetTop - (container.clientHeight - step.clientHeight) / 2;
-      container.scrollTo({
-        top: target,
-        behavior: isReducedMotion ? "auto" : "smooth",
-      });
+      container.scrollTo({ top: target, behavior: "smooth" });
     };
 
     const updateActiveIndex = () => {
@@ -711,7 +717,7 @@ export default function Home() {
         window.clearTimeout(workflowResumeTimeoutRef.current);
       }
       workflowResumeTimeoutRef.current = window.setTimeout(() => {
-        if (!isReducedMotion) {
+        if (!isReducedMotion && isInView) {
           startAutoScroll();
         }
       }, WORKFLOW_AUTO_SCROLL_RESUME_DELAY);
@@ -748,7 +754,7 @@ export default function Home() {
       isReducedMotion = mediaQuery.matches;
       if (isReducedMotion) {
         stopAutoScroll();
-      } else {
+      } else if (isInView) {
         startAutoScroll();
       }
     };
@@ -763,12 +769,31 @@ export default function Home() {
 
     updateActiveIndex();
     scrollToIndex(workflowIndexRef.current);
-    if (!isReducedMotion) {
-      startAutoScroll();
+
+    let observer: IntersectionObserver | null = null;
+    if (section && "IntersectionObserver" in window) {
+      observer = new IntersectionObserver(
+        ([entry]) => {
+          isInView = entry.isIntersecting;
+          if (isInView && !isReducedMotion) {
+            startAutoScroll();
+          } else {
+            stopAutoScroll();
+          }
+        },
+        { threshold: 0.35 },
+      );
+      observer.observe(section);
+    } else {
+      isInView = true;
+      if (!isReducedMotion) {
+        startAutoScroll();
+      }
     }
 
     return () => {
       stopAutoScroll();
+      observer?.disconnect();
       if (workflowResumeTimeoutRef.current !== null) {
         window.clearTimeout(workflowResumeTimeoutRef.current);
         workflowResumeTimeoutRef.current = null;
@@ -845,6 +870,7 @@ export default function Home() {
           firstName: formState.firstName.trim(),
           lastName: formState.lastName.trim(),
           email: formState.email.trim(),
+          phone: formState.phone.trim(),
         }),
       });
 
@@ -853,7 +879,7 @@ export default function Home() {
       }
 
       setFormStatus("success");
-      setFormState({ firstName: "", lastName: "", email: "" });
+      setFormState({ firstName: "", lastName: "", email: "", phone: "" });
     } catch {
       setFormStatus("error");
     }
@@ -887,11 +913,7 @@ export default function Home() {
               isCompact ? "px-6 py-3" : "px-6 py-5"
             }`}
           >
-            <button
-              type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="flex flex-1 cursor-pointer items-center gap-3"
-            >
+            <div className="flex flex-1 items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--theme-logo-border)] bg-white">
                 <Image
                   src={logo}
@@ -911,7 +933,7 @@ export default function Home() {
               >
                 Sylvy
               </span>
-            </button>
+            </div>
             {!isCompact && (
               <div className="flex items-center gap-2">
                 {themeOptions.map((option) => {
@@ -1045,7 +1067,7 @@ export default function Home() {
           <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-start gap-16 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:gap-24">
             <div className="max-w-[26rem] sm:max-w-[30rem]">
               <h2 className="text-balance text-4xl font-medium leading-tight text-primary sm:text-5xl lg:text-6xl xl:text-7xl">
-                Execute your lab workflows in very simple steps !
+                Snap your notebook, Sylvy structures it.
               </h2>
             </div>
             <div className="relative w-full max-w-[44rem] lg:ml-auto">
@@ -1061,9 +1083,16 @@ export default function Home() {
                       >
                         <h3 className="protocol-frame-title">{frame.title}</h3>
                         <div className="protocol-frame-lines">
-                          {frame.lines.map((line) => (
-                            <p key={line}>{line}</p>
-                          ))}
+                          {frame.lines.map((line) => {
+                            const isEmphasis = line.includes(
+                              "Your lab notebook is updated",
+                            );
+                            return (
+                              <p key={line} className={isEmphasis ? "font-semibold" : undefined}>
+                                {line}
+                              </p>
+                            );
+                          })}
                         </div>
                       </div>
                     ))}
@@ -1086,35 +1115,16 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="ai" className="snap-section bg-white text-primary">
-          <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-between px-6 py-16">
-            <h2 className="mx-auto max-w-3xl text-balance text-center text-3xl font-medium leading-tight sm:text-4xl lg:text-5xl">
-              Snap your notebook. Sylvy structures it.
-            </h2>
-            <div className="grid w-full grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-10">
-              {notebookFeatures.map((feature, index) => (
-                <button
-                  key={feature}
-                  type="button"
-                  className="feature-pill"
-                  style={{ animationDelay: `${index * 1}s` }}
-                >
-                  {feature}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section
           id="workflow-steps"
           className="snap-section bg-black text-white"
+          ref={workflowSectionRef}
         >
-          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16">
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 pb-16 pt-32">
             <h2 className="text-balance text-center text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
-              Snap your notebook. Sylvy structures it.
+              Write in your lab notebook. Sylvy structures it.
             </h2>
-            <div className="mt-12 w-full max-w-3xl">
+            <div className="mt-6 w-full max-w-3xl">
               <div ref={workflowContainerRef} className="workflow-steps-track">
                 {workflowSteps.map((step) => (
                   <div
@@ -1321,6 +1331,14 @@ export default function Home() {
                 type="email"
                 placeholder={t.modal.email}
                 value={formState.email}
+                onChange={handleChange}
+                required
+              />
+              <Input
+                name="phone"
+                type="tel"
+                placeholder={t.modal.phone}
+                value={formState.phone}
                 onChange={handleChange}
                 required
               />

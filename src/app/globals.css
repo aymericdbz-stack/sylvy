@@ -96,9 +96,10 @@ body {
 }
 
 :root {
-  --font-body: "Pulp";
-  --font-display: "Pulp";
-  --font-code: "Pulp";
+  --font-title: "Google Sans Code";
+  --font-body: var(--font-title);
+  --font-display: var(--font-title);
+  --font-code: var(--font-title);
   --radius: 1.25rem;
   --background: #faf9f6;
   --foreground: oklch(0.2 0 0);
@@ -357,10 +358,18 @@ body {
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: "Pulp";
+    font-family: var(--font-title), sans-serif;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-title), sans-serif;
   }
   .font-display {
-    font-family: "Pulp";
+    font-family: var(--font-title), sans-serif;
   }
 }
 
@@ -592,11 +601,13 @@ body {
     color: rgba(20, 53, 37, 0.7);
     box-shadow: 0 10px 20px rgba(15, 42, 31, 0.08);
     transition: color 0.3s ease, background 0.3s ease, border 0.3s ease;
+    white-space: nowrap;
   }
   .protocol-pill.is-active {
-    background: rgba(201, 242, 207, 0.9);
-    border-color: rgba(20, 53, 37, 0.2);
-    color: #143525;
+    background: var(--theme-accent-strong);
+    border-color: var(--theme-accent-strong);
+    color: #ffffff;
+    box-shadow: var(--theme-feature-pill-shadow);
   }
 
   .feature-pill {
@@ -611,6 +622,7 @@ body {
     box-shadow: none;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     animation: feature-highlight 6s infinite;
+    white-space: nowrap;
   }
   .feature-pill:focus-visible {
     outline: none;
@@ -632,7 +644,12 @@ body {
     }
     .protocol-pills--stack {
       flex-direction: column;
-      align-items: flex-start;
+      align-items: stretch;
+      width: max-content;
+    }
+    .protocol-pills--stack .protocol-pill {
+      width: 100%;
+      text-align: center;
     }
   }
   .protocol-viewport {
