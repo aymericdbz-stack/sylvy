@@ -515,6 +515,63 @@ const SCROLL_THRESHOLD = 60;
 const WORKFLOW_AUTO_SCROLL_INTERVAL = 6500;
 const WORKFLOW_AUTO_SCROLL_RESUME_DELAY = 4000;
 
+const PLANNER_CHAT_ITEMS = [
+  { text: "ELISA assay on HEK", highlightColor: "bg-emerald-500/30" },
+  { text: "Western blot PLP1", highlightColor: "bg-emerald-500/30" },
+  { text: "Team meeting review", highlightColor: "bg-violet-500/30" },
+  { text: "Protocol review PI", highlightColor: "bg-violet-500/30" },
+  { text: "Reagent inventory check", highlightColor: "bg-neutral-400/30" },
+  { text: "Results data analysis", highlightColor: "bg-orange-500/30" },
+];
+
+const PLANNER_CALENDAR_DATA = [
+  {
+    day: "Mon",
+    tasks: [
+      { title: "ELISA", sub: "Plate coating", hour: 8, duration: 2, color: "bg-emerald-500/20 text-emerald-300", group: 0 },
+      { title: "Meeting", sub: "Team sync", hour: 11, duration: 1, color: "bg-violet-500/20 text-violet-300", group: 2 },
+    ],
+  },
+  {
+    day: "Tue",
+    tasks: [
+      { title: "Western blot", sub: "Sample lysis", hour: 8, duration: 1.5, color: "bg-emerald-500/20 text-emerald-300", group: 1 },
+      { title: "Data", sub: "Results analysis", hour: 11, duration: 2, color: "bg-orange-500/20 text-orange-300", group: 5 },
+      { title: "ELISA", sub: "Blocking step", hour: 14.5, duration: 1.5, color: "bg-emerald-500/20 text-emerald-300", group: 0 },
+    ],
+  },
+  {
+    day: "Wed",
+    tasks: [
+      { title: "Admin", sub: "Reagent check", hour: 8.5, duration: 1, color: "bg-neutral-500/20 text-neutral-400", group: 4 },
+      { title: "ELISA", sub: "Incubation", hour: 10.5, duration: 2, color: "bg-emerald-500/20 text-emerald-300", group: 0 },
+      { title: "Meeting", sub: "Protocol review", hour: 14, duration: 1.5, color: "bg-violet-500/20 text-violet-300", group: 3 },
+    ],
+  },
+  {
+    day: "Thu",
+    tasks: [
+      { title: "Western blot", sub: "Gel loading", hour: 8, duration: 1.5, color: "bg-emerald-500/20 text-emerald-300", group: 1 },
+      { title: "Data", sub: "Figures prep", hour: 11, duration: 1.5, color: "bg-orange-500/20 text-orange-300", group: 5 },
+      { title: "Western blot", sub: "Migration", hour: 14, duration: 2, color: "bg-emerald-500/20 text-emerald-300", group: 1 },
+    ],
+  },
+  {
+    day: "Fri",
+    tasks: [
+      { title: "ELISA", sub: "Readout", hour: 9, duration: 1.5, color: "bg-emerald-500/20 text-emerald-300", group: 0 },
+    ],
+  },
+];
+
+function formatHour(h: number) {
+  const hours = Math.floor(h);
+  const minutes = Math.round((h - hours) * 60);
+  const period = hours >= 12 ? "PM" : "AM";
+  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return minutes > 0 ? `${h12}:${minutes.toString().padStart(2, "0")} ${period}` : `${h12} ${period}`;
+}
+
 export default function Home() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
@@ -635,6 +692,11 @@ export default function Home() {
       detail: "Record signal intensity and sync the run to your lab notebook.",
     },
   ];
+  const [plannerAnimStep, setPlannerAnimStep] = useState(-1);
+  const plannerSectionRef = useRef<HTMLElement | null>(null);
+  const plannerAnimStarted = useRef(false);
+  const plannerIntervalRef = useRef<number | null>(null);
+
   const [protocolIndex, setProtocolIndex] = useState(0);
   const protocolIntervalRef = useRef<number | null>(null);
   const protocolResumeTimeoutRef = useRef<number | null>(null);
@@ -754,6 +816,53 @@ export default function Home() {
     };
   }, [workflowSteps.length]);
 
+
+  // Planner animation: triggered when section enters viewport
+  useEffect(() => {
+    const section = plannerSectionRef.current;
+    if (!section) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !plannerAnimStarted.current) {
+          plannerAnimStarted.current = true;
+          let halfStep = 0;
+          const totalHalfSteps = PLANNER_CHAT_ITEMS.length * 2;
+          const run = () => {
+            setPlannerAnimStep(halfStep);
+            halfStep++;
+            if (halfStep < totalHalfSteps) {
+              plannerIntervalRef.current = window.setTimeout(run, 800);
+            } else {
+              // Pause 2s then restart
+              plannerIntervalRef.current = window.setTimeout(() => {
+                halfStep = 0;
+                setPlannerAnimStep(-1);
+                plannerIntervalRef.current = window.setTimeout(run, 600);
+              }, 2000);
+            }
+          };
+          plannerIntervalRef.current = window.setTimeout(run, 800);
+        }
+      },
+      { threshold: 0.05 },
+    );
+
+    observer.observe(section);
+    return () => {
+      observer.disconnect();
+      if (plannerIntervalRef.current !== null) {
+        window.clearTimeout(plannerIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Derived: which chat item is highlighted and which groups are visible
+  const plannerHighlightIndex = Math.floor(plannerAnimStep / 2);
+  const plannerVisibleGroups = new Set<number>();
+  for (let i = 0; i <= Math.floor((plannerAnimStep - 1) / 2); i++) {
+    plannerVisibleGroups.add(i);
+  }
 
   useEffect(() => {
     lastScrollY.current = window.scrollY;
@@ -1028,7 +1137,7 @@ export default function Home() {
 
       <main className="relative">
         <section className="snap-section relative min-h-screen bg-white">
-          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
+          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1110,9 +1219,10 @@ export default function Home() {
 
         <section
           id="planner"
-          className="snap-section bg-black text-white"
+          ref={plannerSectionRef}
+          className="snap-section relative min-h-screen bg-black text-white"
         >
-          <div className="flex min-h-screen items-center justify-center px-4 pb-52 sm:px-6">
+          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-white sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1129,13 +1239,87 @@ export default function Home() {
               <span>planner</span>
             </div>
           </div>
+          <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 pb-16 pt-6 sm:px-6">
+            <div className="flex w-96 shrink-0 flex-col justify-between rounded-2xl bg-white p-5">
+              <div className="flex-1 overflow-y-auto">
+                <div className="ml-auto rounded-2xl rounded-tr-sm bg-neutral-100 px-4 py-4">
+                  <p className="mb-2 text-xs font-medium text-neutral-800">Here&apos;s what I need to do this week:</p>
+                  <ul className="space-y-1.5 text-xs leading-relaxed text-neutral-700">
+                    {PLANNER_CHAT_ITEMS.map((item, idx) => {
+                      const isHighlighted = plannerHighlightIndex === idx && plannerAnimStep % 2 === 0;
+                      const isPast = idx < plannerHighlightIndex || (idx === plannerHighlightIndex && plannerAnimStep % 2 === 1);
+                      return (
+                        <li
+                          key={item.text}
+                          className={`rounded-md px-1.5 py-0.5 transition-all duration-500 ${
+                            isHighlighted
+                              ? `${item.highlightColor} font-semibold`
+                              : isPast
+                                ? "opacity-60"
+                                : plannerAnimStep < 0
+                                  ? ""
+                                  : "opacity-40"
+                          }`}
+                        >
+                          · {item.text}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <p className="flex-1 text-xs text-neutral-400">Ask Sylvy planner...</p>
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 text-neutral-500">
+                    <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.926A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.086l-1.414 4.926a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.155.75.75 0 0 0 0-1.114A28.897 28.897 0 0 0 3.105 2.288Z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div className="ml-auto grid w-full max-w-3xl grid-cols-5 gap-px overflow-hidden rounded-2xl border-[3px] border-neutral-500">
+              {PLANNER_CALENDAR_DATA.map((col, i) => (
+                <div
+                  key={col.day}
+                  className={`relative min-h-[55vh] p-3 pt-10 ${i < 4 ? "border-r-[3px] border-neutral-500" : ""}`}
+                >
+                  <p className="absolute left-3 top-3 text-base font-bold uppercase tracking-widest text-neutral-400">
+                    {col.day}
+                  </p>
+                  {col.tasks.map((task) => {
+                    const isVisible = plannerVisibleGroups.has(task.group);
+                    return (
+                      <div
+                        key={`${task.title}-${task.hour}`}
+                        className={`absolute left-2 right-2 overflow-hidden rounded-lg px-2 py-1.5 transition-all duration-500 ${
+                          isVisible ? task.color : "opacity-0"
+                        }`}
+                        style={{
+                          top: `calc(3rem + ${((task.hour - 8) / 11) * (100 - 10)}%)`,
+                          height: `${(task.duration / 11) * (100 - 7)}%`,
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-1">
+                          <div>
+                            <p className="text-[10px] font-semibold leading-tight">{task.title}</p>
+                            <p className="text-[8px] opacity-60">{task.sub}</p>
+                          </div>
+                          <p className="shrink-0 text-[7px] opacity-40">{formatHour(task.hour)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section
           id="labmind"
           className="snap-section bg-white"
         >
-          <div className="flex items-center justify-center px-4 pb-16 pt-32 sm:px-6 sm:pt-56">
+          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
