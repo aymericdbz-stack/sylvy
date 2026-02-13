@@ -1,20 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Enable smooth scroll snapping on the main page scroll container. */
 html,
 body {
   height: 100%;
   scroll-behavior: smooth;
-  scroll-snap-type: y mandatory;
 }
 
-/* Mark full-viewport sections as snap points. */
 .snap-section {
-  min-height: 100vh;
-  min-height: 100svh;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
+  min-height: 120vh;
+  min-height: 120svh;
 }
 
 @font-face {
@@ -133,11 +128,11 @@ body {
   --sidebar-border: oklch(0.9 0.02 140);
   --sidebar-ring: oklch(0.7 0.04 140);
   --theme-hero-intro-bg: radial-gradient(
-      circle at 30% 70%,
-      rgba(166, 246, 214, 0.7),
+      circle at 30% 30%,
+      rgba(166, 246, 214, 0.5),
       rgba(166, 246, 214, 0) 55%
     ),
-    linear-gradient(165deg, #0b3b2c 0%, #00ac73 45%, #93f3d3 100%);
+    linear-gradient(to bottom, #93f3d3 0%, #00ac73 50%, #0b3b2c 100%);
   --theme-hero-intro-text: #ffffff;
   --theme-hero-intro-subtext: rgba(255, 255, 255, 0.8);
   --theme-hero-intro-blob-one: radial-gradient(
@@ -161,11 +156,11 @@ body {
     rgba(11, 59, 44, 0)
   );
   --theme-hero-bg: radial-gradient(
-      circle at 30% 70%,
-      rgba(156, 235, 206, 0.6),
+      circle at 70% 60%,
+      rgba(156, 235, 206, 0.35),
       rgba(156, 235, 206, 0) 55%
     ),
-    linear-gradient(165deg, #0b3b2c 0%, #00ac73 40%, #7fe9c7 100%);
+    linear-gradient(to bottom, #0b3b2c 0%, #00ac73 40%, #7fe9c7 100%);
   --theme-hero-text: #ecfdf5;
   --theme-hero-text-muted: #d1fae5;
   --theme-hero-text-soft: rgba(209, 250, 229, 0.7);

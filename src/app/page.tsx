@@ -14,8 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import HeroIntroGreen from "@/components/HeroIntroGreen";
 import logo from "../../logo/Logo Noir sans Fond.png";
+import sylvyNoteImage from "../../logo/Sylvy note.png";
 import abbvieLogo from "../../carrousel/abbvie.webp";
 import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
 import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
@@ -759,7 +759,6 @@ export default function Home() {
       }
     };
 
-    container.addEventListener("wheel", handleUserInput, { passive: true });
     container.addEventListener("touchstart", handleUserInput, {
       passive: true,
     });
@@ -770,18 +769,26 @@ export default function Home() {
     updateActiveIndex();
     scrollToIndex(workflowIndexRef.current);
 
+    let startDelayTimeout: number | null = null;
+
     let observer: IntersectionObserver | null = null;
     if (section && "IntersectionObserver" in window) {
       observer = new IntersectionObserver(
         ([entry]) => {
           isInView = entry.isIntersecting;
           if (isInView && !isReducedMotion) {
-            startAutoScroll();
+            startDelayTimeout = window.setTimeout(() => {
+              if (isInView && !isReducedMotion) startAutoScroll();
+            }, 500);
           } else {
+            if (startDelayTimeout !== null) {
+              window.clearTimeout(startDelayTimeout);
+              startDelayTimeout = null;
+            }
             stopAutoScroll();
           }
         },
-        { threshold: 0.35 },
+        { threshold: 0.9 },
       );
       observer.observe(section);
     } else {
@@ -794,6 +801,7 @@ export default function Home() {
     return () => {
       stopAutoScroll();
       observer?.disconnect();
+      if (startDelayTimeout !== null) window.clearTimeout(startDelayTimeout);
       if (workflowResumeTimeoutRef.current !== null) {
         window.clearTimeout(workflowResumeTimeoutRef.current);
         workflowResumeTimeoutRef.current = null;
@@ -802,7 +810,6 @@ export default function Home() {
         window.cancelAnimationFrame(workflowScrollRafRef.current);
         workflowScrollRafRef.current = null;
       }
-      container.removeEventListener("wheel", handleUserInput);
       container.removeEventListener("touchstart", handleUserInput);
       container.removeEventListener("pointerdown", handleUserInput);
       container.removeEventListener("scroll", handleScroll);
@@ -973,13 +980,31 @@ export default function Home() {
           </div>
         </div>
       </header>
-      <HeroIntroGreen />
       <section
-        className="snap-section relative isolate min-h-screen overflow-hidden text-[color:var(--theme-hero-text)]"
+        className="snap-section relative isolate overflow-hidden text-[color:var(--theme-hero-text)]"
         style={{ background: "var(--theme-hero-bg)" }}
       >
+        {/* Blobs décoratifs */}
+        <div className="pointer-events-none absolute inset-0 z-0">
+          <div className="hero-intro-blob hero-intro-blob--one" />
+          <div className="hero-intro-blob hero-intro-blob--two" />
+          <div className="hero-intro-blob hero-intro-blob--three" />
+          <div className="hero-intro-blob hero-intro-blob--four" />
+        </div>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,var(--theme-hero-glow-one),transparent_45%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,var(--theme-hero-glow-two),transparent_40%)]" />
+        {/* Intro — premier écran */}
+        <div className="relative z-10 flex min-h-screen items-center justify-center px-6 text-center">
+          <div>
+            <p className="text-7xl font-semibold tracking-[0.05em] text-[color:var(--theme-hero-text)] sm:text-8xl lg:text-7xl">
+              FOCUS ON RESEARCH
+            </p>
+            <p className="mt-4 text-2xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-3xl lg:text-4xl">
+              Sylvy does the boring stuff
+            </p>
+          </div>
+        </div>
+        {/* Hero — deuxième écran */}
         <div className="relative">
           <section id="solutions" className="relative flex min-h-screen flex-col pt-28">
             <div className="mx-auto max-w-6xl px-6 pb-10 pt-10 lg:ml-0 lg:mr-auto lg:pt-16">
@@ -1064,6 +1089,23 @@ export default function Home() {
 
       <main className="relative">
         <section className="snap-section relative min-h-screen bg-white">
+          <div className="flex items-center justify-center px-6 py-24">
+            <div
+              className="flex items-center gap-4 font-semibold leading-none tracking-tight text-black"
+              style={{ fontSize: "clamp(2rem, 7vw, 6rem)" }}
+            >
+              <span>Sylvy</span>
+              <Image
+                src={sylvyNoteImage}
+                alt="Sylvy note"
+                width={120}
+                height={120}
+                className="w-auto object-contain"
+                style={{ height: "1.3em" }}
+              />
+              <span>note.β</span>
+            </div>
+          </div>
           <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col items-start gap-16 px-6 py-16 lg:flex-row lg:items-center lg:justify-between lg:gap-24">
             <div className="max-w-[26rem] sm:max-w-[30rem]">
               <h2 className="text-balance text-4xl font-medium leading-tight text-primary sm:text-5xl lg:text-6xl xl:text-7xl">
