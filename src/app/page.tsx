@@ -1573,7 +1573,201 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">{t.footer.legal}</p>
+        </section>
+
+        <section id="ai" className="snap-section bg-white text-primary">
+          <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-between px-6 py-16">
+            <h2 className="mx-auto max-w-3xl text-balance text-center text-3xl font-medium leading-tight sm:text-4xl lg:text-5xl">
+              Snap your notebook. Sylvy structures it.
+            </h2>
+            <div className="grid w-full grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-2 lg:grid-cols-3 lg:gap-y-10">
+              {notebookFeatures.map((feature, index) => (
+                <button
+                  key={feature}
+                  type="button"
+                  className="feature-pill"
+                  style={{ animationDelay: `${index * 1}s` }}
+                >
+                  {feature}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="workflow-steps"
+          className="snap-section bg-black text-white"
+        >
+          <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-6 py-16">
+            <h2 className="text-balance text-center text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">
+              Snap your notebook. Sylvy structures it.
+            </h2>
+            <div className="mt-12 w-full max-w-3xl">
+              <div ref={workflowContainerRef} className="workflow-steps-track">
+                {workflowSteps.map((step) => (
+                  <div
+                    key={step.title}
+                    data-workflow-step
+                    className="workflow-step protocol-card protocol-card--wide"
+                  >
+                    <p className="protocol-title">
+                      {step.step} —{" "}
+                      <span className="duration">{step.duration}</span> —{" "}
+                      {step.title}
+                    </p>
+                    <p className="protocol-description">{step.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="resources"
+          className="snap-section mx-auto max-w-6xl px-6 py-16"
+        >
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-3xl border border-border/70 bg-card p-8 shadow-sm">
+              <Badge
+                variant="outline"
+                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
+              >
+                {t.resources.badge}
+              </Badge>
+              <h3 className="font-display text-2xl text-primary sm:text-3xl">
+                {t.resources.reportTitle}
+              </h3>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {t.resources.reportDescription}
+              </p>
+              <Button className="mt-6 rounded-full px-6" variant="outline">
+                {t.resources.reportCta}
+              </Button>
+              <div className="mt-6 rounded-2xl border border-border/60 bg-white p-4 text-xs text-muted-foreground">
+                {t.resources.reportNote}
+              </div>
+            </div>
+            <div className="grid gap-4">
+              {t.resources.stats.map((stat, index) => (
+                <Card
+                  key={stat.value}
+                  className="animate-fade-up rounded-3xl border-border/70 bg-card/80 p-0 shadow-sm"
+                  style={{ animationDelay: `${index * 120}ms` }}
+                >
+                  <div className="space-y-2 p-6">
+                    <p className="text-3xl font-semibold text-foreground">
+                      {stat.value}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {stat.label}
+                    </p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="platform"
+          className="snap-section mx-auto max-w-6xl px-6 py-16"
+        >
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <Badge
+                variant="outline"
+                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
+              >
+                {t.platform.badge}
+              </Badge>
+              <h2 className="font-display text-3xl text-primary sm:text-4xl">
+                {t.platform.title}
+              </h2>
+              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+                {t.platform.description}
+              </p>
+            </div>
+            <Button variant="outline" className="rounded-full px-6" asChild>
+              <a href="#demo">{t.platform.cta}</a>
+            </Button>
+          </div>
+          <div className="mt-10 flex justify-center">
+            <Image
+              src={moleculeDiagram}
+              alt="Sylvy platform modules diagram"
+              className="h-auto w-full max-w-4xl object-contain"
+              priority
+            />
+          </div>
+        </section>
+
+        <section id="demo" className="snap-section mx-auto max-w-6xl px-6 pb-20">
+          <Card className="rounded-3xl border-border/70 bg-card/90 p-0 shadow-sm">
+            <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="font-display text-3xl text-primary sm:text-4xl">
+                  {t.cta.title}
+                </h2>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {t.cta.description}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button className="rounded-full px-7" onClick={openModal}>
+                  {t.cta.primary}
+                </Button>
+                <Button variant="outline" className="rounded-full px-7">
+                  {t.cta.secondary}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </section>
+      </main>
+
+      <footer
+        id="company"
+        className="snap-section border-t border-border/70 bg-[#0c1d17]"
+      >
+        <div className="mx-auto max-w-6xl px-6 py-6">
+          <div className="flex flex-col gap-5">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
+                  <Image
+                    src={logo}
+                    alt="Sylvy logo"
+                    width={26}
+                    height={26}
+                    className="h-6 w-6 object-contain"
+                  />
+                </div>
+                <span className="text-lg font-semibold tracking-tight">
+                  {t.footer.addressTitle}
+                </span>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">
+                {t.footer.address}
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button variant="outline" className="rounded-full px-5">
+                  {t.footer.buttons.contact}
+                </Button>
+                <Button variant="secondary" className="rounded-full px-5">
+                  {t.footer.buttons.support}
+                </Button>
+              </div>
+              <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                {t.footer.social.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <Separator className="my-4 opacity-60" />
+          <p className="text-xs text-muted-foreground">{t.footer.legal}</p>
         </div>
       </footer>
 
