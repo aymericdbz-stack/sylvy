@@ -9,16 +9,14 @@ import {
   type FormEvent,
 } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import logo from "../../logo/Logo Noir sans Fond.webp";
 import logoWhite from "../../logo/Logo Blanc sans Fond.webp";
 import sylvyNoteImage from "../../logo/Sylvy note.webp";
 import sylvyClockImage from "../../logo/Sylvy clock.webp";
 import sylvyBrainImage from "../../logo/Sylvy brain.webp";
+import labBrainImage from "../../logo/Lab_brain.webp";
 import abbvieLogo from "../../carrousel/abbvie.webp";
 import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
 import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
@@ -29,13 +27,25 @@ import pierreFabreLogo from "../../carrousel/pierre_fabre.png";
 import ucBerkeleyLogo from "../../carrousel/uc_berkeley.webp";
 import sanofiLogo from "../../carrousel/sanofi.webp";
 import servierLogo from "../../carrousel/servier.webp";
-import moleculeDiagram from "../../photos_videos/molecule.webp";
 import notebookBefore from "../../photos_videos/Pierre_et_Marie_Curie.png";
 import notebookAfter from "../../photos_videos/Sylvy_notebook.png";
 import NotebookMorphDrag from "@/components/NotebookMorphDrag";
-import towerImage from "../../public/tower.webp";
-import towerOrangeImage from "../../public/tower-orange.webp";
-import towerPurpleImage from "../../public/tower-purple.webp";
+import towerImage from "../../logos_tours/tour_vert.webp";
+import towerOrangeImage from "../../logos_tours/tour_orange.webp";
+import towerPurpleImage from "../../logos_tours/tour_violet.webp";
+import snapgeneLogo from "../../logo_software/snapgene.svg";
+import benchlingLogo from "../../logo_software/benchling.webp";
+import excelLogo from "../../logo_software/excel.webp";
+import notionLogo from "../../logo_software/notion.webp";
+import chatgptLogo from "../../logo_software/ChatGPT.webp";
+import claudeLogo from "../../logo_software/claude.webp";
+import labarchivesLogo from "../../logo_software/labarchives.webp";
+import starlimsLogo from "../../logo_software/starlims.webp";
+import imagejLogo from "../../logo_software/imagej.webp";
+import matlabLogo from "../../logo_software/Matlab.webp";
+import rstudioLogo from "../../logo_software/RStudio.webp";
+import pythonLogo from "../../logo_software/python.webp";
+import chemdrawLogo from "../../logo_software/Chemdraw.webp";
 
 const copy = {
   en: {
@@ -576,6 +586,9 @@ export default function Home() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
   const [theme, setTheme] = useState<ThemeName>("green");
+  const [isNotebookExpanded, setIsNotebookExpanded] = useState(false);
+  const [isPlannerExpanded, setIsPlannerExpanded] = useState(false);
+  const [isLabmindExpanded, setIsLabmindExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
   const [formState, setFormState] = useState({
@@ -584,6 +597,32 @@ export default function Home() {
     email: "",
     phone: "",
   });
+
+  const [typewriterText, setTypewriterText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const typewriterFullText = "Sylvy does the boring stuff";
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    if (!isDeleting) {
+      if (typewriterText.length < typewriterFullText.length) {
+        timeout = setTimeout(() => {
+          setTypewriterText(typewriterFullText.slice(0, typewriterText.length + 1));
+        }, 60);
+      } else {
+        timeout = setTimeout(() => setIsDeleting(true), 2000);
+      }
+    } else {
+      if (typewriterText.length > 0) {
+        timeout = setTimeout(() => {
+          setTypewriterText(typewriterFullText.slice(0, typewriterText.length - 1));
+        }, 35);
+      } else {
+        timeout = setTimeout(() => setIsDeleting(false), 800);
+      }
+    }
+    return () => clearTimeout(timeout);
+  }, [typewriterText, isDeleting]);
 
   const t = copy.en;
   const rotatingPhrases = t.hero.rotating;
@@ -707,6 +746,24 @@ export default function Home() {
   const lastScrollY = useRef(0);
   const isCompactRef = useRef(false);
   const ticking = useRef(false);
+  const softwareLogos = [
+    { src: snapgeneLogo, alt: "SnapGene", scale: 1.5 },
+    { src: benchlingLogo, alt: "Benchling", scale: 1 },
+    { src: excelLogo, alt: "Excel", scale: 1 },
+    { src: notionLogo, alt: "Notion", scale: 1 },
+    { src: chatgptLogo, alt: "ChatGPT", scale: 2 },
+    { src: claudeLogo, alt: "Claude", scale: 1 },
+    { src: labarchivesLogo, alt: "LabArchives", scale: 3 },
+    { src: starlimsLogo, alt: "StarLIMS", scale: 1 },
+    { src: imagejLogo, alt: "ImageJ", scale: 1 },
+    { src: matlabLogo, alt: "Matlab", scale: 1 },
+    { src: rstudioLogo, alt: "RStudio", scale: 1 },
+    { src: pythonLogo, alt: "Python", scale: 1 },
+    { src: chemdrawLogo, alt: "ChemDraw", scale: 1 },
+    { src: sylvyClockImage, alt: "Sylvy Planner", scale: 1.5 },
+    { src: sylvyNoteImage, alt: "Sylvy Note", scale: 1.5 },
+  ];
+
   const towerAsset =
     theme === "orange"
       ? towerOrangeImage
@@ -1047,8 +1104,9 @@ export default function Home() {
             <p className="text-3xl font-semibold tracking-[0.05em] text-[color:var(--theme-hero-text)] sm:text-5xl md:text-7xl lg:text-7xl">
               FOCUS ON RESEARCH
             </p>
-            <p className="mt-4 text-base font-medium text-[color:var(--theme-hero-text-muted)] sm:text-2xl md:text-3xl lg:text-4xl">
-              Sylvy does the boring stuff
+            <p className="mt-4 h-[1.5em] text-base font-medium text-[color:var(--theme-hero-text-muted)] sm:text-2xl md:text-3xl lg:text-4xl">
+              {typewriterText}
+              <span className="typewriter-cursor" />
             </p>
           </div>
         </div>
@@ -1164,56 +1222,76 @@ export default function Home() {
               aspectRatio="16/9"
             />
           </div>
-          <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-10 px-4 py-16 sm:gap-16 sm:px-6">
-            <div className="w-full">
-              <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
-                Snap your notebook, Sylvy structures it.
-              </h2>
-            </div>
-            <div className="relative w-full">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
-                <div className="protocol-pills protocol-pills--stack shrink-0 sm:w-auto">
-                  {protocolFrames.map((frame, index) => (
-                    <button
-                      type="button"
-                      key={frame.label}
-                      onClick={() => handleProtocolPillClick(index)}
-                      className={`protocol-pill ${
-                        index === protocolIndex ? "is-active" : ""
-                      }`}
-                    >
-                      {frame.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="protocol-panel protocol-panel--large w-full">
-                  <div className="protocol-frame-stack">
+          <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6">
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: isNotebookExpanded ? "60rem" : "0" }}
+            >
+              <div className="w-full pb-4">
+                <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+                  Snap your notebook, Sylvy structures it.
+                </h2>
+              </div>
+              <div className="relative mt-10 w-full sm:mt-16">
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
+                  <div className="protocol-pills protocol-pills--stack shrink-0 sm:w-auto">
                     {protocolFrames.map((frame, index) => (
-                      <div
+                      <button
+                        type="button"
                         key={frame.label}
-                        className={`protocol-frame ${
+                        onClick={() => handleProtocolPillClick(index)}
+                        className={`protocol-pill ${
                           index === protocolIndex ? "is-active" : ""
                         }`}
                       >
-                        <h3 className="protocol-frame-title">{frame.title}</h3>
-                        <div className="protocol-frame-lines">
-                          {frame.lines.map((line) => {
-                            const isEmphasis = line.includes(
-                              "Your lab notebook is updated",
-                            );
-                            return (
-                              <p key={line} className={isEmphasis ? "font-semibold" : undefined}>
-                                {line}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </div>
+                        {frame.label}
+                      </button>
                     ))}
+                  </div>
+                  <div className="protocol-panel protocol-panel--large w-full">
+                    <div className="protocol-frame-stack">
+                      {protocolFrames.map((frame, index) => (
+                        <div
+                          key={frame.label}
+                          className={`protocol-frame ${
+                            index === protocolIndex ? "is-active" : ""
+                          }`}
+                        >
+                          <h3 className="protocol-frame-title">{frame.title}</h3>
+                          <div className="protocol-frame-lines">
+                            {frame.lines.map((line) => {
+                              const isEmphasis = line.includes(
+                                "Your lab notebook is updated",
+                              );
+                              return (
+                                <p key={line} className={isEmphasis ? "font-semibold" : undefined}>
+                                  {line}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsNotebookExpanded((prev) => !prev)}
+              className="mt-6 flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`h-4 w-4 transition-transform duration-300 ${isNotebookExpanded ? "rotate-180" : ""}`}
+              >
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+              {isNotebookExpanded ? "Show less" : "Show more"}
+            </button>
           </div>
         </section>
 
@@ -1313,13 +1391,36 @@ export default function Home() {
               ))}
             </div>
           </div>
+          <div className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6">
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: isPlannerExpanded ? "60rem" : "0" }}
+            >
+              <div className="h-[40rem]" />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPlannerExpanded((prev) => !prev)}
+              className="mt-6 flex items-center gap-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`h-4 w-4 transition-transform duration-300 ${isPlannerExpanded ? "rotate-180" : ""}`}
+              >
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+              {isPlannerExpanded ? "Show less" : "Show more"}
+            </button>
+          </div>
         </section>
 
         <section
           id="labmind"
-          className="snap-section bg-white"
+          className="snap-section flex min-h-screen flex-col overflow-hidden bg-white"
         >
-          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
+          <div className="relative z-20 flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1336,84 +1437,124 @@ export default function Home() {
               <span>labmind</span>
             </div>
           </div>
-        </section>
-
-        <section
-          id="platform"
-          className="snap-section mx-auto max-w-6xl px-4 py-16 sm:px-6"
-        >
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <Badge
-                variant="outline"
-                className="mb-4 w-fit rounded-full text-xs uppercase tracking-[0.25em]"
+          <div className="relative flex flex-1 items-center justify-center -mt-12">
+            <div className="labmind-orbit">
+              {(() => {
+                const entries: { logoIdx: number; angleDeg: number }[] = [
+                  { logoIdx: 4, angleDeg: 15 },
+                  { logoIdx: 9, angleDeg: 195 },
+                  { logoIdx: 7, angleDeg: 95 },
+                  { logoIdx: 13, angleDeg: 290 },
+                  { logoIdx: 1, angleDeg: 160 },
+                  { logoIdx: 11, angleDeg: 340 },
+                  { logoIdx: 8, angleDeg: 55 },
+                  { logoIdx: 3, angleDeg: 230 },
+                  { logoIdx: 14, angleDeg: 125 },
+                  { logoIdx: 10, angleDeg: 310 },
+                  { logoIdx: 0, angleDeg: 180 },
+                  { logoIdx: 6, angleDeg: 5 },
+                  { logoIdx: 12, angleDeg: 250 },
+                  { logoIdx: 2, angleDeg: 75 },
+                  { logoIdx: 5, angleDeg: 330 },
+                  { logoIdx: 13, angleDeg: 145 },
+                  { logoIdx: 7, angleDeg: 210 },
+                  { logoIdx: 10, angleDeg: 40 },
+                  { logoIdx: 2, angleDeg: 275 },
+                  { logoIdx: 14, angleDeg: 110 },
+                  { logoIdx: 9, angleDeg: 355 },
+                  { logoIdx: 4, angleDeg: 170 },
+                  { logoIdx: 0, angleDeg: 260 },
+                  { logoIdx: 11, angleDeg: 85 },
+                  { logoIdx: 8, angleDeg: 305 },
+                  { logoIdx: 12, angleDeg: 30 },
+                ];
+                return entries.map((entry, i) => {
+                  const sl = softwareLogos[entry.logoIdx];
+                  const rad = (entry.angleDeg * Math.PI) / 180;
+                  const rx = 900;
+                  const ry = 280;
+                  const startX = Math.cos(rad) * rx;
+                  const startY = Math.sin(rad) * ry;
+                  const radius = Math.sqrt(startX * startX + startY * startY);
+                  const realAngle = Math.atan2(startY, startX);
+                  const duration = 13 + (i % 3) * 1.5;
+                  return (
+                    <div
+                      key={`${sl.alt}-${i}`}
+                      className="labmind-converge"
+                      style={{
+                        "--angle": `${parseFloat(realAngle.toFixed(6))}rad`,
+                        "--radius": `${parseFloat(radius.toFixed(4))}px`,
+                        "--delay": `${parseFloat((i * 0.6).toFixed(2))}s`,
+                        "--duration": `${duration}s`,
+                      } as React.CSSProperties}
+                    >
+                      <Image
+                        src={sl.src}
+                        alt={sl.alt}
+                        width={Math.round(80 * sl.scale)}
+                        height={Math.round(80 * sl.scale)}
+                        className="object-contain"
+                        style={{ width: `${4.5 * sl.scale}rem`, height: `${4.5 * sl.scale}rem` }}
+                      />
+                    </div>
+                  );
+                });
+              })()}
+              <Image
+                src={labBrainImage}
+                alt="Lab brain"
+                width={400}
+                height={400}
+                className="labmind-brain relative z-10 w-64 animate-pulse-heart object-contain sm:w-80 md:w-[26rem]"
+              />
+            </div>
+          </div>
+          <div className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6">
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: isLabmindExpanded ? "60rem" : "0" }}
+            >
+              <div className="h-[40rem]" />
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsLabmindExpanded((prev) => !prev)}
+              className="mt-6 flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={`h-4 w-4 transition-transform duration-300 ${isLabmindExpanded ? "rotate-180" : ""}`}
               >
-                {t.platform.badge}
-              </Badge>
-              <h2 className="font-display text-3xl text-primary sm:text-4xl">
-                {t.platform.title}
-              </h2>
-              <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-                {t.platform.description}
-              </p>
-            </div>
-            <Button variant="outline" className="rounded-full px-6" asChild>
-              <a href="#demo">{t.platform.cta}</a>
-            </Button>
-          </div>
-          <div className="mt-10 flex justify-center">
-            <Image
-              src={moleculeDiagram}
-              alt="Sylvy platform modules diagram"
-              className="h-auto w-full max-w-4xl object-contain"
-              priority
-            />
+                <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
+              </svg>
+              {isLabmindExpanded ? "Show less" : "Show more"}
+            </button>
           </div>
         </section>
 
-        <section id="demo" className="snap-section mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-          <Card className="rounded-3xl border-border/70 bg-card/90 p-0 shadow-sm">
-            <div className="flex flex-col gap-6 p-8 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="font-display text-3xl text-primary sm:text-4xl">
-                  {t.cta.title}
-                </h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  {t.cta.description}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button className="rounded-full px-7" onClick={openModal}>
-                  {t.cta.primary}
-                </Button>
-                <Button variant="outline" className="rounded-full px-7">
-                  {t.cta.secondary}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </section>
       </main>
 
       <footer
         id="company"
-        className="snap-section border-t border-border/70 bg-[#0c1d17]"
+        className="border-t border-border/70"
+        style={{ background: "var(--theme-footer-bg)" }}
       >
         <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
           <div className="flex flex-col gap-10">
             <div className="flex flex-col gap-10 sm:flex-row sm:gap-16">
               <div className="shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/70 bg-card">
                     <Image
-                      src={logo}
+                      src={logoWhite}
                       alt="Sylvy logo"
                       width={26}
                       height={26}
                       className="h-6 w-6 object-contain"
                     />
-                  </div>
-                  <span className="text-lg font-semibold tracking-tight">
+                  <span className="text-lg font-semibold tracking-tight text-white">
                     {t.footer.addressTitle}
                   </span>
                 </div>
@@ -1452,8 +1593,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <Separator className="my-8 opacity-60" />
-          <p className="text-xs text-muted-foreground">{t.footer.legal}</p>
+          <p className="mt-8 text-xs text-muted-foreground">{t.footer.legal}</p>
         </div>
       </footer>
 

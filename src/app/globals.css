@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+.typewriter-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 2px;
+  margin-left: 2px;
+  vertical-align: baseline;
+  background-color: currentColor;
+  animation: blink-cursor 0.7s step-end infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 html,
 body {
   height: 100%;
@@ -191,6 +206,7 @@ body {
   --theme-feature-pill-active-border: rgba(0, 172, 115, 0.55);
   --theme-feature-pill-active-text: #0b3b2c;
   --theme-feature-pill-shadow: 0 12px 24px rgba(0, 172, 115, 0.18);
+  --theme-footer-bg: #0c1d17;
 }
 
 [data-theme="purple"] {
@@ -247,6 +263,7 @@ body {
   --theme-feature-pill-active-border: rgba(192, 116, 255, 0.55);
   --theme-feature-pill-active-text: #2a0c3c;
   --theme-feature-pill-shadow: 0 12px 24px rgba(192, 116, 255, 0.2);
+  --theme-footer-bg: #1a0a2e;
   --primary: #c074ff;
   --primary-foreground: #f5f3ff;
   --secondary: #f2e8ff;
@@ -310,6 +327,7 @@ body {
   --theme-feature-pill-active-border: rgba(249, 115, 22, 0.55);
   --theme-feature-pill-active-text: #6b1a0a;
   --theme-feature-pill-shadow: 0 12px 24px rgba(249, 115, 22, 0.18);
+  --theme-footer-bg: #2a0f05;
   --primary: #f97316;
   --primary-foreground: #fff7ed;
   --secondary: #ffedd5;
@@ -435,6 +453,24 @@ body {
   }
 }
 
+@keyframes pulse-heart {
+  0%, 100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.08);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.06);
+  }
+  56% {
+    transform: scale(1);
+  }
+}
+
 @keyframes float-soft {
   0% {
     transform: translateY(0);
@@ -514,6 +550,9 @@ body {
 }
 
 @layer utilities {
+  .animate-pulse-heart {
+    animation: pulse-heart 2s ease-in-out infinite;
+  }
   .animate-fade-up {
     animation: fade-up 0.8s ease-out both;
   }
@@ -811,6 +850,44 @@ body {
   }
 }
 
+  /* Labmind converging logos */
+  .labmind-orbit {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .labmind-converge {
+    position: absolute;
+    z-index: 5;
+    animation: labmind-converge var(--duration) linear var(--delay) infinite both;
+  }
+  .labmind-brain {
+    position: relative;
+    z-index: 10;
+  }
+
+@keyframes labmind-converge {
+  0% {
+    opacity: 1;
+    transform: translate(
+        calc(cos(var(--angle)) * var(--radius)),
+        calc(sin(var(--angle)) * var(--radius))
+      );
+  }
+  80% {
+    opacity: 1;
+    transform: translate(
+        calc(cos(var(--angle)) * 25px),
+        calc(sin(var(--angle)) * 25px)
+      );
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in {
@@ -827,5 +904,9 @@ body {
   }
   .workflow-steps-track {
     scroll-behavior: auto;
+  }
+  .labmind-converge {
+    animation: none;
+    opacity: 0;
   }
 }
