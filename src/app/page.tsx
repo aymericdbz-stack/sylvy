@@ -1441,32 +1441,21 @@ export default function Home() {
             <div className="labmind-orbit">
               {(() => {
                 const entries: { logoIdx: number; angleDeg: number }[] = [
-                  { logoIdx: 4, angleDeg: 15 },
-                  { logoIdx: 9, angleDeg: 195 },
-                  { logoIdx: 7, angleDeg: 95 },
-                  { logoIdx: 13, angleDeg: 290 },
-                  { logoIdx: 1, angleDeg: 160 },
-                  { logoIdx: 11, angleDeg: 340 },
-                  { logoIdx: 8, angleDeg: 55 },
-                  { logoIdx: 3, angleDeg: 230 },
-                  { logoIdx: 14, angleDeg: 125 },
-                  { logoIdx: 10, angleDeg: 310 },
-                  { logoIdx: 0, angleDeg: 180 },
-                  { logoIdx: 6, angleDeg: 5 },
-                  { logoIdx: 12, angleDeg: 250 },
-                  { logoIdx: 2, angleDeg: 75 },
-                  { logoIdx: 5, angleDeg: 330 },
-                  { logoIdx: 13, angleDeg: 145 },
-                  { logoIdx: 7, angleDeg: 210 },
-                  { logoIdx: 10, angleDeg: 40 },
-                  { logoIdx: 2, angleDeg: 275 },
-                  { logoIdx: 14, angleDeg: 110 },
-                  { logoIdx: 9, angleDeg: 355 },
-                  { logoIdx: 4, angleDeg: 170 },
-                  { logoIdx: 0, angleDeg: 260 },
-                  { logoIdx: 11, angleDeg: 85 },
-                  { logoIdx: 8, angleDeg: 305 },
-                  { logoIdx: 12, angleDeg: 30 },
+                  { logoIdx: 0, angleDeg: 0 },
+                  { logoIdx: 1, angleDeg: 24 },
+                  { logoIdx: 2, angleDeg: 48 },
+                  { logoIdx: 3, angleDeg: 72 },
+                  { logoIdx: 4, angleDeg: 96 },
+                  { logoIdx: 5, angleDeg: 120 },
+                  { logoIdx: 6, angleDeg: 144 },
+                  { logoIdx: 7, angleDeg: 168 },
+                  { logoIdx: 8, angleDeg: 192 },
+                  { logoIdx: 9, angleDeg: 216 },
+                  { logoIdx: 10, angleDeg: 240 },
+                  { logoIdx: 11, angleDeg: 264 },
+                  { logoIdx: 12, angleDeg: 288 },
+                  { logoIdx: 13, angleDeg: 312 },
+                  { logoIdx: 14, angleDeg: 336 },
                 ];
                 return entries.map((entry, i) => {
                   const sl = softwareLogos[entry.logoIdx];
@@ -1537,14 +1526,24 @@ export default function Home() {
 
       </main>
 
+      {/* CTA – Fill the survey */}
+      <div className="flex justify-center px-4 py-12">
+        <a
+          href="/survey"
+          className="inline-flex h-9 w-[60vw] max-w-2xl items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+        >
+          Fill the survey
+        </a>
+      </div>
+
       <footer
         id="company"
         className="border-t border-border/70"
         style={{ background: "var(--theme-footer-bg)" }}
       >
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-          <div className="flex flex-col gap-10">
-            <div className="flex flex-col gap-10 sm:flex-row sm:gap-16">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-5 sm:flex-row sm:gap-8">
               <div className="shrink-0">
                 <div className="flex items-center gap-3">
                     <Image
@@ -1558,42 +1557,23 @@ export default function Home() {
                     {t.footer.addressTitle}
                   </span>
                 </div>
-                <p className="mt-4 text-sm text-muted-foreground">
+                <p className="mt-2 text-sm text-muted-foreground">
                   {t.footer.address}
                 </p>
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-3 flex flex-wrap gap-3">
                   <Button variant="outline" className="rounded-full px-5">
                     {t.footer.buttons.contact}
                   </Button>
-                  <Button variant="secondary" className="rounded-full px-5">
-                    {t.footer.buttons.support}
-                  </Button>
                 </div>
-                <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                   {t.footer.social.map((item) => (
                     <span key={item}>{item}</span>
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
-                {t.footer.columns.map((col) => (
-                  <div key={col.title}>
-                    <p className="text-sm font-semibold text-white">{col.title}</p>
-                    <ul className="mt-3 space-y-2">
-                      {col.links.map((link) => (
-                        <li key={link}>
-                          <span className="text-xs text-muted-foreground hover:text-white cursor-pointer transition-colors">
-                            {link}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
             </div>
           </div>
-          <p className="mt-8 text-xs text-muted-foreground">{t.footer.legal}</p>
+          <p className="mt-4 text-xs text-muted-foreground">{t.footer.legal}</p>
         </div>
       </footer>
 

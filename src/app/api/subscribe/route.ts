@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     firstName?: string;
     lastName?: string;
     email?: string;
+    phone?: string;
   };
 
   try {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   const firstName = payload.firstName?.trim() ?? "";
   const lastName = payload.lastName?.trim() ?? "";
   const email = payload.email?.trim().toLowerCase() ?? "";
+  const phone = payload.phone?.trim() ?? null;
 
   if (!firstName || !lastName || !email || !email.includes("@")) {
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
@@ -40,6 +42,7 @@ export async function POST(request: Request) {
     first_name: firstName,
     last_name: lastName,
     email,
+    phone_number: phone,
   });
 
   if (error) {
