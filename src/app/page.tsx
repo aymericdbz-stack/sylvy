@@ -1527,10 +1527,10 @@ export default function Home() {
       </main>
 
       {/* CTA – Fill the survey */}
-      <div className="flex justify-center px-4 py-12">
+      <div className="flex justify-center bg-white px-4 pb-12 pt-0">
         <a
           href="/survey"
-          className="inline-flex h-9 w-[60vw] max-w-2xl items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+          className="inline-flex h-[4.5rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
         >
           Fill the survey
         </a>

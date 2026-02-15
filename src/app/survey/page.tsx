@@ -71,7 +71,7 @@ const QUESTIONS = [
     key: "planner" as const,
   },
   {
-    label: "How much should Sylvy labmind\u2122\uFE0F cost per month?",
+    label: "How much should Sylvy labmind\u2122\uFE0F cost per month per user?",
     min: 0,
     max: 50,
     key: "labmind" as const,
@@ -181,34 +181,31 @@ export default function SurveyPage() {
           <div className="mt-10 space-y-10">
             {QUESTIONS.map((q) => (
               <div key={q.key}>
-                <label className="block text-sm font-medium leading-relaxed">
+                <label className="block text-lg font-medium leading-relaxed sm:text-xl">
                   {q.label}
                 </label>
 
-                <div className="mt-4 flex items-center gap-4">
-                  <div className="flex-1">
-                    <input
-                      type="range"
-                      className="pixel-slider"
-                      min={q.min}
-                      max={q.max}
-                      step={1}
-                      value={answers[q.key]}
-                      onChange={(e) =>
-                        handleSlider(q.key, Number(e.target.value))
-                      }
-                    />
-                    <div className="pixel-ticks">{ticks(q.max)}</div>
-                    <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                      <span>{q.min}&euro;</span>
-                      <span>{q.max}&euro;</span>
-                    </div>
+                <div className="mt-4">
+                  <input
+                    type="range"
+                    className="pixel-slider"
+                    min={q.min}
+                    max={q.max}
+                    step={1}
+                    value={answers[q.key]}
+                    onChange={(e) =>
+                      handleSlider(q.key, Number(e.target.value))
+                    }
+                  />
+                  <div className="pixel-ticks">{ticks(q.max)}</div>
+                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                    <span>{q.min}&euro;</span>
+                    <span>{q.max}&euro;</span>
                   </div>
-
                   {/* selected value */}
-                  <span className="w-14 shrink-0 text-right text-lg font-bold tabular-nums">
+                  <p className="mt-3 text-center text-3xl font-bold tabular-nums text-primary">
                     &euro;{answers[q.key]}
-                  </span>
+                  </p>
                 </div>
               </div>
             ))}
