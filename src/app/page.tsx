@@ -1396,7 +1396,47 @@ export default function Home() {
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isPlannerExpanded ? "60rem" : "0" }}
             >
-              <div className="h-[40rem]" />
+              <div className="w-full pb-4">
+                <h2 className="text-balance text-2xl font-medium leading-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+                  Tell Sylvy your week, it builds your schedule.
+                </h2>
+              </div>
+              <div className="mt-10 grid gap-6 sm:mt-16 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-emerald-400">
+                      <path d="M10 3.75a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM17.25 4.5a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM5 3.75a.75.75 0 0 1-.75.75h-1.5a.75.75 0 0 1 0-1.5h1.5a.75.75 0 0 1 .75.75ZM4.25 17a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM17.25 17a.75.75 0 0 0 0-1.5h-5.5a.75.75 0 0 0 0 1.5h5.5ZM9 10a.75.75 0 0 1-.75.75h-5.5a.75.75 0 0 1 0-1.5h5.5A.75.75 0 0 1 9 10ZM17.25 10.75a.75.75 0 0 0 0-1.5h-1.5a.75.75 0 0 0 0 1.5h1.5ZM14 10a2 2 0 1 0-4 0 2 2 0 0 0 4 0ZM10 16.25a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-white">Smart scheduling</h3>
+                  <p className="text-sm leading-relaxed text-white/60">
+                    Sylvy understands incubation times, multi-step protocols, and equipment constraints to build your optimal weekly plan.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-violet-400">
+                      <path fillRule="evenodd" d="M10 2a6 6 0 0 0-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 0 0 .515 1.076 32.91 32.91 0 0 0 3.256.508 3.5 3.5 0 0 0 6.972 0 32.903 32.903 0 0 0 3.256-.508.75.75 0 0 0 .515-1.076A11.448 11.448 0 0 1 16 8a6 6 0 0 0-6-6ZM8.05 14.943a33.54 33.54 0 0 0 3.9 0 2 2 0 0 1-3.9 0Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-white">Timely reminders</h3>
+                  <p className="text-sm leading-relaxed text-white/60">
+                    Never miss a time-sensitive step. Sylvy alerts you before incubations end, meetings start, or deadlines approach.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-orange-400">
+                      <path fillRule="evenodd" d="M4.606 12.97a.75.75 0 0 1-.134 1.051 2.494 2.494 0 0 0-.93 2.437 2.494 2.494 0 0 0 2.437-.93.75.75 0 1 1 1.186.918 3.995 3.995 0 0 1-4.482 1.332.75.75 0 0 1-.461-.461 3.994 3.994 0 0 1 1.332-4.482.75.75 0 0 1 1.052.134Z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M13.703 4.469a3.75 3.75 0 0 1 3.828 3.828c.078 2.295-1.52 4.647-3.653 6.093a.75.75 0 0 1-.878-.063l-2.66-2.395-2.396-2.66a.75.75 0 0 1-.063-.878c1.446-2.134 3.798-3.731 6.093-3.653l-.271-.272Zm1.37 1.642a2.25 2.25 0 0 0-1.943 1.038c-.681 1.074-1.012 2.318-.933 3.632l1.89 1.89c1.314.08 2.558-.252 3.632-.933a2.25 2.25 0 0 0 1.038-1.943l-1.37-1.37-2.313-2.314Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-white">Natural language input</h3>
+                  <p className="text-sm leading-relaxed text-white/60">
+                    Just type your to-do list in plain English. Sylvy parses experiment names, priorities, and dependencies automatically.
+                  </p>
+                </div>
+              </div>
             </div>
             <button
               type="button"
@@ -1504,7 +1544,47 @@ export default function Home() {
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isLabmindExpanded ? "60rem" : "0" }}
             >
-              <div className="h-[40rem]" />
+              <div className="w-full pb-4">
+                <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+                  One brain for all your lab tools.
+                </h2>
+              </div>
+              <div className="mt-10 grid gap-6 sm:mt-16 sm:grid-cols-3">
+                <div className="rounded-2xl border border-primary/10 bg-primary/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-primary">
+                      <path d="M4.464 3.162A2 2 0 0 1 6.28 2h7.44a2 2 0 0 1 1.816 1.162l1.154 2.5c.067.145.1.3.1.458v1.38a2 2 0 0 1-2 2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.962 7.5H10a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 6.344 9.5H5.172a2 2 0 0 1-2-2V6.12a1 1 0 0 1 .1-.458l1.192-2.5ZM5.5 13.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5H6a.5.5 0 0 1-.5-.5v-3Z" />
+                      <path d="M3 11v5.5A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5V11h-2.344a3.5 3.5 0 0 1-2.475-1.025l-.828-.828a.5.5 0 0 0-.707 0l-.828.828A3.5 3.5 0 0 1 7.344 11H3Z" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-primary">Unified data hub</h3>
+                  <p className="text-sm leading-relaxed text-primary/60">
+                    Connect Benchling, SnapGene, Excel, and more. LabMind centralizes your scattered data into one searchable workspace.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-primary/10 bg-primary/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-primary">
+                      <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.784l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .784.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.784l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633L6.95 5.684ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-primary">Cross-tool insights</h3>
+                  <p className="text-sm leading-relaxed text-primary/60">
+                    Ask questions across all your tools at once. LabMind correlates results from different platforms to surface patterns you'd miss.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-primary/10 bg-primary/5 p-6">
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-primary">
+                      <path fillRule="evenodd" d="M8 7a5 5 0 1 1 3.61 4.804l-1.903 1.903A1 1 0 0 1 9 14H8v1a1 1 0 0 1-1 1H6v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-1.586a1 1 0 0 1 .293-.707l5.964-5.964A5.032 5.032 0 0 1 8 7Zm5-3a.75.75 0 0 0 0 1.5A1.5 1.5 0 0 1 14.5 7 .75.75 0 0 0 16 7a3 3 0 0 0-3-3Z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="mb-2 text-lg font-semibold text-primary">Plug &amp; play integrations</h3>
+                  <p className="text-sm leading-relaxed text-primary/60">
+                    No migration needed. LabMind connects to your existing tools via APIs and keeps everything in sync in real time.
+                  </p>
+                </div>
+              </div>
             </div>
             <button
               type="button"
