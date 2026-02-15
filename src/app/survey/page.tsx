@@ -55,28 +55,33 @@ input[type="range"].pixel-slider::-moz-range-thumb {
 `;
 
 /* ──────── Questions ──────── */
+const GREEN = "text-primary";
 const QUESTIONS = [
   {
-    label:
-      "How much would you personally be willing to pay per month for Sylvy notebook\u2122\uFE0F only?",
+    label: (
+      <>How much would you personally be willing to pay per month for <span className={GREEN}>Sylvy notebook&#x2122;&#xFE0F;</span> only?</>
+    ),
     min: 0,
     max: 20,
     key: "notebook" as const,
   },
   {
-    label:
-      "How much would you personally pay per month for Sylvy planner\u2122\uFE0F only?",
+    label: (
+      <>How much would you personally pay per month for <span className={GREEN}>Sylvy planner&#x2122;&#xFE0F;</span> only?</>
+    ),
     min: 0,
     max: 20,
     key: "planner" as const,
   },
   {
-    label: "How much should Sylvy labmind\u2122\uFE0F cost per month per user?",
+    label: (
+      <>How much should <span className={GREEN}>Sylvy labmind&#x2122;&#xFE0F;</span> cost per month per user?</>
+    ),
     min: 0,
     max: 50,
     key: "labmind" as const,
   },
-] as const;
+];
 
 /* ──────── Component ──────── */
 export default function SurveyPage() {
