@@ -218,7 +218,7 @@ const copy = {
         contact: "Contact us",
         support: "Support",
       },
-      social: ["LinkedIn", "X", "YouTube"],
+      social: ["LinkedIn", "X"],
       columns: [
         {
           title: "Products",
@@ -449,7 +449,7 @@ const copy = {
         contact: "Contactez-nous",
         support: "Support",
       },
-      social: ["LinkedIn", "X", "YouTube"],
+      social: ["LinkedIn", "X"],
       columns: [
         {
           title: "Produits",
@@ -600,7 +600,7 @@ export default function Home() {
 
   const [typewriterText, setTypewriterText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const typewriterFullText = "Sylvy does the boring stuff";
+  const typewriterFullText = "Sylvy handles the rest";
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -640,47 +640,12 @@ export default function Home() {
     { src: ucBerkeleyLogo, alt: "UC Berkeley" },
     { src: servierLogo, alt: "Servier" },
   ];
-  const protocolFrames = [
-    {
-      label: "Handwritten notes structuring",
-      title: "Handwritten notes structuring",
-      lines: [
-        "• Take picture of your notes,",
-        "• Sylvy automatically structures all of it,",
-        "• Tables, formulas and sketchs are digitalized,",
-        "",
-        "Your lab notebook is now updated !",
-      ],
-    },
-    {
-      label: "Smart protocols generation",
-      title: "Smart protocols generation",
-      lines: [
-        "• Simply explain what you want to do,",
-        "• Sylvy detects key parameters and techniques,",
-        "• Lab equipment and previous experiment are explored,",
-        "",
-        "You get a entirely taylor-made protocol !",
-      ],
-    },
-    {
-      label: "Explore your notebook history",
-      title: "Explore your notebook history",
-      lines: [
-        "• Your lab notebook history is stored,",
-        "• Ask Sylvy any question about you previous work,",
-        "• Sylvy answers according to everything you did,",
-        "",
-        "You just saved a life time !",
-      ],
-    },
-  ];
   const notebookFeatures = [
     "Capture handwritten notes",
+    "Voice dictation",
     "Parameter detection",
     "Protocol writing",
     "Smart tab acquisition",
-    "Sketch generation",
     "Searchable memory",
   ];
   const workflowSteps = [
@@ -736,9 +701,6 @@ export default function Home() {
   const plannerAnimStarted = useRef(false);
   const plannerIntervalRef = useRef<number | null>(null);
 
-  const [protocolIndex, setProtocolIndex] = useState(0);
-  const protocolIntervalRef = useRef<number | null>(null);
-  const protocolResumeTimeoutRef = useRef<number | null>(null);
   const workflowContainerRef = useRef<HTMLDivElement | null>(null);
   const workflowIndexRef = useRef(0);
   const workflowIntervalRef = useRef<number | null>(null);
@@ -778,40 +740,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [rotatingPhrases.length]);
 
-  const startProtocolAutoScroll = () => {
-    if (protocolIntervalRef.current !== null) {
-      window.clearInterval(protocolIntervalRef.current);
-    }
-    protocolIntervalRef.current = window.setInterval(() => {
-      setProtocolIndex((prev) => (prev + 1) % protocolFrames.length);
-    }, 3200);
-  };
-
-  useEffect(() => {
-    startProtocolAutoScroll();
-    return () => {
-      if (protocolIntervalRef.current !== null) {
-        window.clearInterval(protocolIntervalRef.current);
-      }
-      if (protocolResumeTimeoutRef.current !== null) {
-        window.clearTimeout(protocolResumeTimeoutRef.current);
-      }
-    };
-  }, [protocolFrames.length]);
-
-  const handleProtocolPillClick = (index: number) => {
-    setProtocolIndex(index);
-    if (protocolIntervalRef.current !== null) {
-      window.clearInterval(protocolIntervalRef.current);
-      protocolIntervalRef.current = null;
-    }
-    if (protocolResumeTimeoutRef.current !== null) {
-      window.clearTimeout(protocolResumeTimeoutRef.current);
-    }
-    protocolResumeTimeoutRef.current = window.setTimeout(() => {
-      startProtocolAutoScroll();
-    }, 10000);
-  };
 
   useEffect(() => {
     const container = workflowContainerRef.current;
@@ -1229,52 +1157,38 @@ export default function Home() {
             >
               <div className="w-full pb-4">
                 <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
-                  Snap your notebook, Sylvy structures it.
+                  Capture everything, structure it instantly.
                 </h2>
-              </div>
-              <div className="relative mt-10 w-full sm:mt-16">
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
-                  <div className="protocol-pills protocol-pills--stack shrink-0 sm:w-auto">
-                    {protocolFrames.map((frame, index) => (
-                      <button
-                        type="button"
-                        key={frame.label}
-                        onClick={() => handleProtocolPillClick(index)}
-                        className={`protocol-pill ${
-                          index === protocolIndex ? "is-active" : ""
-                        }`}
-                      >
-                        {frame.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="protocol-panel protocol-panel--large w-full">
-                    <div className="protocol-frame-stack">
-                      {protocolFrames.map((frame, index) => (
-                        <div
-                          key={frame.label}
-                          className={`protocol-frame ${
-                            index === protocolIndex ? "is-active" : ""
-                          }`}
-                        >
-                          <h3 className="protocol-frame-title">{frame.title}</h3>
-                          <div className="protocol-frame-lines">
-                            {frame.lines.map((line) => {
-                              const isEmphasis = line.includes(
-                                "Your lab notebook is updated",
-                              );
-                              return (
-                                <p key={line} className={isEmphasis ? "font-semibold" : undefined}>
-                                  {line}
-                                </p>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <ul className="mt-8 space-y-4 text-base text-neutral-600 sm:text-lg">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Snap a photo of your handwritten notes &mdash; Sylvy transcribes and structures them automatically</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Voice dictation: describe your experiment out loud at the bench, Sylvy converts speech into structured protocols and observations in real time</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Auto-detection of experimental parameters: reagents, concentrations, temperatures, durations</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Clean, structured protocols generated from free-form input &mdash; no reformatting needed</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Version history and full traceability for every experiment entry</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Collaborative cloud workspace &mdash; share protocols and results with your team in real time</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>All entries feed into your lab&apos;s AI brain for intelligent search and insights</span>
+                  </li>
+                </ul>
               </div>
             </div>
             <button
@@ -1396,7 +1310,37 @@ export default function Home() {
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isPlannerExpanded ? "60rem" : "0" }}
             >
-              <div className="h-[40rem]" />
+              <div className="w-full pb-4">
+                <h2 className="text-balance text-2xl font-medium leading-tight text-white sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+                  Your AI lab scheduler that thinks ahead.
+                </h2>
+                <ul className="mt-8 space-y-4 text-base text-white/70 sm:text-lg">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Describe your experiments in natural language and get an optimized weekly schedule</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Automatic dependency management between multi-step protocols (incubation, centrifugation, waiting times)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Smart conflict detection: shared equipment, reagent availability, and time overlaps</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Real-time rescheduling when experiments run late or priorities change</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Team-wide visibility: see who is doing what and when across the lab</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Integrates with your notebook &mdash; completed experiments auto-sync to your records</span>
+                  </li>
+                </ul>
+              </div>
             </div>
             <button
               type="button"
@@ -1504,7 +1448,37 @@ export default function Home() {
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isLabmindExpanded ? "60rem" : "0" }}
             >
-              <div className="h-[40rem]" />
+              <div className="w-full pb-4">
+                <h2 className="text-balance text-2xl font-medium leading-tight text-primary sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
+                  Your lab&apos;s private AI brain, trained on your own data.
+                </h2>
+                <ul className="mt-8 space-y-4 text-base text-neutral-600 sm:text-lg">
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Ask questions about past experiments in natural language and get instant, sourced answers</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Automatically compare results across experiments: conditions, parameters, and outcomes</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Generate new protocols based on what worked before in your lab&apos;s own history</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Private AI agent per lab &mdash; your data never leaves your environment</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Surfaces patterns and insights across your entire experimental history</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="mt-1.5 block h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>Gets smarter with every experiment &mdash; a compounding knowledge base for your lab</span>
+                  </li>
+                </ul>
+              </div>
             </div>
             <button
               type="button"
@@ -1561,9 +1535,11 @@ export default function Home() {
                   {t.footer.address}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-3">
-                  <Button variant="outline" className="rounded-full px-5">
-                    {t.footer.buttons.contact}
-                  </Button>
+                  <a href="https://www.linkedin.com/company/sylvyco/" target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="rounded-full px-5">
+                      {t.footer.buttons.contact}
+                    </Button>
+                  </a>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                   {t.footer.social.map((item) => (

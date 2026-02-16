@@ -16,7 +16,7 @@ export default function HeroIntroGreen() {
             FOCUS ON RESEARCH
           </p>
           <p className="mt-4 text-2xl font-medium text-[color:var(--theme-hero-intro-subtext)] sm:text-3xl lg:text-4xl">
-            Sylvy does the boring stuff
+            Sylvy handles the rest
           </p>
         </div>
       </div>
