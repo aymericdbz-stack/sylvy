@@ -1194,13 +1194,13 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setIsNotebookExpanded((prev) => !prev)}
-              className="mt-6 flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              className="mt-6 flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-semibold text-primary transition-colors hover:text-primary/80"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                className={`h-4 w-4 transition-transform duration-300 ${isNotebookExpanded ? "rotate-180" : ""}`}
+                className={`h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 transition-transform duration-300 ${isNotebookExpanded ? "rotate-180" : ""}`}
               >
                 <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
@@ -1345,13 +1345,13 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setIsPlannerExpanded((prev) => !prev)}
-              className="mt-6 flex items-center gap-2 text-sm font-medium text-white/70 transition-colors hover:text-white"
+              className="mt-6 flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-semibold text-white/70 transition-colors hover:text-white"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                className={`h-4 w-4 transition-transform duration-300 ${isPlannerExpanded ? "rotate-180" : ""}`}
+                className={`h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 transition-transform duration-300 ${isPlannerExpanded ? "rotate-180" : ""}`}
               >
                 <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
@@ -1483,13 +1483,13 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setIsLabmindExpanded((prev) => !prev)}
-              className="mt-6 flex items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              className="mt-6 flex items-center gap-2 text-lg md:text-xl lg:text-2xl font-semibold text-primary transition-colors hover:text-primary/80"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                className={`h-4 w-4 transition-transform duration-300 ${isLabmindExpanded ? "rotate-180" : ""}`}
+                className={`h-5 w-5 md:h-6 md:w-6 lg:h-7 lg:w-7 transition-transform duration-300 ${isLabmindExpanded ? "rotate-180" : ""}`}
               >
                 <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
               </svg>
