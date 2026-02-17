@@ -128,6 +128,37 @@ export default function SurveyPage() {
     setFormStatus("idle");
   };
 
+  /* ── Validation ── */
+  const q1FilledCount = q1Rows.filter(
+    (r) => r.task.trim() !== "" && r.time.trim() !== ""
+  ).length;
+  const hasQ1 = q1FilledCount >= 3;
+  const q2FilledCount = q2Rows.filter((r) => r.software.trim() !== "").length;
+  const hasQ2 = q2FilledCount >= 2;
+
+  // Check for partially filled Q1 rows (task without time or time without task)
+  const q1Partial = q1Rows.some(
+    (r) =>
+      (r.task.trim() !== "" && r.time.trim() === "") ||
+      (r.task.trim() === "" && r.time.trim() !== "")
+  );
+
+  const isValid = hasQ1 && hasQ2 && !q1Partial;
+
+  const validationErrors: string[] = [];
+  if (!hasQ1)
+    validationErrors.push(
+      "Q1: Fill in at least 3 tasks with their time."
+    );
+  if (q1Partial)
+    validationErrors.push(
+      "Q1: Each row needs both a task name and a time."
+    );
+  if (!hasQ2)
+    validationErrors.push(
+      "Q2: Fill in at least 2 software names."
+    );
+
   /* parse time string (comma or dot) → number | null */
   const parseTime = (raw: string): number | null => {
     const cleaned = raw.replace(",", ".").trim();
@@ -326,12 +357,24 @@ export default function SurveyPage() {
             </div>
           </div>
 
+          {/* Validation errors */}
+          {validationErrors.length > 0 && (
+            <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p className="font-semibold">Please complete the following before submitting:</p>
+              <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                {validationErrors.map((msg) => (
+                  <li key={msg}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Send the survey */}
-          <div className="mt-12 flex justify-center">
+          <div className="mt-6 flex justify-center">
             <Button
               className="w-full max-w-2xl h-16 text-xl rounded-xl"
               onClick={openModal}
-              disabled={formStatus === "success"}
+              disabled={!isValid || formStatus === "success"}
             >
               {formStatus === "success" ? "Survey sent!" : "Get a 3-month Sylvy for free"}
             </Button>
