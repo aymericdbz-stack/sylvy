@@ -4,6 +4,17 @@ import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+/* ──────── Types ──────── */
+interface Q1Row {
+  task: string;
+  time: string; // stored as string for input, parsed to number on submit
+}
+
+interface Q2Row {
+  software: string;
+  satisfaction: number;
+}
+
 /* ──────── pixel slider styles (injected once) ──────── */
 const pixelSliderCSS = `
 /* track */
@@ -54,42 +65,23 @@ input[type="range"].pixel-slider::-moz-range-thumb {
 }
 `;
 
-/* ──────── Questions ──────── */
+/* ──────── Questions (DO NOT EDIT question texts) ──────── */
 const GREEN = "text-primary";
-const QUESTIONS = [
-  {
-    label: (
-      <>How much would you personally be willing to pay per month for <span className={GREEN}>Sylvy notebook&#x2122;&#xFE0F;</span> only?</>
-    ),
-    min: 0,
-    max: 20,
-    key: "notebook" as const,
-  },
-  {
-    label: (
-      <>How much would you personally pay per month for <span className={GREEN}>Sylvy planner&#x2122;&#xFE0F;</span> only?</>
-    ),
-    min: 0,
-    max: 20,
-    key: "planner" as const,
-  },
-  {
-    label: (
-      <>How much should <span className={GREEN}>Sylvy labmind&#x2122;&#xFE0F;</span> cost per month per user?</>
-    ),
-    min: 0,
-    max: 50,
-    key: "labmind" as const,
-  },
-];
 
 /* ──────── Component ──────── */
 export default function SurveyPage() {
-  const [answers, setAnswers] = useState({
-    notebook: 10,
-    planner: 10,
-    labmind: 25,
-  });
+  /* Q1 state: 5 rows of task + time */
+  const [q1Rows, setQ1Rows] = useState<Q1Row[]>(
+    Array.from({ length: 5 }, () => ({ task: "", time: "" }))
+  );
+
+  /* Q2 state: 3 rows of software + satisfaction (0-10) */
+  const [q2Rows, setQ2Rows] = useState<Q2Row[]>(
+    Array.from({ length: 3 }, () => ({ software: "", satisfaction: 5 }))
+  );
+
+  /* Q3 state: single text */
+  const [q3Text, setQ3Text] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formState, setFormState] = useState({
@@ -102,9 +94,23 @@ export default function SurveyPage() {
     "idle" | "loading" | "success" | "error"
   >("idle");
 
-  /* slider change */
-  const handleSlider = (key: "notebook" | "planner" | "labmind", val: number) =>
-    setAnswers((prev) => ({ ...prev, [key]: val }));
+  /* Q1 row change */
+  const updateQ1 = (idx: number, field: keyof Q1Row, value: string) => {
+    setQ1Rows((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
+
+  /* Q2 row change */
+  const updateQ2 = (idx: number, field: keyof Q2Row, value: string | number) => {
+    setQ2Rows((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [field]: value };
+      return next;
+    });
+  };
 
   /* form field change */
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +118,7 @@ export default function SurveyPage() {
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
-  /* open modal on "Send the survey" click */
+  /* open/close modal */
   const openModal = () => {
     setIsModalOpen(true);
     setFormStatus("idle");
@@ -122,12 +128,36 @@ export default function SurveyPage() {
     setFormStatus("idle");
   };
 
+  /* parse time string (comma or dot) → number | null */
+  const parseTime = (raw: string): number | null => {
+    const cleaned = raw.replace(",", ".").trim();
+    if (cleaned === "") return null;
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  };
+
   /* submit modal form → client + survey */
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormStatus("loading");
 
     try {
+      // Build q1_tasks: exclude rows where both fields are empty
+      const q1Tasks = q1Rows
+        .filter((r) => r.task.trim() !== "" || r.time.trim() !== "")
+        .map((r) => ({
+          task: r.task.trim(),
+          time: parseTime(r.time),
+        }));
+
+      // Build q2_softwares: exclude rows where software is empty
+      const q2Softwares = q2Rows
+        .filter((r) => r.software.trim() !== "")
+        .map((r) => ({
+          software: r.software.trim(),
+          satisfaction: r.satisfaction,
+        }));
+
       const res = await fetch("/api/survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,9 +166,9 @@ export default function SurveyPage() {
           lastName: formState.lastName.trim(),
           email: formState.email.trim(),
           phone: formState.phone.trim(),
-          notebook: answers.notebook,
-          planner: answers.planner,
-          labmind: answers.labmind,
+          q1Tasks,
+          q2Softwares,
+          q3Text: q3Text.trim() || null,
         }),
       });
 
@@ -180,40 +210,112 @@ export default function SurveyPage() {
             Pricing Survey
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Help us find the right price for each Sylvy product.
+            Help Sylvy build its products.
           </p>
 
-          <div className="mt-10 space-y-10">
-            {QUESTIONS.map((q) => (
-              <div key={q.key}>
-                <label className="block text-lg font-medium leading-relaxed sm:text-xl">
-                  {q.label}
-                </label>
+          <div className="mt-10 space-y-12">
+            {/* ──── Q1 ──── */}
+            <div>
+              <label className="block text-lg font-medium leading-relaxed sm:text-xl">
+                On average, what non-valuable tasks do you spend <span className={GREEN}>the most time </span> on (Lab notebook reporting, Planning experiments, Sorting out your data, Writing protocols,…) ?
+              </label>
 
-                <div className="mt-4">
-                  <input
-                    type="range"
-                    className="pixel-slider"
-                    min={q.min}
-                    max={q.max}
-                    step={1}
-                    value={answers[q.key]}
-                    onChange={(e) =>
-                      handleSlider(q.key, Number(e.target.value))
-                    }
-                  />
-                  <div className="pixel-ticks">{ticks(q.max)}</div>
-                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                    <span>{q.min}&euro;</span>
-                    <span>{q.max}&euro;</span>
-                  </div>
-                  {/* selected value */}
-                  <p className="mt-3 text-center text-3xl font-bold tabular-nums text-primary">
-                    &euro;{answers[q.key]}
-                  </p>
+              <div className="mt-4 overflow-hidden rounded-xl border border-border">
+                {/* header */}
+                <div className="grid grid-cols-[1fr_120px] bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span>Task</span>
+                  <span className="text-center">Time (h)</span>
                 </div>
+                {/* rows */}
+                {q1Rows.map((row, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_120px] border-t border-border px-4 py-2 gap-3 items-center"
+                  >
+                    <input
+                      type="text"
+                      placeholder="e.g. Write report"
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+                      value={row.task}
+                      onChange={(e) => updateQ1(i, "task", e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0.0"
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm text-center outline-none focus:ring-1 focus:ring-primary"
+                      value={row.time}
+                      onChange={(e) => updateQ1(i, "time", e.target.value)}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* ──── Q2 ──── */}
+            <div>
+              <label className="block text-lg font-medium leading-relaxed sm:text-xl">
+                What <span className={GREEN}>software</span> do you use for those tasks (Excel, Benchling, SnapGene, Google Calendar, Chat GPT,…) and are you satisfied about it ?
+              </label>
+
+              <div className="mt-4 overflow-hidden rounded-xl border border-border">
+                {/* header */}
+                <div className="grid grid-cols-[1fr_180px] bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span>Software</span>
+                  <span className="text-center">Satisfied?</span>
+                </div>
+                {/* rows */}
+                {q2Rows.map((row, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-[1fr_180px] border-t border-border px-4 py-3 gap-3 items-center"
+                  >
+                    <input
+                      type="text"
+                      placeholder="e.g. Excel"
+                      className="w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary"
+                      value={row.software}
+                      onChange={(e) => updateQ2(i, "software", e.target.value)}
+                    />
+                    <div className="flex flex-col items-center gap-0.5">
+                      <input
+                        type="range"
+                        className="pixel-slider"
+                        min={0}
+                        max={10}
+                        step={1}
+                        value={row.satisfaction}
+                        onChange={(e) =>
+                          updateQ2(i, "satisfaction", Number(e.target.value))
+                        }
+                      />
+                      <div className="pixel-ticks">{ticks(10)}</div>
+                      <div className="flex w-full justify-between text-[10px] text-muted-foreground">
+                        <span>0</span>
+                        <span>10</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ──── Q3 ──── */}
+            <div>
+              <label className="block text-lg font-medium leading-relaxed sm:text-xl">
+                What <span className={GREEN}>feature</span> do you dream of ? <span className="italic">(Optional)</span>
+              </label>
+
+              <div className="mt-4">
+                <textarea
+                  rows={5}
+                  placeholder="Type your answer here…"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-1 focus:ring-primary resize-y"
+                  value={q3Text}
+                  onChange={(e) => setQ3Text(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Send the survey */}
