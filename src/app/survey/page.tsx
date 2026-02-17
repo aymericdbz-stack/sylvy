@@ -217,9 +217,13 @@ export default function SurveyPage() {
             {/* ──── Q1 ──── */}
             <div>
               <label className="block text-lg font-medium leading-relaxed sm:text-xl">
-                On average, what non-valuable tasks do you spend <span className={GREEN}>the most time </span> on (Lab notebook reporting, Planning experiments, Sorting out your data, Writing protocols,…) ?
+                On average, what non-valuable tasks do you spend{" "}
+                <span className={GREEN}>the most time </span>
+                on?
+                <span className="block text-sm text-gray-500 sm:text-base mt-1">
+                  (e.g. Lab notebook reporting, Planning experiments, Sorting out your data, Writing protocols,…)
+                </span>
               </label>
-
               <div className="mt-4 overflow-hidden rounded-xl border border-border">
                 {/* header */}
                 <div className="grid grid-cols-[1fr_120px] bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -255,9 +259,11 @@ export default function SurveyPage() {
             {/* ──── Q2 ──── */}
             <div>
               <label className="block text-lg font-medium leading-relaxed sm:text-xl">
-                What <span className={GREEN}>software</span> do you use for those tasks (Excel, Benchling, SnapGene, Google Calendar, Chat GPT,…) and are you satisfied about it ?
+                What <span className={GREEN}>softwares</span> do you use for those tasks and are you satisfied about them?
+                <span className="block text-sm text-gray-500 sm:text-base mt-1">
+                  (e.g. Excel, Benchling, SnapGene, Google Calendar, ChatGPT,…)
+                </span>
               </label>
-
               <div className="mt-4 overflow-hidden rounded-xl border border-border">
                 {/* header */}
                 <div className="grid grid-cols-[1fr_180px] bg-muted/50 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -303,9 +309,11 @@ export default function SurveyPage() {
             {/* ──── Q3 ──── */}
             <div>
               <label className="block text-lg font-medium leading-relaxed sm:text-xl">
-                What <span className={GREEN}>feature</span> do you dream of ? <span className="italic">(Optional)</span>
+                What <span className={GREEN}>feature</span> do you dream of?
+                <span className="block text-sm text-gray-500 sm:text-base mt-1 italic">
+                  (Optional)
+                </span>
               </label>
-
               <div className="mt-4">
                 <textarea
                   rows={5}
@@ -321,11 +329,11 @@ export default function SurveyPage() {
           {/* Send the survey */}
           <div className="mt-12 flex justify-center">
             <Button
-              className="w-full max-w-xs rounded-md"
+              className="w-full max-w-2xl h-16 text-xl rounded-xl"
               onClick={openModal}
               disabled={formStatus === "success"}
             >
-              {formStatus === "success" ? "Survey sent!" : "Send the survey"}
+              {formStatus === "success" ? "Survey sent!" : "Get a 3-month Sylvy for free"}
             </Button>
           </div>
         </main>

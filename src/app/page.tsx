@@ -256,7 +256,7 @@ const copy = {
     },
     modal: {
       title: "Try it !",
-      description: "Tell us about your lab and we will reach out.",
+      description: "Tell us about you and we'll reach out.",
       firstName: "First name",
       lastName: "Last name",
       email: "Work email",
@@ -1406,9 +1406,9 @@ export default function Home() {
       <div className="flex justify-center bg-white px-4 pb-12 pt-0">
         <a
           href="/survey"
-          className="inline-flex h-[4.5rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+          className="inline-flex h-[6.75rem] w-[90vw] max-w-4xl items-center justify-center rounded-xl bg-primary text-2xl font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
         >
-          Fill the survey
+          Get a 3-month Sylvy for free
         </a>
       </div>
 
