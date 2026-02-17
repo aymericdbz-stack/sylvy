@@ -856,6 +856,34 @@ export default function Home() {
     setFormStatus("idle");
   };
 
+  /* ── Inactivity popup: show "Try it" modal after 10 s of no interaction ── */
+  const inactivityShown = useRef(false);
+  useEffect(() => {
+    if (inactivityShown.current) return;
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (!inactivityShown.current) {
+          inactivityShown.current = true;
+          setIsModalOpen(true);
+          setFormStatus("idle");
+        }
+      }, 10_000);
+    };
+
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"] as const;
+    events.forEach((e) => window.addEventListener(e, reset));
+    reset(); // start the timer immediately
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, []);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormStatus("loading");
@@ -1024,8 +1052,8 @@ export default function Home() {
       </section>
 
       <main className="relative">
-        <section id="notebook" className="snap-section relative min-h-screen bg-white">
-          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
+        <section id="notebook" className="snap-section relative bg-white">
+          <div className="flex items-center justify-center px-4 pb-8 pt-12 sm:px-6 sm:pt-16">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1042,7 +1070,7 @@ export default function Home() {
               <span>notebook</span>
             </div>
           </div>
-          <div className="mx-auto w-full max-w-5xl px-4 pb-16 sm:px-6">
+          <div className="mx-auto w-full max-w-5xl px-4 pb-8 sm:px-6">
             <NotebookMorphDrag
               beforeSrc={notebookAfter}
               afterSrc={notebookBefore}
@@ -1052,7 +1080,7 @@ export default function Home() {
               aspectRatio="16/9"
             />
           </div>
-          <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
             <div
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isNotebookExpanded ? "60rem" : "0" }}
@@ -1108,15 +1136,23 @@ export default function Home() {
               </svg>
               {isNotebookExpanded ? "Show less" : "Show more"}
             </button>
+            <div className="mt-6 flex justify-center">
+              <a
+                href="/survey"
+                className="inline-flex h-[5.2rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl border-2 bg-transparent text-lg font-semibold transition-all focus-visible:ring-[3px] outline-none survey-cta-button"
+              >
+                Get a 3-month Sylvy for free
+              </a>
+            </div>
           </div>
         </section>
 
         <section
           id="planner"
           ref={plannerSectionRef}
-          className="snap-section relative min-h-screen bg-black text-white"
+          className="snap-section relative bg-black text-white"
         >
-          <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
+          <div className="flex items-center justify-center px-4 pb-8 pt-12 sm:px-6 sm:pt-16">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-white sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1133,7 +1169,7 @@ export default function Home() {
               <span>planner</span>
             </div>
           </div>
-          <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 pb-16 pt-6 sm:px-6">
+          <div className="mx-auto flex w-full max-w-7xl gap-6 px-4 pb-8 pt-4 sm:px-6">
             <div className="flex w-96 shrink-0 flex-col justify-between rounded-2xl bg-white p-5">
               <div className="flex-1 overflow-y-auto">
                 <div className="ml-auto rounded-2xl rounded-tr-sm bg-neutral-100 px-4 py-4">
@@ -1207,7 +1243,7 @@ export default function Home() {
               ))}
             </div>
           </div>
-          <div className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
             <div
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isPlannerExpanded ? "60rem" : "0" }}
@@ -1259,14 +1295,22 @@ export default function Home() {
               </svg>
               {isPlannerExpanded ? "Show less" : "Show more"}
             </button>
+            <div className="mt-6 flex justify-center">
+              <a
+                href="/survey"
+                className="inline-flex h-[5.2rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl border-2 bg-transparent text-lg font-semibold transition-all focus-visible:ring-[3px] outline-none survey-cta-button"
+              >
+                Get a 3-month Sylvy for free
+              </a>
+            </div>
           </div>
         </section>
 
         <section
           id="labmind"
-          className="snap-section flex min-h-screen flex-col overflow-hidden bg-white"
+          className="snap-section flex flex-col overflow-hidden bg-white"
         >
-          <div className="relative z-20 flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
+          <div className="relative z-20 flex items-center justify-center px-4 pb-8 pt-12 sm:px-6 sm:pt-16">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"
               style={{ fontSize: "clamp(1.5rem, 7vw, 6rem)" }}
@@ -1283,7 +1327,7 @@ export default function Home() {
               <span>labmind</span>
             </div>
           </div>
-          <div className="relative flex flex-1 items-center justify-center -mt-12">
+          <div className="relative flex items-center justify-center" style={{ height: "clamp(300px, 45vh, 550px)" }}>
             <div className="labmind-orbit">
               {(() => {
                 const entries: { logoIdx: number; angleDeg: number }[] = [
@@ -1345,7 +1389,7 @@ export default function Home() {
               />
             </div>
           </div>
-          <div className="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
             <div
               className="overflow-hidden transition-all duration-500 ease-in-out"
               style={{ maxHeight: isLabmindExpanded ? "60rem" : "0" }}
@@ -1397,20 +1441,18 @@ export default function Home() {
               </svg>
               {isLabmindExpanded ? "Show less" : "Show more"}
             </button>
+            <div className="mt-6 flex justify-center">
+              <a
+                href="/survey"
+                className="inline-flex h-[5.2rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl border-2 bg-transparent text-lg font-semibold transition-all focus-visible:ring-[3px] outline-none survey-cta-button"
+              >
+                Get a 3-month Sylvy for free
+              </a>
+            </div>
           </div>
         </section>
 
       </main>
-
-      {/* CTA – Fill the survey */}
-      <div className="flex justify-center bg-white px-4 pb-12 pt-0">
-        <a
-          href="/survey"
-          className="inline-flex h-[6.75rem] w-[90vw] max-w-4xl items-center justify-center rounded-xl bg-primary text-2xl font-semibold text-primary-foreground transition-all hover:bg-primary/90 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
-        >
-          Get a 3-month Sylvy for free
-        </a>
-      </div>
 
       <footer
         id="company"

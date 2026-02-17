@@ -23,14 +23,7 @@ body {
 }
 
 .snap-section {
-  min-height: 100vh;
-  min-height: 100svh;
-}
-@media (min-width: 640px) {
-  .snap-section {
-    min-height: 120vh;
-    min-height: 120svh;
-  }
+  /* content-driven height */
 }
 
 @font-face {
@@ -956,6 +949,16 @@ body {
   color: rgba(255, 255, 255, 0.85);
 }
 
+
+/* ── Survey CTA button ── */
+.survey-cta-button {
+  border-color: var(--theme-accent-strong);
+  color: var(--theme-accent-strong);
+}
+.survey-cta-button:hover {
+  background-color: var(--theme-accent-strong);
+  color: #fff;
+}
 
 /* ── Hyperspace Hero ── */
 
