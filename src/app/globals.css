@@ -1016,20 +1016,24 @@ body {
 }
 
 .hyperspace-title--left {
-  text-align: center;
+  text-align: left;
   align-self: center;
+  --offset-x: -5%;
+  transform: translateX(var(--offset-x)) translateY(6px);
 }
 
 .hyperspace-title--right {
-  text-align: center;
+  text-align: right;
   align-self: center;
+  --offset-x: 5%;
+  transform: translateX(var(--offset-x)) translateY(6px);
   margin-top: 0.5em;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .hyperspace-title.hyperspace-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(var(--offset-x, 0%)) translateY(0);
   filter: blur(0);
 }
 
