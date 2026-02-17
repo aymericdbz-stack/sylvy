@@ -75,9 +75,9 @@ export default function SurveyPage() {
     Array.from({ length: 5 }, () => ({ task: "", time: "" }))
   );
 
-  /* Q2 state: 3 rows of software + satisfaction (0-10) */
+  /* Q2 state: 5 rows of software + satisfaction (0-10) */
   const [q2Rows, setQ2Rows] = useState<Q2Row[]>(
-    Array.from({ length: 3 }, () => ({ software: "", satisfaction: 5 }))
+    Array.from({ length: 5 }, () => ({ software: "", satisfaction: 5 }))
   );
 
   /* Q3 state: single text */
