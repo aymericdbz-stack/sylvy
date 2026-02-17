@@ -17,22 +17,10 @@ import sylvyNoteImage from "../../logo/Sylvy note.webp";
 import sylvyClockImage from "../../logo/Sylvy clock.webp";
 import sylvyBrainImage from "../../logo/Sylvy brain.webp";
 import labBrainImage from "../../logo/Lab_brain.webp";
-import abbvieLogo from "../../carrousel/abbvie.webp";
-import astraZenecaLogo from "../../carrousel/astrazeneca.webp";
-import berkeleyLabsLogo from "../../carrousel/berkeley_labs.webp";
-import chimieParisLogo from "../../carrousel/chimie_paris.webp";
-import merckLogo from "../../carrousel/merck.webp";
-import pasteurLogo from "../../carrousel/pasteur.webp";
-import pierreFabreLogo from "../../carrousel/pierre_fabre.png";
-import ucBerkeleyLogo from "../../carrousel/uc_berkeley.webp";
-import sanofiLogo from "../../carrousel/sanofi.webp";
-import servierLogo from "../../carrousel/servier.webp";
 import notebookBefore from "../../photos_videos/Pierre_et_Marie_Curie.png";
 import notebookAfter from "../../photos_videos/Sylvy_notebook.png";
 import NotebookMorphDrag from "@/components/NotebookMorphDrag";
-import towerImage from "../../logos_tours/tour_vert.webp";
-import towerOrangeImage from "../../logos_tours/tour_orange.webp";
-import towerPurpleImage from "../../logos_tours/tour_violet.webp";
+import HyperspaceHero from "@/components/HyperspaceHero";
 import snapgeneLogo from "../../logo_software/snapgene.svg";
 import benchlingLogo from "../../logo_software/benchling.webp";
 import excelLogo from "../../logo_software/excel.webp";
@@ -583,7 +571,6 @@ function formatHour(h: number) {
 }
 
 export default function Home() {
-  const [phraseIndex, setPhraseIndex] = useState(0);
   const [isCompact, setIsCompact] = useState(false);
   const [theme, setTheme] = useState<ThemeName>("green");
   const [isNotebookExpanded, setIsNotebookExpanded] = useState(false);
@@ -625,21 +612,6 @@ export default function Home() {
   }, [typewriterText, isDeleting]);
 
   const t = copy.en;
-  const rotatingPhrases = t.hero.rotating;
-  const logoItems = [
-    { src: abbvieLogo, alt: "Abbvie" },
-    { src: berkeleyLabsLogo, alt: "Berkeley Labs" },
-    { src: chimieParisLogo, alt: "Chimie Paris" },
-    { src: merckLogo, alt: "Merck" },
-    { src: sanofiLogo, alt: "Sanofi" },
-  ];
-  const logoItemsAlt = [
-    { src: astraZenecaLogo, alt: "AstraZeneca" },
-    { src: pasteurLogo, alt: "Pasteur" },
-    { src: pierreFabreLogo, alt: "Pierre Fabre" },
-    { src: ucBerkeleyLogo, alt: "UC Berkeley" },
-    { src: servierLogo, alt: "Servier" },
-  ];
   const notebookFeatures = [
     "Capture handwritten notes",
     "Voice dictation",
@@ -726,19 +698,7 @@ export default function Home() {
     { src: sylvyNoteImage, alt: "Sylvy Note", scale: 1.5 },
   ];
 
-  const towerAsset =
-    theme === "orange"
-      ? towerOrangeImage
-      : theme === "purple"
-        ? towerPurpleImage
-        : towerImage;
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPhraseIndex((prev) => (prev + 1) % rotatingPhrases.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [rotatingPhrases.length]);
 
 
   useEffect(() => {
@@ -1014,7 +974,7 @@ export default function Home() {
         </div>
       </header>
       <section
-        className="snap-section relative isolate overflow-hidden text-[color:var(--theme-hero-text)]"
+        className="snap-section relative isolate overflow-x-clip text-[color:var(--theme-hero-text)]"
         style={{ background: "var(--theme-hero-bg)" }}
       >
         {/* Blobs décoratifs */}
@@ -1027,102 +987,44 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,var(--theme-hero-glow-one),transparent_45%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,var(--theme-hero-glow-two),transparent_40%)]" />
         {/* Intro — premier écran */}
-        <div className="relative z-10 flex min-h-screen items-center justify-center px-6 text-center">
+        <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
           <div>
             <p className="text-3xl font-semibold tracking-[0.05em] text-[color:var(--theme-hero-text)] sm:text-5xl md:text-7xl lg:text-7xl">
-              FOCUS ON RESEARCH
+              Focus on Research
             </p>
             <p className="mt-4 h-[1.5em] text-base font-medium text-[color:var(--theme-hero-text-muted)] sm:text-2xl md:text-3xl lg:text-4xl">
               {typewriterText}
               <span className="typewriter-cursor" />
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => document.getElementById("solutions")?.scrollIntoView({ behavior: "smooth" })}
+            className="absolute bottom-20 flex flex-col items-center gap-2 text-[color:var(--theme-hero-text)] opacity-70 transition-opacity hover:opacity-100"
+          >
+            <span className="text-sm font-medium tracking-widest uppercase">Discover</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-6 w-6"
+            >
+              <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg>
+          </button>
         </div>
-        {/* Hero — deuxième écran */}
-        <div className="relative">
-          <section id="solutions" className="relative flex min-h-screen flex-col pt-28">
-            <div className="mx-auto max-w-6xl px-4 pb-10 pt-10 sm:px-6 lg:ml-0 lg:mr-auto lg:pt-16">
-              <div className="relative z-10 max-w-3xl lg:pr-72">
-                <div className="mt-6 space-y-3">
-                  <div>
-                    <p className="text-2xl font-medium text-[color:var(--theme-hero-text-muted)] sm:text-4xl md:whitespace-nowrap md:text-5xl lg:text-6xl">
-                      {t.hero.prefixSecondary}
-                      <span
-                        aria-hidden="true"
-                        className="ml-3 inline-block h-[0.85em] w-[0.85em] align-[-0.12em]"
-                        style={{
-                          backgroundImage: `url(${logo.src})`,
-                          backgroundRepeat: "no-repeat",
-                          backgroundPosition: "center",
-                          backgroundSize: "contain",
-                        }}
-                      />
-                    </p>
-                  </div>
-                  <div className="min-h-[2.5rem] text-3xl font-semibold leading-tight text-[color:var(--theme-hero-text)] sm:min-h-[4.5rem] sm:text-5xl md:text-6xl lg:min-h-[5.5rem] lg:text-7xl xl:text-8xl">
-                    <span
-                      key={rotatingPhrases[phraseIndex]}
-                      className="hero-phrase font-display sm:whitespace-nowrap"
-                    >
-                      {rotatingPhrases[phraseIndex]}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative mt-auto pb-16 pt-6">
-              <div className="mx-auto max-w-6xl px-6">
-                <p className="text-xs uppercase tracking-[0.35em] text-[color:var(--theme-hero-text-soft)]">
-                  {t.logos.title}
-                </p>
-              </div>
-              <div className="relative mt-8">
-                {/* NOTE: screen_recording.mp4 not accessible here; carousel behavior follows provided spec. */}
-                <div className="logo-marquee hero-carousel">
-                  <div className="logo-track">
-                    {[...logoItems, ...logoItems].map((logoItem, index) => (
-                      <div key={`${logoItem.alt}-${index}`} className="logo-item">
-                        <Image
-                          src={logoItem.src}
-                          alt={logoItem.alt}
-                          width={320}
-                          height={150}
-                          className="h-12 w-auto object-contain opacity-90 sm:h-20"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="logo-track logo-track--alt">
-                    {[...logoItemsAlt, ...logoItemsAlt].map((logoItem, index) => (
-                      <div key={`${logoItem.alt}-alt-${index}`} className="logo-item">
-                        <Image
-                          src={logoItem.src}
-                          alt={logoItem.alt}
-                          width={320}
-                          height={150}
-                          className="h-12 w-auto object-contain opacity-80 sm:h-20"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+        {/* Solution narrative — deuxième écran (hyperspace starburst) */}
+        <div id="solutions" className="relative z-10">
+          <HyperspaceHero />
         </div>
-        <Image
-          src={towerAsset}
-          alt="Tower illustration"
-          width={towerAsset.width}
-          height={towerAsset.height}
-          className="pointer-events-none absolute bottom-0 right-0 z-20 h-[25vh] w-auto translate-x-6 sm:h-[40vh] md:h-[55vh] lg:h-[75vh]"
-          priority
-        />
       </section>
 
       <main className="relative">
-        <section className="snap-section relative min-h-screen bg-white">
+        <section id="notebook" className="snap-section relative min-h-screen bg-white">
           <div className="flex items-center justify-center px-4 pb-16 pt-16 sm:px-6 sm:pt-28">
             <div
               className="flex flex-wrap items-center justify-center gap-2 font-semibold leading-none tracking-tight text-black sm:gap-4"

@@ -888,6 +888,176 @@ body {
   }
 }
 
+/* ── Problem / Solution section ── */
+
+
+.ps-gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--theme-accent-strong) 0%,
+    color-mix(in srgb, var(--theme-accent-strong) 60%, #fff) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Central glow */
+.ps-glow {
+  width: clamp(300px, 50vw, 600px);
+  height: clamp(300px, 50vw, 600px);
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--theme-accent-strong) 12%, transparent),
+    transparent 70%
+  );
+  filter: blur(80px);
+}
+
+/* Stat cards */
+.ps-stat-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.4s, background 0.4s, transform 0.4s;
+}
+
+.ps-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.ps-stat-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.6rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--theme-accent-strong) 25%, transparent),
+    color-mix(in srgb, var(--theme-accent-strong) 10%, transparent)
+  );
+  color: var(--theme-accent-strong);
+}
+
+.ps-stat-label {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+
+/* ── Hyperspace Hero ── */
+
+.hyperspace-hero {
+  position: relative;
+  width: 100%;
+  min-height: 120vh;
+  min-height: 120svh;
+  background: #000;
+  overflow: hidden;
+}
+
+.hyperspace-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  pointer-events: none;
+}
+
+.hyperspace-text-wrap {
+  width: 100%;
+  max-width: 80rem;
+  padding: 0 1.5rem;
+  pointer-events: auto;
+}
+
+@media (min-width: 640px) {
+  .hyperspace-text-wrap {
+    padding: 0 3rem;
+  }
+}
+@media (min-width: 1024px) {
+  .hyperspace-text-wrap {
+    padding: 0 5rem;
+  }
+}
+
+.hyperspace-title {
+  font-weight: 450;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: clamp(1.5rem, 4.5vw, 5.5rem);
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(8px);
+  transition: opacity 750ms cubic-bezier(0.33, 1, 0.68, 1),
+              transform 750ms cubic-bezier(0.33, 1, 0.68, 1),
+              filter 750ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.hyperspace-title--left {
+  text-align: left;
+  margin-left: -15%;
+}
+
+.hyperspace-title--right {
+  text-align: right;
+  padding-left: 10%;
+  margin-top: 0.5em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.hyperspace-title.hyperspace-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+.hyperspace-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 3rem;
+  opacity: 0;
+  transform: translateY(6px);
+  filter: blur(6px);
+  transition: opacity 800ms cubic-bezier(0.33, 1, 0.68, 1),
+              transform 800ms cubic-bezier(0.33, 1, 0.68, 1),
+              filter 800ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@media (min-width: 640px) {
+  .hyperspace-pills {
+    flex-direction: row;
+    gap: 1.5rem;
+    margin-top: 5rem;
+  }
+}
+
+.hyperspace-pills.hyperspace-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in {
