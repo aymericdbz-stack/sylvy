@@ -36,6 +36,7 @@ export default function NotebookMorphDrag({
   const handleRef = useRef<HTMLDivElement>(null);
   const softEdgeRef = useRef<HTMLDivElement>(null);
   const initialRef = useRef(initial);
+  const hintPlayed = useRef(false);
 
   /** Mutates DOM directly — no setState, no re-render */
   const applyPosition = useCallback((pos: number) => {
@@ -118,6 +119,49 @@ export default function NotebookMorphDrag({
     };
   }, [applyPosition, getPos]);
 
+  // Hint animation: smooth wiggle when component first scrolls into view
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const easeInOut = (t: number) =>
+      t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+
+    const animateTo = (from: number, to: number, duration: number, onDone?: () => void) => {
+      const start = performance.now();
+      const step = (now: number) => {
+        const t = Math.min((now - start) / duration, 1);
+        applyPosition(from + (to - from) * easeInOut(t));
+        if (t < 1) requestAnimationFrame(step);
+        else onDone?.();
+      };
+      requestAnimationFrame(step);
+    };
+
+    const runHint = () => {
+      setTimeout(() => {
+        animateTo(0.5, 0.32, 500, () =>
+          animateTo(0.32, 0.68, 800, () =>
+            animateTo(0.68, 0.5, 500),
+          ),
+        );
+      }, 500);
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hintPlayed.current && !isDragging.current) {
+          hintPlayed.current = true;
+          runHint();
+        }
+      },
+      { threshold: 0.4 },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [applyPosition]);
+
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? 0.1 : 0.02;
     if (e.key === "ArrowLeft") {
@@ -178,8 +222,8 @@ export default function NotebookMorphDrag({
           transform: "translateX(-50%)",
           width: "64px",
           background:
-            "linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%)",
-          filter: "blur(7px)",
+            "linear-gradient(to right, rgba(0,172,115,0) 0%, rgba(0,172,115,0.18) 50%, rgba(0,172,115,0) 100%)",
+          filter: "blur(8px)",
         }}
       />
 
@@ -198,45 +242,11 @@ export default function NotebookMorphDrag({
         <div
           className="absolute inset-0"
           style={{
-            background: "rgba(255,255,255,0.96)",
+            background: "rgba(0,210,140,0.95)",
             boxShadow:
-              "0 0 6px 1px rgba(255,255,255,0.8), 0 0 22px 5px rgba(255,255,255,0.22)",
+              "0 0 4px 2px rgba(0,210,140,0.9), 0 0 18px 8px rgba(0,172,115,0.55), 0 0 52px 18px rgba(0,172,115,0.22)",
           }}
         />
-
-        {/* Grab circle */}
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center rounded-full bg-white"
-          style={{
-            width: 40,
-            height: 40,
-            boxShadow:
-              "0 2px 14px rgba(0,0,0,0.18), 0 0 0 1.5px rgba(0,0,0,0.07)",
-          }}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 18 18"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M5.5 5L2 9L5.5 13"
-              stroke="#1a1a1a"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M12.5 5L16 9L12.5 13"
-              stroke="#1a1a1a"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
       </div>
     </div>
   );

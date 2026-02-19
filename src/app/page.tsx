@@ -1077,7 +1077,7 @@ export default function Home() {
               beforeAlt="Carnet numérique Sylvy"
               afterAlt="Notes manuscrites"
               initial={0.5}
-              aspectRatio="16/9"
+              aspectRatio="3/2"
             />
           </div>
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
