@@ -238,7 +238,7 @@ export default function SurveyPage() {
         {/* survey body */}
         <main className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Pricing Survey
+            Survey
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Help Sylvy build its products.
