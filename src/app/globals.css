@@ -1090,3 +1090,57 @@ body {
     opacity: 0;
   }
 }
+
+/* =============================================
+   SYLVY NOTEBOOK — DESIGN SYSTEM TOKENS
+   ============================================= */
+
+@theme {
+  --color-nb-cream: #F5F0E8;
+  --color-nb-cream-dark: #EDE8DF;
+  --color-nb-cream-border: #D8D2C8;
+  --color-nb-green: #4CAF7D;
+  --color-nb-green-dark: #3A9466;
+  --color-nb-green-light: #E8F5EE;
+  --color-nb-charcoal: #1A1A1A;
+  --color-nb-muted: #6B6B6B;
+  --color-nb-muted-light: #9A9A9A;
+  --color-nb-error: #D94F4F;
+  --color-nb-warning: #E8A030;
+  --font-nb-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* Notebook app base — applied to the dashboard wrapper */
+.nb-app {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  background-color: #F5F0E8;
+  color: #1A1A1A;
+}
+
+/* Slider — pixel-style thumb */
+.nb-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  background: #EDE8DF;
+  border-radius: 0;
+  outline: none;
+}
+.nb-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background: #4CAF7D;
+  border-radius: 2px;
+  cursor: grab;
+}
+.nb-slider::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  background: #4CAF7D;
+  border-radius: 2px;
+  cursor: grab;
+  border: none;
+}
