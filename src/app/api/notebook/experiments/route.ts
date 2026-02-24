@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import type { Json } from "@/lib/supabase/types";
 
 // POST — create or update a notebook experiment
 export async function POST(request: Request) {
@@ -8,7 +9,7 @@ export async function POST(request: Request) {
     protocol_id?: string;
     notes_raw?: string;
     notes_parsed?: string;
-    report_json?: Record<string, unknown>;
+    report_json?: Json;
     status?: string;
   };
   try {
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
 
   if (body.id) {
     // Update existing experiment
-    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const updateData: { updated_at: string; notes_raw?: string | null; notes_parsed?: string | null; report_json?: Json; status?: string } = { updated_at: new Date().toISOString() };
     if (body.notes_raw !== undefined) updateData.notes_raw = body.notes_raw;
     if (body.notes_parsed !== undefined) updateData.notes_parsed = body.notes_parsed;
     if (body.report_json !== undefined) updateData.report_json = body.report_json;

@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
-
-// Service role client — bypasses RLS, used only server-side
-const serviceClient = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { getServiceClient } from '@/lib/supabase'
 
 export async function POST(request: Request) {
   // 1. Verify the caller is authenticated
@@ -30,8 +24,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Lab name is required' }, { status: 400 })
   }
 
+  const sc = getServiceClient()
+
   // 3. Check if user already has a row (idempotent)
-  const { data: existing } = await serviceClient
+  const { data: existing } = await sc
     .from('users')
     .select('id, org_id')
     .eq('id', user.id)
@@ -42,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   // 4. Create organization
-  const { data: org, error: orgErr } = await serviceClient
+  const { data: org, error: orgErr } = await sc
     .from('organizations')
     .insert({ name: orgName })
     .select('id')
@@ -53,7 +49,7 @@ export async function POST(request: Request) {
   }
 
   // 5. Create user row
-  const { error: userErr } = await serviceClient
+  const { error: userErr } = await sc
     .from('users')
     .insert({
       id: user.id,
@@ -64,7 +60,7 @@ export async function POST(request: Request) {
 
   if (userErr) {
     // Roll back org if user insert fails
-    await serviceClient.from('organizations').delete().eq('id', org.id)
+    await sc.from('organizations').delete().eq('id', org.id)
     return NextResponse.json({ error: userErr.message }, { status: 500 })
   }
 

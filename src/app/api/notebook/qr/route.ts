@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const sessionToken = `qr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     // Save to Supabase
-    const { error } = await supabase.from("qr_sessions").insert({
+    const { error } = await supabase.from("nb_qr_sessions").insert({
       session_token: sessionToken,
       status: "pending",
       files_data: null,

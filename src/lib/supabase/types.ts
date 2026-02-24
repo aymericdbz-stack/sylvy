@@ -128,6 +128,32 @@ export type Database = {
           { foreignKeyName: 'report_blocks_report_id_fkey'; columns: ['report_id']; isOneToOne: false; referencedRelation: 'reports'; referencedColumns: ['id'] }
         ]
       }
+      nb_protocols: {
+        Row: { id: string; title: string; content: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; title: string; content?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; title?: string; content?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      nb_experiments: {
+        Row: { id: string; protocol_id: string | null; notes_raw: string | null; notes_parsed: string | null; report_json: Json | null; status: string; created_at: string; updated_at: string }
+        Insert: { id?: string; protocol_id?: string | null; notes_raw?: string | null; notes_parsed?: string | null; report_json?: Json | null; status?: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; protocol_id?: string | null; notes_raw?: string | null; notes_parsed?: string | null; report_json?: Json | null; status?: string; created_at?: string; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: 'nb_experiments_protocol_id_fkey'; columns: ['protocol_id']; isOneToOne: false; referencedRelation: 'nb_protocols'; referencedColumns: ['id'] }
+        ]
+      }
+      nb_qr_sessions: {
+        Row: { id: string; experiment_id: string | null; session_token: string; status: string; files_data: Json | null; created_at: string; updated_at: string }
+        Insert: { id?: string; experiment_id?: string | null; session_token: string; status?: string; files_data?: Json | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; experiment_id?: string | null; session_token?: string; status?: string; files_data?: Json | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
+      nb_result_files: {
+        Row: { id: string; experiment_id: string | null; file_name: string; file_type: string | null; file_size: number | null; file_data: string | null; description: string | null; protocol_step: string | null; tags: string[] | null; storage_url: string | null; uploaded_at: string }
+        Insert: { id?: string; experiment_id?: string | null; file_name: string; file_type?: string | null; file_size?: number | null; file_data?: string | null; description?: string | null; protocol_step?: string | null; tags?: string[] | null; storage_url?: string | null; uploaded_at?: string }
+        Update: { id?: string; experiment_id?: string | null; file_name?: string; file_type?: string | null; file_size?: number | null; file_data?: string | null; description?: string | null; protocol_step?: string | null; tags?: string[] | null; storage_url?: string | null; uploaded_at?: string }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
