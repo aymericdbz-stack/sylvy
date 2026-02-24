@@ -57,36 +57,22 @@ export default function SignupPage() {
     setError(null)
     setLoading(true)
 
-    const supabase = createClient()
-
-    // Create organization
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
-      .insert({ name: orgName.trim() })
-      .select('id')
-      .single()
-
-    if (orgErr) {
-      setError(orgErr.message)
-      setLoading(false)
-      return
-    }
-
-    // Create user record
-    const { error: userErr } = await supabase.from('users').insert({
-      id: userId,
-      org_id: org.id,
-      email,
-      role: 'admin',
+    // Use server-side API route (service role) so RLS doesn't block org/user creation
+    const res = await fetch('/api/setup-org', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgName: orgName.trim() }),
     })
 
-    if (userErr) {
-      setError(userErr.message)
+    const data = await res.json()
+
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to create lab. Please try again.')
       setLoading(false)
       return
     }
 
-    router.push('/notebook')
+    router.push('/choose-tool')
     router.refresh()
   }
 

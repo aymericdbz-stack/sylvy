@@ -52,6 +52,10 @@ export default function ExperimentForm({
     if (!user) return
 
     if (mode === 'create') {
+      const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user.id).single()
+      const orgId = userRow?.org_id
+      if (!orgId) { toast.error('Lab setup incomplete. Please complete your account setup.'); return }
+
       const { data: exp, error } = await supabase
         .from('experiments')
         .insert({
@@ -61,7 +65,7 @@ export default function ExperimentForm({
           sample_id: data.sample_id ?? null,
           report_template_id: data.report_template_id ?? null,
           owner_id: user.id,
-          org_id: (await supabase.from('users').select('org_id').eq('id', user.id).single()).data?.org_id ?? '',
+          org_id: orgId,
         })
         .select('id')
         .single()

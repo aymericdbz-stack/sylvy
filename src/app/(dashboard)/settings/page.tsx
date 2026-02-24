@@ -1,17 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth-helpers'
 import OrgSettings from './OrgSettings'
 import MembersSettings from './MembersSettings'
 
 export default async function SettingsPage() {
+  const { user, orgId } = await getAuthContext()
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+
   const { data: userRow } = await supabase
     .from('users')
-    .select('org_id, role, organizations(id, name)')
-    .eq('id', user!.id)
+    .select('role, organizations(id, name)')
+    .eq('id', user.id)
     .single()
-
-  const orgId = userRow?.org_id ?? ''
   const orgName = (userRow?.organizations as { name: string } | null)?.name ?? ''
   const isAdmin = userRow?.role === 'admin'
 
@@ -31,7 +31,7 @@ export default async function SettingsPage() {
         <MembersSettings
           orgId={orgId}
           members={members ?? []}
-          currentUserId={user!.id}
+          currentUserId={user.id}
           isAdmin={isAdmin}
         />
       </div>

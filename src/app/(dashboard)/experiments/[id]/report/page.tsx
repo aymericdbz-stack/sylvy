@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getReport } from '@/lib/queries/reports'
 import { getExperiment } from '@/lib/queries/experiments'
 import { formatDate } from '@/lib/utils'
@@ -10,10 +11,8 @@ import Tooltip from '@/components/ui/nb/Tooltip'
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
 
   const [experiment, report] = await Promise.all([
     getExperiment(id, orgId),

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { FlaskConical } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getProtocols } from '@/lib/queries/protocols'
 import { formatInterval, formatDate } from '@/lib/utils'
 import Button from '@/components/ui/nb/Button'
@@ -8,11 +8,8 @@ import Badge from '@/components/ui/nb/Badge'
 import ProtocolActions from './ProtocolActions'
 
 export default async function ProtocolsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
-
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
   const protocols = await getProtocols(orgId)
 
   return (

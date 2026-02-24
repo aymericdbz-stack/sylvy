@@ -2,17 +2,22 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const DASHBOARD_PATHS = [
+// All paths that require authentication
+const PROTECTED_PATHS = [
   '/notebook',
   '/experiments',
   '/protocols',
   '/resources',
   '/templates',
   '/settings',
+  '/choose-tool',
 ]
 
+// Auth pages — logged-in users should not see these
+const AUTH_PAGES = ['/login', '/signup']
+
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({ request })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,32 +29,39 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options)
           )
         },
       },
     }
   )
 
+  // Use getUser() (not getSession()) — validates token server-side
   const { data: { user } } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
-  const isDashboard = DASHBOARD_PATHS.some((p) => pathname.startsWith(p))
-  const isAuthPage =
-    pathname.startsWith('/login') || pathname.startsWith('/signup')
+  const isProtected = PROTECTED_PATHS.some((p) => pathname.startsWith(p))
+  const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p))
 
-  if (isDashboard && !user) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // Not logged in → redirect to login
+  if (isProtected && !user) {
+    const url = new URL('/login', request.url)
+    url.searchParams.set('next', pathname)
+    return NextResponse.redirect(url)
   }
 
+  // Logged in → don't show login/signup, send to tool selector
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/notebook', request.url))
+    return NextResponse.redirect(new URL('/choose-tool', request.url))
   }
 
-  return response
+  return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|fonts|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|fonts|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }

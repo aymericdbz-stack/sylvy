@@ -1,14 +1,12 @@
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getTemplate } from '@/lib/queries/templates'
 import TemplateBuilder from '@/components/templates/TemplateBuilder'
 
 export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
 
   const template = await getTemplate(id, orgId)
   if (!template) notFound()
@@ -25,7 +23,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
         order: b.order,
       }))}
       orgId={orgId}
-      userId={user!.id}
+      userId={user.id}
     />
   )
 }
