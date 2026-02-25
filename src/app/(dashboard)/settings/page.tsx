@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import OrgSettings from './OrgSettings'
 import MembersSettings from './MembersSettings'
@@ -5,10 +6,12 @@ import MembersSettings from './MembersSettings'
 export default async function SettingsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
   const { data: userRow } = await supabase
     .from('users')
     .select('org_id, role, organizations(id, name)')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
   const orgId = userRow?.org_id ?? ''
@@ -31,7 +34,7 @@ export default async function SettingsPage() {
         <MembersSettings
           orgId={orgId}
           members={members ?? []}
-          currentUserId={user!.id}
+          currentUserId={user.id}
           isAdmin={isAdmin}
         />
       </div>

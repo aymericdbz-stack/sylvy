@@ -7,6 +7,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  CalendarDays,
 } from 'lucide-react'
 import NavItem from './NavItem'
 import { createClient } from '@/lib/supabase/server'
@@ -77,6 +78,16 @@ export default async function Sidebar() {
           href="/templates"
           icon={<FileText size={16} strokeWidth={1.5} />}
           label="Templates"
+        />
+
+        <div className="border-t border-nb-cream-border mx-4 my-3" />
+
+        {/* Planner — separate product, orange accent */}
+        <NavItem
+          href="/planner"
+          icon={<CalendarDays size={16} strokeWidth={1.5} />}
+          label="Planner"
+          accent="orange"
         />
 
         <div className="border-t border-nb-cream-border mx-4 my-1 mt-auto" />
