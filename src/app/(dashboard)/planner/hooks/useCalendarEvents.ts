@@ -19,9 +19,9 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
     try {
       const supabase = createClient()
 
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) throw new Error('Non authentifié')
-      const userId = session.user.id
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non authentifié')
+      const userId = user.id
 
       const { data: userRow, error: userErr } = await supabase
         .from('users')
@@ -108,9 +108,9 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
 
   const createEvent = useCallback(async (data: CalendarEventInsert): Promise<CalendarEvent> => {
     const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) throw new Error('Non authentifié')
-    const uid = session.user.id
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Non authentifié')
+    const uid = user.id
     const { data: userRow } = await supabase.from('users').select('org_id').eq('id', uid).single()
     const orgId = userRow?.org_id
     if (!orgId) throw new Error('Impossible de récupérer l\'organisation')

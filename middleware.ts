@@ -53,9 +53,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Logged in → don't show login/signup, send to tool selector
+  // Logged in → don't show login/signup, send to notebook
   if (user && isAuthPage) {
-    return NextResponse.redirect(new URL('/choose-tool', request.url))
+    return NextResponse.redirect(new URL('/notebook', request.url))
   }
 
   return supabaseResponse

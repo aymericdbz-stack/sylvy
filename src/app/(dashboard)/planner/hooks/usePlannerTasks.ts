@@ -50,13 +50,13 @@ export function usePlannerTasks() {
     setError(null)
     try {
       const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) throw new Error('Non authentifié')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non authentifié')
 
       const { data, error: err } = await supabase
         .from('planner_tasks')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
       if (err) throw err
@@ -77,13 +77,13 @@ export function usePlannerTasks() {
 
   const createTask = useCallback(async (data: PlannerTaskInsert) => {
     const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) throw new Error('Non authentifié')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Non authentifié')
 
     const { error } = await supabase
       .from('planner_tasks')
       .insert({
-        user_id:  session.user.id,
+        user_id:  user.id,
         name:     data.name,
         deadline: data.deadline ?? null,
         steps:    data.steps as unknown as Json,

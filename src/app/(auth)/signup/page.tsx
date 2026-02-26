@@ -22,12 +22,20 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
 
-  // ── Step 1: validate passwords, move to step 2 ────────────────────────────
-  const handleStep1 = (e: React.FormEvent) => {
+  // ── Step 1: validate passwords, create Supabase auth user, move to step 2 ──
+  const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
     if (password !== confirmPassword) { setError('Passwords do not match'); return }
+
+    setLoading(true)
+    const supabase = createClient()
+    const { data, error: signUpErr } = await supabase.auth.signUp({ email, password })
+    setLoading(false)
+
+    if (signUpErr) { setError(signUpErr.message); return }
+    setUserId(data.user?.id ?? null)
     setStep(2)
   }
 
@@ -53,7 +61,7 @@ export default function SignupPage() {
       return
     }
 
-    router.push('/choose-tool')
+    router.push('/notebook')
     router.refresh()
   }
 
