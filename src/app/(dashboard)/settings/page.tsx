@@ -14,11 +14,18 @@ export default async function SettingsPage() {
   const orgName = (userRow?.organizations as { name: string } | null)?.name ?? ''
   const isAdmin = userRow?.role === 'admin'
 
-  const { data: members } = await supabase
+  const { data: membersRows } = await supabase
     .from('users')
     .select('id, email, role, created_at')
     .eq('org_id', orgId)
     .order('created_at', { ascending: true })
+
+  const members = (membersRows ?? []).map((row) => ({
+    id: row.id,
+    email: row.email ?? '',
+    role: row.role === 'admin' ? ('admin' as const) : ('member' as const),
+    created_at: row.created_at,
+  }))
 
   return (
     <div>
@@ -27,7 +34,7 @@ export default async function SettingsPage() {
         orgId={orgId}
         orgName={orgName}
         isAdmin={isAdmin}
-        members={members ?? []}
+        members={members}
         currentUserId={user.id}
       />
     </div>

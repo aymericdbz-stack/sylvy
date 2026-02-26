@@ -591,10 +591,10 @@ export default function ExportPdfButton({
           const res = await fetch(f.storage_url);
           const bytes = await res.arrayBuffer();
           const srcDoc = await PDFDocument.load(bytes);
-          const srcPages = srcDoc.getPageIndices();
+          const srcPageRefs = srcDoc.getPages();
 
-          for (const idx of srcPages) {
-            const [embedded] = await pdfDoc.embedPages(srcDoc, [idx]);
+          for (let i = 0; i < srcPageRefs.length; i++) {
+            const [embedded] = await pdfDoc.embedPages([srcPageRefs[i]]);
 
             currentPageKind = "RAW DATA";
             startNewPage();

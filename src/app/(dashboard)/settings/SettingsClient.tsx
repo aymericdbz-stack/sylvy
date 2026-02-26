@@ -14,11 +14,13 @@ const TABS = [
   { id: 'prefs',      label: 'Préférences' },
 ]
 
+type Member = { id: string; email: string; role: 'admin' | 'member'; created_at: string }
+
 interface Props {
   orgId: string
   orgName: string
   isAdmin: boolean
-  members: { id: string; email: string; role: string; created_at: string }[]
+  members: Member[]
   currentUserId: string
 }
 

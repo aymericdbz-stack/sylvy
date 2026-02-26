@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/nb/Button'
 import Input from '@/components/ui/nb/Input'
 import { toast } from 'sonner'
-import logo from '../../../../../logo/Logo Noir sans Fond.webp'
+import logo from '../../../../logo/Logo Noir sans Fond.webp'
 
 type Step = 1 | 2
 
