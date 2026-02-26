@@ -62,6 +62,7 @@ export default function PlannerClient() {
   const [aiOpen,      setAiOpen]      = useState(false)
   const [syncOpen,    setSyncOpen]    = useState(false)
   const [taskPanelOpen, setTaskPanelOpen] = useState(false)
+  const [editTask,      setEditTask]      = useState<import('./hooks/usePlannerTasks').PlannerTask | null>(null)
   const [optimizing,    setOptimizing]    = useState(false)
 
   // Modal state
@@ -81,7 +82,7 @@ export default function PlannerClient() {
     useCalendarEvents(rangeStart, rangeEnd)
 
   // Data — planner tasks
-  const { tasks, loading: tasksLoading, error: tasksError, dirty, createTask, bulkUpdateSchedule } =
+  const { tasks, loading: tasksLoading, error: tasksError, dirty, createTask, updateTask, deleteTask, bulkUpdateSchedule } =
     usePlannerTasks()
 
   const monday   = getMondayOf(currentDate)
@@ -291,6 +292,7 @@ export default function PlannerClient() {
               scheduledTasks={scheduledTaskBlocks}
               onEventClick={handleEventClick}
               onSlotClick={handleSlotClick}
+              onTaskClick={task => { setEditTask(task); setTaskPanelOpen(true) }}
             />
           ) : (
             <MonthCalendar
@@ -316,18 +318,21 @@ export default function PlannerClient() {
 
       {/* FAB — opens task creation panel */}
       <button
-        onClick={() => setTaskPanelOpen(true)}
+        onClick={() => { setEditTask(null); setTaskPanelOpen(true) }}
         className="fixed right-8 bottom-8 z-30 w-11 h-11 rounded-full bg-pl-orange text-white shadow-lg flex items-center justify-center hover:bg-pl-orange-dark transition-colors"
         title="Nouvelle tâche"
       >
         <Plus size={20} />
       </button>
 
-      {/* Task creation slide-over */}
+      {/* Task panel — create or edit */}
       <TaskPanel
         open={taskPanelOpen}
-        onClose={() => setTaskPanelOpen(false)}
+        task={editTask}
+        onClose={() => { setTaskPanelOpen(false); setEditTask(null) }}
         onSave={createTask}
+        onUpdate={updateTask}
+        onDelete={deleteTask}
       />
 
       {/* Event modal */}

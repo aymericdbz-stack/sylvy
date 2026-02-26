@@ -50,16 +50,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: orgErr.message }, { status: 500 })
   }
 
-  // 5. Create user row (with onboarding user_type: researcher | lab_manager)
-  const { error: userErr } = await sc
-    .from('users')
-    .insert({
-      id: user.id,
-      org_id: org.id,
-      email: user.email ?? '',
-      role: 'admin',
-      user_type: userType,
-    })
+  // 5. Create or update user row (with onboarding user_type: researcher | lab_manager)
+  const { error: userErr } = existing
+    ? await sc
+        .from('users')
+        .update({ org_id: org.id, user_type: userType })
+        .eq('id', user.id)
+    : await sc
+        .from('users')
+        .insert({
+          id: user.id,
+          org_id: org.id,
+          email: user.email ?? '',
+          role: 'admin',
+          user_type: userType,
+        })
 
   if (userErr) {
     // Roll back org if user insert fails

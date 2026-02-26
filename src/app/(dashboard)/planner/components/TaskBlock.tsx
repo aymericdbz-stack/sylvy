@@ -22,6 +22,7 @@ interface TaskBlockProps {
   block: ScheduledTaskBlock
   col: number
   maxCols: number
+  onClick?: (task: PlannerTask) => void
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ function hexToRgba(hex: string, a: number): string {
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
-export default function TaskBlock({ block, col, maxCols }: TaskBlockProps) {
+export default function TaskBlock({ block, col, maxCols, onClick }: TaskBlockProps) {
   const [hovered, setHovered] = useState(false)
   const { task, scheduledStart, conflict, conflictReason } = block
   const steps = task.steps as StepData[]
@@ -112,6 +113,7 @@ export default function TaskBlock({ block, col, maxCols }: TaskBlockProps) {
       {/* Main block container */}
       <div
         className="relative w-full h-full rounded-[4px] overflow-hidden cursor-pointer"
+        onClick={e => { e.stopPropagation(); onClick?.(task) }}
         style={{
           backgroundColor: conflict ? '#FEF2F2' : hexToRgba(color, 0.08),
           border: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.2)}`,

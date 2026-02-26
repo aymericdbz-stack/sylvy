@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useMemo } from 'react'
 import type { CalendarEvent } from '../types'
 import TaskBlock from './TaskBlock'
 import type { ScheduledTaskBlock } from './TaskBlock'
+import { getTimezone } from '@/lib/preferences'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PX_PER_HOUR  = 80
@@ -28,9 +29,15 @@ const COLOR_MAP: Record<string, { bg: string; border: string; text: string }> = 
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function timeToMin(iso: string): number {
+function timeToMin(iso: string, tz?: string): number {
   const d = new Date(iso)
-  return d.getHours() * 60 + d.getMinutes()
+  if (!tz) return d.getHours() * 60 + d.getMinutes()
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: '2-digit', hour12: false, timeZone: tz,
+  }).formatToParts(d)
+  const h = parseInt(parts.find(p => p.type === 'hour')!.value)
+  const m = parseInt(parts.find(p => p.type === 'minute')!.value)
+  return h * 60 + m
 }
 
 function toISO(d: Date): string {
@@ -140,18 +147,27 @@ interface WeekCalendarProps {
   scheduledTasks?: ScheduledTaskBlock[]
   onEventClick:    (event: CalendarEvent) => void
   onSlotClick:     (date: string, time: string) => void
+  onTaskClick?:    (task: import('../hooks/usePlannerTasks').PlannerTask) => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeekCalendar({
-  weekStart, events, scheduledTasks = [], onEventClick, onSlotClick,
+  weekStart, events, scheduledTasks = [], onEventClick, onSlotClick, onTaskClick,
 }: WeekCalendarProps) {
   const weekDays   = getWeekDays(weekStart)
   const todayISO   = toISO(new Date())
   const scrollRef  = useRef<HTMLDivElement>(null)
+  const [tz, setTz] = useState<string>(() => getTimezone())
   const [nowMin, setNowMin] = useState(() => {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes()
   })
+
+  // Re-read timezone when user changes it in settings
+  useEffect(() => {
+    const handler = () => setTz(getTimezone())
+    window.addEventListener('storage', handler)
+    return () => window.removeEventListener('storage', handler)
+  }, [])
 
   // Scroll to 1 hour before current time on mount
   useEffect(() => {
@@ -197,11 +213,20 @@ export default function WeekCalendar({
   const todayInWeek = weekDays.some(d => toISO(d) === todayISO)
 
   function handleColumnClick(e: React.MouseEvent<HTMLDivElement>, dayISO: string) {
-    const rect  = e.currentTarget.getBoundingClientRect()
-    const clickY = e.clientY - rect.top
+    const rect       = e.currentTarget.getBoundingClientRect()
+    const clickY     = e.clientY - rect.top
     const clickedMin = Math.floor(clickY / PX_PER_MIN) + DAY_START_MIN
     const snapped    = Math.round(clickedMin / 15) * 15
-    const clamped    = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - 60, snapped))
+    let clamped      = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - 60, snapped))
+
+    // If clicking on today, never pre-fill a past time slot
+    if (dayISO === todayISO) {
+      const now     = new Date()
+      const nowMin  = now.getHours() * 60 + now.getMinutes()
+      const nextSlot = Math.ceil(nowMin / 15) * 15
+      clamped = Math.max(clamped, Math.min(nextSlot, DAY_END_MIN - 60))
+    }
+
     onSlotClick(dayISO, minToLabel(clamped))
   }
 
@@ -314,8 +339,8 @@ export default function WeekCalendar({
                   onClick={e => handleColumnClick(e, iso)}
                 >
                   {dayEvts.map(ev => {
-                    const startMin = Math.max(timeToMin(ev.start_at), DAY_START_MIN)
-                    const endMin   = Math.min(timeToMin(ev.end_at),   DAY_END_MIN)
+                    const startMin = Math.max(timeToMin(ev.start_at, tz), DAY_START_MIN)
+                    const endMin   = Math.min(timeToMin(ev.end_at, tz),   DAY_END_MIN)
                     const top      = (startMin - DAY_START_MIN) * PX_PER_MIN
                     const height   = Math.max((endMin - startMin) * PX_PER_MIN, 18)
                     const col      = colMap.get(ev.id) ?? 0
@@ -338,6 +363,7 @@ export default function WeekCalendar({
                       block={tb}
                       col={ti}
                       maxCols={taskMaxCols}
+                      onClick={onTaskClick}
                     />
                   ))}
                 </div>

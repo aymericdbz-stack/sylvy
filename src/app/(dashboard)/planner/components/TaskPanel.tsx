@@ -1,37 +1,50 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Plus, Trash2, Loader2 } from 'lucide-react'
+import { X, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
-import type { PlannerTaskInsert, StepData } from '../hooks/usePlannerTasks'
+import type { PlannerTask, PlannerTaskInsert, StepData } from '../hooks/usePlannerTasks'
 
 function uid() { return crypto.randomUUID() }
 
 interface TaskPanelProps {
-  open: boolean
-  onClose: () => void
-  onSave: (data: PlannerTaskInsert) => Promise<void>
+  open:      boolean
+  onClose:   () => void
+  onSave:    (data: PlannerTaskInsert) => Promise<void>
+  onUpdate?: (id: string, data: PlannerTaskInsert) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
+  task?:     PlannerTask | null   // if provided → edit mode
 }
 
 const emptyStep = (): StepData => ({ id: uid(), name: '', duration: 30, startOffset: 0 })
 
-export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
+export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, task }: TaskPanelProps) {
+  const isEdit = !!task
+
   const [name,     setName]     = useState('')
   const [deadline, setDeadline] = useState('')
   const [steps,    setSteps]    = useState<StepData[]>([emptyStep()])
   const [saving,   setSaving]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
 
-  // Reset form when opening
+  // Populate form when opening
   useEffect(() => {
-    if (open) {
+    if (!open) return
+    if (task) {
+      setName(task.name)
+      setDeadline(task.deadline
+        ? new Date(task.deadline).toISOString().slice(0, 16)
+        : '')
+      setSteps(task.steps.length > 0 ? task.steps : [emptyStep()])
+    } else {
       setName('')
       setDeadline('')
       setSteps([emptyStep()])
-      setTimeout(() => nameRef.current?.focus(), 100)
     }
-  }, [open])
+    setTimeout(() => nameRef.current?.focus(), 100)
+  }, [open, task])
 
   // Close on Escape
   useEffect(() => {
@@ -51,7 +64,6 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
   }
 
   function addStep() {
-    // default T+ = end of last step
     const last = steps[steps.length - 1]
     const offset = last ? last.startOffset + last.duration : 0
     setSteps(prev => [...prev, { id: uid(), name: '', duration: 30, startOffset: offset }])
@@ -64,12 +76,18 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
 
     setSaving(true)
     try {
-      await onSave({
+      const data: PlannerTaskInsert = {
         name: name.trim(),
         deadline: deadline ? new Date(deadline).toISOString() : null,
         steps,
-      })
-      toast.success('Tâche créée')
+      }
+      if (isEdit && onUpdate && task) {
+        await onUpdate(task.id, data)
+        toast.success('Tâche mise à jour')
+      } else {
+        await onSave(data)
+        toast.success('Tâche créée')
+      }
       onClose()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Erreur')
@@ -78,14 +96,24 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
     }
   }
 
+  async function handleDelete() {
+    if (!task || !onDelete) return
+    setDeleting(true)
+    try {
+      await onDelete(task.id)
+      toast.success('Tâche supprimée')
+      onClose()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erreur')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <>
-      {/* Backdrop */}
-      {open && (
-        <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-      )}
+      {open && <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />}
 
-      {/* Slide-over panel */}
       <div
         className={`fixed right-0 top-0 h-full w-[400px] max-w-[90vw] bg-pl-cream z-50 shadow-2xl border-l border-pl-cream-border flex flex-col transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : 'translate-x-full'
@@ -93,7 +121,9 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-pl-cream-border flex-shrink-0">
-          <h2 className="text-[13px] font-[700] text-pl-charcoal font-nb-mono">Nouvelle tâche</h2>
+          <h2 className="text-[13px] font-[700] text-pl-charcoal font-nb-mono">
+            {isEdit ? 'Modifier la tâche' : 'Nouvelle tâche'}
+          </h2>
           <button onClick={onClose} className="p-1 text-pl-muted hover:text-pl-charcoal transition-colors">
             <X size={16} />
           </button>
@@ -101,7 +131,6 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-          {/* Task name */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
               Nom de la tâche *
@@ -115,7 +144,6 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
             />
           </div>
 
-          {/* Deadline */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
               Deadline (optionnel)
@@ -128,7 +156,6 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
             />
           </div>
 
-          {/* Steps */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
@@ -144,25 +171,16 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
             </div>
 
             {steps.map((step, i) => (
-              <div
-                key={step.id}
-                className="bg-white border border-pl-cream-border rounded-[8px] p-3 space-y-2.5"
-              >
+              <div key={step.id} className="bg-white border border-pl-cream-border rounded-[8px] p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-[600] text-pl-muted font-nb-mono">
-                    Étape {i + 1}
-                  </span>
+                  <span className="text-[10px] font-[600] text-pl-muted font-nb-mono">Étape {i + 1}</span>
                   {steps.length > 1 && (
-                    <button
-                      onClick={() => removeStep(step.id)}
-                      className="p-0.5 text-pl-muted-light hover:text-pl-error transition-colors"
-                    >
+                    <button onClick={() => removeStep(step.id)} className="p-0.5 text-pl-muted-light hover:text-pl-error transition-colors">
                       <Trash2 size={12} />
                     </button>
                   )}
                 </div>
 
-                {/* Step name */}
                 <input
                   value={step.name}
                   onChange={e => updateStep(step.id, { name: e.target.value })}
@@ -171,25 +189,18 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
                 />
 
                 <div className="flex gap-2">
-                  {/* Duration */}
                   <div className="flex-1 space-y-1">
                     <label className="text-[9px] text-pl-muted font-nb-mono">Durée (min)</label>
                     <input
-                      type="number"
-                      min={1}
-                      value={step.duration}
+                      type="number" min={1} value={step.duration}
                       onChange={e => updateStep(step.id, { duration: Math.max(1, parseInt(e.target.value) || 1) })}
                       className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
                     />
                   </div>
-
-                  {/* T+ offset */}
                   <div className="flex-1 space-y-1">
                     <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+</label>
                     <input
-                      type="number"
-                      min={0}
-                      value={step.startOffset}
+                      type="number" min={0} value={step.startOffset}
                       onChange={e => updateStep(step.id, { startOffset: Math.max(0, parseInt(e.target.value) || 0) })}
                       className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
                     />
@@ -201,16 +212,15 @@ export default function TaskPanel({ open, onClose, onSave }: TaskPanelProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border">
-          <Button
-            variant="primary"
-            size="md"
-            className="w-full"
-            onClick={handleSave}
-            disabled={saving}
-            loading={saving}
-          >
-            {saving ? 'Enregistrement…' : 'Enregistrer'}
+        <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border flex items-center gap-3">
+          {isEdit && onDelete && (
+            <Button variant="danger" size="md" onClick={handleDelete} loading={deleting}>
+              <Trash2 size={13} />
+              Supprimer
+            </Button>
+          )}
+          <Button variant="primary" size="md" className="flex-1" onClick={handleSave} loading={saving}>
+            {isEdit ? 'Mettre à jour' : 'Enregistrer'}
           </Button>
         </div>
       </div>

@@ -95,6 +95,22 @@ export function usePlannerTasks() {
     await fetchTasks()
   }, [fetchTasks])
 
+  const updateTask = useCallback(async (id: string, data: PlannerTaskInsert) => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('planner_tasks')
+      .update({
+        name:     data.name,
+        deadline: data.deadline ?? null,
+        steps:    data.steps as unknown as Json,
+        color:    data.color ?? null,
+      })
+      .eq('id', id)
+    if (error) throw error
+    setDirty(true)
+    await fetchTasks()
+  }, [fetchTasks])
+
   const deleteTask = useCallback(async (id: string) => {
     const supabase = createClient()
     const { error } = await supabase
@@ -125,5 +141,5 @@ export function usePlannerTasks() {
     await fetchTasks()
   }, [fetchTasks])
 
-  return { tasks, loading, error, dirty, setDirty, refetch: fetchTasks, createTask, deleteTask, bulkUpdateSchedule }
+  return { tasks, loading, error, dirty, setDirty, refetch: fetchTasks, createTask, updateTask, deleteTask, bulkUpdateSchedule }
 }

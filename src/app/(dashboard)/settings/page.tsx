@@ -1,8 +1,6 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getAuthContext } from '@/lib/auth-helpers'
-import OrgSettings from './OrgSettings'
-import MembersSettings from './MembersSettings'
+import SettingsClient from './SettingsClient'
 
 export default async function SettingsPage() {
   const { user, orgId } = await getAuthContext()
@@ -25,17 +23,13 @@ export default async function SettingsPage() {
   return (
     <div>
       <h1 className="text-[22px] font-[700] text-nb-charcoal mb-8 font-nb-mono">Settings</h1>
-
-      <div className="flex flex-col gap-8">
-        <OrgSettings orgId={orgId} initialName={orgName} isAdmin={isAdmin} />
-        <div className="border-t border-nb-cream-border" />
-        <MembersSettings
-          orgId={orgId}
-          members={members ?? []}
-          currentUserId={user.id}
-          isAdmin={isAdmin}
-        />
-      </div>
+      <SettingsClient
+        orgId={orgId}
+        orgName={orgName}
+        isAdmin={isAdmin}
+        members={members ?? []}
+        currentUserId={user.id}
+      />
     </div>
   )
 }

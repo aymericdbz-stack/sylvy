@@ -25,7 +25,7 @@ function toLocalDateTimeInputs(iso: string): { date: string; time: string } {
 }
 
 function toISO(date: string, time: string): string {
-  return `${date}T${time}:00`
+  return new Date(`${date}T${time}:00`).toISOString()
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
