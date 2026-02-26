@@ -1,7 +1,9 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useMemo } from 'react'
 import type { CalendarEvent } from '../types'
+import TaskBlock from './TaskBlock'
+import type { ScheduledTaskBlock } from './TaskBlock'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PX_PER_HOUR  = 80
@@ -133,15 +135,16 @@ function EventBlock({
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface WeekCalendarProps {
-  weekStart:      Date
-  events:         CalendarEvent[]
-  onEventClick:   (event: CalendarEvent) => void
-  onSlotClick:    (date: string, time: string) => void
+  weekStart:       Date
+  events:          CalendarEvent[]
+  scheduledTasks?: ScheduledTaskBlock[]
+  onEventClick:    (event: CalendarEvent) => void
+  onSlotClick:     (date: string, time: string) => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function WeekCalendar({
-  weekStart, events, onEventClick, onSlotClick,
+  weekStart, events, scheduledTasks = [], onEventClick, onSlotClick,
 }: WeekCalendarProps) {
   const weekDays   = getWeekDays(weekStart)
   const todayISO   = toISO(new Date())
@@ -174,6 +177,17 @@ export default function WeekCalendar({
     if (!eventsByDate.has(key)) eventsByDate.set(key, [])
     eventsByDate.get(key)!.push(ev)
   }
+
+  // Group scheduled tasks by ISO date
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, ScheduledTaskBlock[]>()
+    for (const tb of scheduledTasks) {
+      const key = toISO(tb.scheduledStart)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(tb)
+    }
+    return map
+  }, [scheduledTasks])
 
   const hourMarks: number[] = []
   for (let m = DAY_START_MIN; m <= DAY_END_MIN; m += 60) hourMarks.push(m)
@@ -286,7 +300,11 @@ export default function WeekCalendar({
               const iso      = toISO(day)
               const isToday  = iso === todayISO
               const dayEvts  = eventsByDate.get(iso) ?? []
-              const { colMap, maxCols } = assignColumns(dayEvts)
+              const dayTasks = tasksByDate.get(iso) ?? []
+              const { colMap, maxCols: evtMaxCols } = assignColumns(dayEvts)
+
+              // Overlap layout for tasks (simple side-by-side)
+              const taskMaxCols = Math.max(dayTasks.length, 1)
 
               return (
                 <div
@@ -309,11 +327,19 @@ export default function WeekCalendar({
                         top={top}
                         height={height}
                         col={col}
-                        maxCols={maxCols}
+                        maxCols={evtMaxCols}
                         onClick={e => { e.stopPropagation(); onEventClick(ev) }}
                       />
                     )
                   })}
+                  {dayTasks.map((tb, ti) => (
+                    <TaskBlock
+                      key={tb.task.id}
+                      block={tb}
+                      col={ti}
+                      maxCols={taskMaxCols}
+                    />
+                  ))}
                 </div>
               )
             })}

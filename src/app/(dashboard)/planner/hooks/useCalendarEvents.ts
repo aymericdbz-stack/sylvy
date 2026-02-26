@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { CalendarEvent, CalendarEventInsert, EventColor } from '../types'
+import type { CalendarEventRow } from '@/lib/supabase/types'
 
 export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
   const startKey = rangeStart.toISOString().slice(0, 10)
@@ -18,8 +19,17 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
     try {
       const supabase = createClient()
 
-      const { data: orgId, error: orgErr } = await supabase.rpc('get_my_org_id')
-      if (orgErr || !orgId) throw new Error('Impossible de récupérer l\'organisation')
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) throw new Error('Non authentifié')
+      const userId = session.user.id
+
+      const { data: userRow, error: userErr } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', userId)
+        .single()
+      if (userErr || !userRow) throw new Error('Impossible de récupérer l\'organisation')
+      const orgId = userRow.org_id
 
       // ISO range with one extra day on each side to catch edge cases
       const from = new Date(rangeStart)
@@ -27,18 +37,19 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       const to = new Date(rangeEnd)
       to.setDate(to.getDate() + 1)
 
-      // Fetch calendar events
-      const { data: calEvents, error: calErr } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .eq('org_id', orgId)
-        .gte('start_at', from.toISOString())
-        .lte('start_at', to.toISOString())
-        .order('start_at')
-
-      if (calErr) {
-        // Table may not exist yet — degrade gracefully
-        if (calErr.code !== '42P01') throw calErr
+      // Fetch calendar events (optional — table may not exist yet)
+      let calEvents: CalendarEventRow[] | null = null
+      try {
+        const { data, error: calErr } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .eq('org_id', orgId)
+          .gte('start_at', from.toISOString())
+          .lte('start_at', to.toISOString())
+          .order('start_at')
+        if (!calErr) calEvents = data
+      } catch {
+        // ignore — table may not exist yet
       }
 
       // Fetch experiments in date range (based on created_at)
@@ -97,15 +108,18 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
 
   const createEvent = useCallback(async (data: CalendarEventInsert): Promise<CalendarEvent> => {
     const supabase = createClient()
-    const { data: orgId } = await supabase.rpc('get_my_org_id')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!orgId || !user) throw new Error('Non authentifié')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) throw new Error('Non authentifié')
+    const uid = session.user.id
+    const { data: userRow } = await supabase.from('users').select('org_id').eq('id', uid).single()
+    const orgId = userRow?.org_id
+    if (!orgId) throw new Error('Impossible de récupérer l\'organisation')
 
     const { data: row, error } = await supabase
       .from('calendar_events')
       .insert({
         org_id:     orgId,
-        user_id:    user.id,
+        user_id:    uid,
         title:      data.title,
         description: data.description ?? null,
         start_at:   data.start_at,
