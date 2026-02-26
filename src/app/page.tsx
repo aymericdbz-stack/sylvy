@@ -11,6 +11,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/components/layout/ThemeProvider";
 import logo from "../../logo/Logo Noir sans Fond.webp";
 import logoWhite from "../../logo/Logo Blanc sans Fond.webp";
 import sylvyNoteImage from "../../logo/Sylvy note.webp";
@@ -501,12 +502,11 @@ const copy = {
 } as const;
 
 type FormStatus = "idle" | "loading" | "success" | "error";
-type ThemeName = "green" | "purple" | "orange";
 
-const themeOptions: { id: ThemeName; label: string; swatch: string }[] = [
-  { id: "green", label: "Deep green", swatch: "#00AC73" },
-  { id: "orange", label: "Deep orange", swatch: "#D65400" },
-  { id: "purple", label: "Deep purple", swatch: "#C074FF" },
+const themeOptions = [
+  { id: "green" as const, label: "Deep green", swatch: "#00AC73" },
+  { id: "orange" as const, label: "Deep orange", swatch: "#D65400" },
+  { id: "purple" as const, label: "Deep purple", swatch: "#C074FF" },
 ];
 
 const SCROLL_THRESHOLD = 60;
@@ -572,7 +572,6 @@ function formatHour(h: number) {
 
 export default function Home() {
   const [isCompact, setIsCompact] = useState(false);
-  const [theme, setTheme] = useState<ThemeName>("green");
   const [isNotebookExpanded, setIsNotebookExpanded] = useState(false);
   const [isPlannerExpanded, setIsPlannerExpanded] = useState(false);
   const [isLabmindExpanded, setIsLabmindExpanded] = useState(false);
@@ -611,6 +610,7 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, [typewriterText, isDeleting]);
 
+  const { accent, setAccent } = useTheme();
   const t = copy.en;
   const notebookFeatures = [
     "Capture handwritten notes",
@@ -921,10 +921,7 @@ export default function Home() {
     : "border-white/40 ring-white/70 ring-offset-transparent";
 
   return (
-    <div
-      className="relative min-h-screen overflow-hidden bg-background text-foreground"
-      data-theme={theme}
-    >
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       <header
         className={`fixed left-0 right-0 z-[9999] transition-all duration-300 ease-out ${
           isCompact ? "top-3" : "top-0"
@@ -968,7 +965,7 @@ export default function Home() {
             {!isCompact && (
               <div className="flex items-center gap-2">
                 {themeOptions.map((option) => {
-                  const isActive = theme === option.id;
+                  const isActive = accent === option.id;
                   return (
                     <button
                       key={option.id}
@@ -976,7 +973,7 @@ export default function Home() {
                       aria-label={`Switch to ${option.label} theme`}
                       aria-pressed={isActive}
                       title={option.label}
-                      onClick={() => setTheme(option.id)}
+                      onClick={() => setAccent(option.id)}
                       className={`${themeToggleBase} ${themeToggleTone} ${
                         isActive
                           ? "ring-2 opacity-100"

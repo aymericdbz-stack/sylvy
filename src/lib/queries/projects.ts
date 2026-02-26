@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import type { Project } from '@/lib/supabase/types'
+import type { ExperimentSetWithCount } from './experiment-sets'
 
 export type ProjectWithCounts = Project & {
   experiment_count: number
   manipulation_count: number
+  experiment_sets: ExperimentSetWithCount[]
 }
 
 export async function getProjects(orgId: string): Promise<ProjectWithCounts[]> {
@@ -11,18 +13,59 @@ export async function getProjects(orgId: string): Promise<ProjectWithCounts[]> {
 
   const { data, error } = await supabase
     .from('projects')
-    .select('*, experiment_sets(id, experiments:experiments(id))')
+    .select(
+      `
+      *,
+      experiment_sets (
+        id,
+        name,
+        created_at,
+        experiments:experiments (
+          id,
+          name,
+          created_at
+        )
+      )
+    `
+    )
     .eq('org_id', orgId)
     .order('created_at', { ascending: false })
 
   if (error) return []
 
   return (data ?? []).map((row) => {
-    const sets = (row.experiment_sets ?? []) as { id: string; experiments: { id: string }[] }[]
+    const sets = (row.experiment_sets ?? []) as {
+      id: string
+      name: string
+      created_at: string
+      experiments: { id: string; name: string; created_at: string }[]
+    }[]
+
+    const setsWithCounts: ExperimentSetWithCount[] = sets.map((set) => {
+      const experiments = set.experiments ?? []
+      const manipulations = experiments.map((exp) => ({
+        id: exp.id,
+        name: exp.name,
+        created_at: exp.created_at,
+      }))
+
+      return {
+        id: set.id,
+        name: set.name,
+        created_at: set.created_at,
+        org_id: row.org_id,
+        owner_id: row.owner_id,
+        project_id: row.id,
+        manipulation_count: manipulations.length,
+        manipulations,
+      }
+    })
+
     return {
       ...row,
-      experiment_count: sets.length,
-      manipulation_count: sets.reduce((sum, s) => sum + (s.experiments?.length ?? 0), 0),
+      experiment_sets: setsWithCounts,
+      experiment_count: setsWithCounts.length,
+      manipulation_count: setsWithCounts.reduce((sum, s) => sum + s.manipulation_count, 0),
     }
   })
 }

@@ -264,6 +264,10 @@ body {
   --accent: #efe1ff;
   --accent-foreground: #4c1d95;
   --ring: #caa0ff;
+  /* Map notebook green tokens to accent so the whole app recolors */
+  --color-nb-green: #c074ff;
+  --color-nb-green-dark: #7c3aed;
+  --color-nb-green-light: #f3e8ff;
 }
 
 [data-theme="orange"] {
@@ -328,6 +332,10 @@ body {
   --accent: #fed7aa;
   --accent-foreground: #9a3412;
   --ring: #fb923c;
+  /* Map notebook green tokens to accent so the whole app recolors */
+  --color-nb-green: #f97316;
+  --color-nb-green-dark: #c2410c;
+  --color-nb-green-light: #ffedd5;
 }
 
 .dark {
@@ -1142,6 +1150,33 @@ body {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   background-color: #FDFAF5;
   color: #1C1917;
+}
+
+.dark .nb-app {
+  background-color: #020617;
+  color: #F9FAFB;
+}
+
+.dark .pl-app {
+  background-color: #020617;
+  color: #F9FAFB;
+}
+
+.dark .bg-white {
+  background-color: #020617;
+}
+
+.dark .text-nb-charcoal {
+  color: #E5E7EB;
+}
+
+.dark .text-nb-muted,
+.dark .text-nb-muted-light {
+  color: #9CA3AF;
+}
+
+.dark .border-nb-cream-border {
+  border-color: #1F2937;
 }
 
 /* Slider — pixel-style thumb */

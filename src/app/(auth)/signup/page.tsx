@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/nb/Button'
 import Input from '@/components/ui/nb/Input'
 import { toast } from 'sonner'
+import logo from '../../../../../logo/Logo Noir sans Fond.webp'
 
 type Step = 1 | 2
 
@@ -73,9 +75,18 @@ export default function SignupPage() {
     <div className="min-h-screen bg-nb-cream flex items-center justify-center px-4 font-nb-mono">
       <div className="w-full max-w-[400px]">
         {/* Logo */}
-        <div className="text-center mb-10">
-          <span className="text-[24px] font-[700] text-nb-green">Sylvy</span>
-          <p className="text-[11px] text-nb-muted uppercase tracking-[0.08em] mt-1">Wet Lab Intelligence</p>
+        <div className="mb-10 flex items-center justify-center gap-3">
+          <Image
+            src={logo}
+            alt="Sylvy logo"
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain"
+            priority
+          />
+          <span className="text-[14px] font-[600] tracking-[0.2em] uppercase text-nb-charcoal">
+            Sylvy
+          </span>
         </div>
 
         {/* Step indicator */}

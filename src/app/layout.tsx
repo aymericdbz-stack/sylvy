@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { ThemeProvider } from "@/components/layout/ThemeProvider";
 
 export const metadata: Metadata = {
   title: "Sylvy | AI Lab Assistant for Wet Lab Research",
@@ -53,7 +54,7 @@ export default function RootLayout({
             {suppressExtensionErrorsScript}
           </Script>
         )}
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

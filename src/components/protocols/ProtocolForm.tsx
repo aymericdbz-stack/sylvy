@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,6 +11,7 @@ import Link from 'next/link'
 import Button from '@/components/ui/nb/Button'
 import Input from '@/components/ui/nb/Input'
 import Textarea from '@/components/ui/nb/Textarea'
+import DurationPicker from '@/components/protocols/DurationPicker'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import type { Machine, Reagent } from '@/lib/supabase/types'
@@ -23,13 +24,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-const PROTOCOL_TEMPLATES: Array<{ id: string; label: string; description?: string; content: string }> = [
-  {
-    id: 'blank',
-    label: 'Start from scratch',
-    description: 'Empty template',
-    content: '',
-  },
+type ProtocolTemplate = { id: string; label: string; description?: string; content: string }
+
+const BLANK_TEMPLATE: ProtocolTemplate = { id: 'blank', label: 'Start from scratch', content: '' }
+
+const BUILTIN_PROTOCOL_TEMPLATES: ProtocolTemplate[] = [
   {
     id: 'elisa',
     label: 'ELISA assay (general)',
@@ -134,8 +133,59 @@ export default function ProtocolForm({ mode, protocolId, defaultValues, machines
   const [selectedMachines, setSelectedMachines] = useState<string[]>(defaultValues?.machine_ids ?? [])
   const [selectedReagents, setSelectedReagents] = useState<string[]>(defaultValues?.reagent_ids ?? [])
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  const [dbProtocols, setDbProtocols] = useState<ProtocolTemplate[]>([])
 
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      // Load saved report templates that have a text block (protocol content saved as template)
+      const { data } = await supabase
+        .from('report_templates')
+        .select('id, title, template_blocks(type, content, order)')
+        .eq('org_id', orgId)
+        .order('title', { ascending: true })
+      if (data) {
+        const parsed: ProtocolTemplate[] = []
+        for (const t of data) {
+          const blocks = Array.isArray(t.template_blocks) ? t.template_blocks : []
+          // Only show in dropdown if it has at least one text block (protocol content templates)
+          const textBlock = (blocks as { type: string; content: string | null; order: number }[])
+            .sort((a, b) => a.order - b.order)
+            .find((b) => b.type === 'text' && b.content)
+          if (textBlock?.content) {
+            parsed.push({ id: `rt-${t.id}`, label: t.title, content: textBlock.content })
+          }
+        }
+        setDbProtocols(parsed)
+      }
+    }
+    load()
+  }, [orgId])
+
+  const allTemplates = useMemo<ProtocolTemplate[]>(() => {
+    return [...BUILTIN_PROTOCOL_TEMPLATES, ...dbProtocols].sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+    )
+  }, [dbProtocols])
+
+  const groupedTemplates = useMemo(
+    () =>
+      allTemplates.reduce<{ letter: string; items: ProtocolTemplate[] }[]>((acc, tpl) => {
+        const letter = (tpl.label[0] ?? '#').toUpperCase()
+        const existing = acc.find((g) => g.letter === letter)
+        if (existing) {
+          existing.items.push(tpl)
+        } else {
+          acc.push({ letter, items: [tpl] })
+        }
+        return acc
+      }, []),
+    [allTemplates]
+  )
+
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false)
+
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: defaultValues?.name ?? '',
@@ -149,6 +199,52 @@ export default function ProtocolForm({ mode, protocolId, defaultValues, machines
 
   const toggleReagent = (id: string) =>
     setSelectedReagents((prev) => prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id])
+
+  const handleSelectTemplate = (tpl: ProtocolTemplate) => {
+    setSelectedTemplateId(tpl.id)
+    setTemplateMenuOpen(false)
+    setValue('content', tpl.content, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handleSaveCurrentAsTemplate = async () => {
+    const currentContent = (watch('content') ?? '').trim()
+    if (!currentContent) {
+      toast.error('Write some protocol content before saving it as a template.')
+      return
+    }
+    const name = window.prompt('Template name')
+    const label = name?.trim()
+    if (!label) return
+
+    const supabase = createClient()
+
+    const { data: tmpl, error: tErr } = await supabase
+      .from('report_templates')
+      .insert({ title: label, org_id: orgId, owner_id: userId })
+      .select('id')
+      .single()
+
+    if (tErr || !tmpl) {
+      toast.error('Failed to save template')
+      return
+    }
+
+    const { error: bErr } = await supabase
+      .from('template_blocks')
+      .insert({ template_id: tmpl.id, type: 'text', order: 1, content: currentContent })
+
+    if (bErr) {
+      toast.error('Failed to save template content')
+      return
+    }
+
+    const newTemplate: ProtocolTemplate = { id: `rt-${tmpl.id}`, label, content: currentContent }
+    setDbProtocols((prev) =>
+      [...prev, newTemplate].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }))
+    )
+    setSelectedTemplateId(newTemplate.id)
+    toast.success('Template saved — visible in the Templates page')
+  }
 
   const onSubmit = async (data: FormData) => {
     const supabase = createClient()
@@ -213,11 +309,9 @@ export default function ProtocolForm({ mode, protocolId, defaultValues, machines
             error={!!errors.name}
             errorMessage={errors.name?.message}
           />
-          <Input
-            label="Duration"
-            placeholder="e.g. 2h 30min"
-            {...register('timing')}
-            hint="Free text format: 2h 30min, 45min, etc."
+          <DurationPicker
+            value={watch('timing')}
+            onChange={(v) => setValue('timing', v, { shouldDirty: true })}
           />
 
           {/* Equipment */}
@@ -285,25 +379,71 @@ export default function ProtocolForm({ mode, protocolId, defaultValues, machines
               <span className="text-[11px] text-nb-muted">Write or start from a template</span>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {PROTOCOL_TEMPLATES.map((tpl) => (
-                <button
-                  key={tpl.id}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                {/* Start from scratch */}
+                <Button
                   type="button"
-                  onClick={() => {
-                    setSelectedTemplateId(tpl.id)
-                    setValue('content', tpl.content, { shouldDirty: true, shouldValidate: true })
-                  }}
-                  className={cn(
-                    'px-3 py-1.5 rounded-full text-[12px] border transition-all duration-150 font-nb-mono',
-                    selectedTemplateId === tpl.id
-                      ? 'bg-nb-green text-white border-nb-green'
-                      : 'bg-white text-nb-charcoal border-nb-cream-border hover:border-nb-green'
-                  )}
+                  variant={selectedTemplateId === 'blank' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => handleSelectTemplate(BLANK_TEMPLATE)}
                 >
-                  {tpl.label}
-                </button>
-              ))}
+                  Start from scratch
+                </Button>
+
+                {/* Or pick an existing template */}
+                <div className="relative">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="min-w-[200px] justify-between"
+                    onClick={() => setTemplateMenuOpen((open) => !open)}
+                  >
+                    <span className="truncate">
+                      {selectedTemplateId && selectedTemplateId !== 'blank'
+                        ? allTemplates.find((t) => t.id === selectedTemplateId)?.label ?? 'Use a template'
+                        : 'Use a template'}
+                    </span>
+                    <span className="text-[10px] text-nb-muted ml-2">▼</span>
+                  </Button>
+
+                  {templateMenuOpen && (
+                    <div className="absolute z-20 mt-1 w-[260px] max-h-64 overflow-y-auto bg-white border border-nb-cream-border rounded-[8px] shadow-lg py-1">
+                      {groupedTemplates.map((group) => (
+                        <div key={group.letter}>
+                          <div className="px-3 py-1 text-[10px] font-[600] text-nb-muted uppercase tracking-[0.08em]">
+                            {group.letter}
+                          </div>
+                          {group.items.map((tpl) => (
+                            <button
+                              key={tpl.id}
+                              type="button"
+                              onClick={() => handleSelectTemplate(tpl)}
+                              className={cn(
+                                'w-full text-left px-3 py-1.5 text-[12px] font-nb-mono hover:bg-nb-cream',
+                                selectedTemplateId === tpl.id ? 'bg-nb-green/10 text-nb-charcoal' : 'text-nb-charcoal'
+                              )}
+                            >
+                              {tpl.label}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleSaveCurrentAsTemplate}
+                className="whitespace-nowrap"
+              >
+                Save as template
+              </Button>
             </div>
 
             <Textarea

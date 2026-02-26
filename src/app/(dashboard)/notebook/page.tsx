@@ -1,8 +1,5 @@
-import { Sparkles, Filter } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getProjects } from '@/lib/queries/projects'
-import Button from '@/components/ui/nb/Button'
-import Tooltip from '@/components/ui/nb/Tooltip'
 import ProjectListClient from '@/components/notebook/ProjectListClient'
 
 async function getNotebookData() {
@@ -28,22 +25,17 @@ export default async function NotebookPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-[22px] font-[700] text-nb-charcoal">Lab Notebook</h1>
-        <div className="flex items-center gap-2">
-          <Tooltip content="Coming soon — AI search across all your experiments">
-            <Button variant="secondary" disabled>
-              <Sparkles size={14} strokeWidth={1.5} />
-              Smart Research
-            </Button>
-          </Tooltip>
-          <button className="p-2 text-nb-muted hover:text-nb-charcoal hover:bg-nb-cream rounded-[6px] transition-colors">
-            <Filter size={16} strokeWidth={1.5} />
-          </button>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-[22px] font-[700] text-primary">Lab Notebook</h1>
       </div>
 
-      {/* Projects list */}
+      {/* Projects section */}
+      <div className="mb-4">
+        <p className="text-[12px] font-[600] text-nb-muted tracking-[0.08em] uppercase">
+          Projects
+        </p>
+      </div>
+
       <ProjectListClient projects={projects} />
     </div>
   )

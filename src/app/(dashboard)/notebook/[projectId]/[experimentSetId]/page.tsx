@@ -86,7 +86,12 @@ export default async function ExperimentSetPage({
       />
 
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-[22px] font-[700] text-nb-charcoal">{experimentSet.name}</h1>
+        <div>
+          <h1 className="text-[22px] font-[700] text-nb-charcoal">{experimentSet.name}</h1>
+          <p className="mt-1 text-[13px] text-nb-muted">
+            Manipulation section — individual runs and measurements inside this experiment.
+          </p>
+        </div>
         <Link href={`/experiments/new?experiment_set_id=${experimentSet.id}&project_id=${project.id}`}>
           <Button variant="primary">
             <Plus size={14} strokeWidth={1.5} />

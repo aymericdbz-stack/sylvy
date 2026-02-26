@@ -16,7 +16,7 @@ export async function getTemplates(orgId: string): Promise<TemplateWithCount[]> 
     .from('report_templates')
     .select('*, owner:users!owner_id(email), template_blocks(id)')
     .eq('org_id', orgId)
-    .order('updated_at', { ascending: false })
+    .order('title', { ascending: true })
   if (error) throw error
 
   return (data ?? []).map((row) => ({

@@ -5,11 +5,13 @@ import Tabs from '@/components/ui/nb/Tabs'
 import OrgSettings from './OrgSettings'
 import MembersSettings from './MembersSettings'
 import PreferencesSettings from './PreferencesSettings'
+import AppearanceSettings from './AppearanceSettings'
 
 const TABS = [
-  { id: 'lab',   label: 'Lab' },
-  { id: 'members', label: 'Membres' },
-  { id: 'prefs', label: 'Préférences' },
+  { id: 'lab',        label: 'Lab' },
+  { id: 'members',    label: 'Membres' },
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'prefs',      label: 'Préférences' },
 ]
 
 interface Props {
@@ -37,6 +39,9 @@ export default function SettingsClient({ orgId, orgName, isAdmin, members, curre
           currentUserId={currentUserId}
           isAdmin={isAdmin}
         />
+      )}
+      {tab === 'appearance' && (
+        <AppearanceSettings />
       )}
       {tab === 'prefs' && (
         <PreferencesSettings />

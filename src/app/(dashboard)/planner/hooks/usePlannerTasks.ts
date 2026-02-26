@@ -59,7 +59,15 @@ export function usePlannerTasks() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
-      if (err) throw err
+      if (err) {
+        const code = (err as { code?: string }).code
+        // If the planner_tasks table does not exist yet, fail silently with empty list
+        if (code === '42P01') {
+          setTasks([])
+          return
+        }
+        throw err
+      }
 
       setTasks((data ?? []).map(row => ({
         ...row,

@@ -53,16 +53,70 @@ export async function createReport(
   if (bErr) throw bErr
 
   // Create one ReportBlock per TemplateBlock
+  type ReportBlockInsert = {
+    report_id: string
+    template_block_id: string | null
+    type: 'heading' | 'text' | 'image_placeholder' | 'data_table'
+    order: number
+    content: string | null
+  }
+  const reportBlocks: ReportBlockInsert[] = []
   if (blocks && blocks.length > 0) {
-    const { error: rbErr } = await supabase.from('report_blocks').insert(
-      blocks.map((b) => ({
+    reportBlocks.push(
+      ...blocks.map((b) => ({
         report_id: report.id,
         template_block_id: b.id,
-        type: b.type,
+        type: b.type as 'heading' | 'text' | 'image_placeholder' | 'data_table',
         order: b.order,
         content: b.type === 'heading' ? b.content : null,
       }))
     )
+  }
+
+  // Ensure Results and Comments sections exist
+  const hasResults = blocks?.some((b) => b.type === 'heading' && /result/i.test(b.content || ''))
+  const hasComments = blocks?.some((b) => b.type === 'heading' && /comment/i.test(b.content || ''))
+
+  const maxOrder = reportBlocks.length > 0 ? Math.max(...reportBlocks.map((b) => b.order)) : 0
+
+  if (!hasResults) {
+    reportBlocks.push({
+      report_id: report.id,
+      template_block_id: null,
+      type: 'heading',
+      order: maxOrder + 1,
+      content: 'Results',
+    })
+    reportBlocks.push({
+      report_id: report.id,
+      template_block_id: null,
+      type: 'text',
+      order: maxOrder + 2,
+      content: null,
+    })
+  }
+
+  if (!hasComments) {
+    const nextOrder = Math.max(...reportBlocks.map((b) => b.order)) + 1
+    reportBlocks.push({
+      report_id: report.id,
+      template_block_id: null,
+      type: 'heading',
+      order: nextOrder,
+      content: 'Comments',
+    })
+    reportBlocks.push({
+      report_id: report.id,
+      template_block_id: null,
+      type: 'text',
+      order: nextOrder + 1,
+      content: null,
+    })
+  }
+
+  // Insert all blocks
+  if (reportBlocks.length > 0) {
+    const { error: rbErr } = await supabase.from('report_blocks').insert(reportBlocks)
     if (rbErr) throw rbErr
   }
 

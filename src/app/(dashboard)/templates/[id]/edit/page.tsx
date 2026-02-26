@@ -11,17 +11,14 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   const template = await getTemplate(id, orgId)
   if (!template) notFound()
 
+  const textBlock = template.blocks.find((b) => b.type === 'text')
+
   return (
     <TemplateBuilder
       mode="edit"
       templateId={id}
       defaultTitle={template.title}
-      defaultBlocks={template.blocks.map((b) => ({
-        localId: b.id,
-        type: b.type,
-        content: b.content ?? '',
-        order: b.order,
-      }))}
+      defaultContent={textBlock?.content ?? ''}
       orgId={orgId}
       userId={user.id}
     />

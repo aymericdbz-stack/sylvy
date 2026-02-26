@@ -109,7 +109,7 @@ export default function ExperimentEntry({ experiment }: ExperimentEntryProps) {
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
             {experiment.has_report ? (
-              <Link href={`/experiments/${experiment.id}/report`}>
+              <Link href={`/experiments/${experiment.id}`}>
                 <Button variant="secondary" size="sm">View Report</Button>
               </Link>
             ) : (

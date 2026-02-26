@@ -1,8 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import type { ExperimentSet } from '@/lib/supabase/types'
 
+export type ManipulationSummary = {
+  id: string
+  name: string
+  created_at: string
+}
+
 export type ExperimentSetWithCount = ExperimentSet & {
   manipulation_count: number
+  manipulations: ManipulationSummary[]
 }
 
 export async function getExperimentSets(projectId: string, orgId: string): Promise<ExperimentSetWithCount[]> {
@@ -10,7 +17,16 @@ export async function getExperimentSets(projectId: string, orgId: string): Promi
 
   const { data, error } = await supabase
     .from('experiment_sets')
-    .select('*, experiments:experiments(id)')
+    .select(
+      `
+      *,
+      experiments:experiments(
+        id,
+        name,
+        created_at
+      )
+    `
+    )
     .eq('project_id', projectId)
     .eq('org_id', orgId)
     .order('created_at', { ascending: false })
@@ -18,10 +34,18 @@ export async function getExperimentSets(projectId: string, orgId: string): Promi
   if (error) return []
 
   return (data ?? []).map((row) => {
-    const experiments = (row.experiments ?? []) as { id: string }[]
+    const experiments = (row.experiments ?? []) as { id: string; name: string; created_at: string }[]
+
+    const manipulations: ManipulationSummary[] = experiments.map((exp) => ({
+      id: exp.id,
+      name: exp.name,
+      created_at: exp.created_at,
+    }))
+
     return {
       ...row,
-      manipulation_count: experiments.length,
+      manipulation_count: manipulations.length,
+      manipulations,
     }
   })
 }

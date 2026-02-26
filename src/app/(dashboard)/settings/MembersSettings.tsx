@@ -49,7 +49,7 @@ export default function MembersSettings({ orgId, members: initialMembers, curren
   return (
     <div className="bg-white border border-nb-cream-border rounded-[8px] p-6 font-nb-mono">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-[15px] font-[600] text-nb-charcoal">Members</h2>
+        <h2 className="text-[15px] font-[600] text-primary">Members</h2>
         {isAdmin && (
           <Button variant="secondary" size="sm" onClick={() => setInviteOpen(true)}>
             Invite member

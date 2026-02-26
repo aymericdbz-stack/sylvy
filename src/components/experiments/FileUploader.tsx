@@ -49,7 +49,7 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
     return false
   }
 
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFile = useCallback(async (file: File, customLabel?: string) => {
     if (!isAllowedFile(file)) {
       toast.error('Only images (HEIC/JPEG/PNG/WEBP), tables (CSV/XLSX), and PDFs can be uploaded as raw data.')
       return
@@ -80,7 +80,7 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
       .from('experiment_files')
       .insert({
         experiment_id: experimentId,
-        file_name: file.name,
+        file_name: customLabel?.trim() || file.name,
         file_type: file.type || 'application/octet-stream',
         storage_url: urlData.publicUrl,
       })
@@ -97,7 +97,23 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
   }, [experimentId, orgId])
 
   const handleFiles = (fileList: FileList) => {
-    Array.from(fileList).forEach(uploadFile)
+    Array.from(fileList).forEach((file) => {
+      let customLabel: string | undefined
+
+      const isImage = file.type.startsWith('image/')
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+      if (isImage || isPdf) {
+        // Allow the user to provide a human-friendly title for raw data shown in PDFs.
+        const suggested = file.name.replace(/\.[^.]+$/, '')
+        const input = window.prompt('Title for this raw data file (shown in exported PDF):', suggested)
+        if (input && input.trim().length > 0) {
+          customLabel = input.trim()
+        }
+      }
+
+      uploadFile(file, customLabel)
+    })
   }
 
   const handleDelete = async (fileRecord: ExperimentFile) => {

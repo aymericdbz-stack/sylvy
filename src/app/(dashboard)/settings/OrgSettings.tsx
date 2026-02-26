@@ -29,7 +29,7 @@ export default function OrgSettings({ orgId, initialName, isAdmin }: OrgSettings
 
   return (
     <div className="bg-white border border-nb-cream-border rounded-[8px] p-6 font-nb-mono">
-      <h2 className="text-[15px] font-[600] text-nb-charcoal mb-5">Organization</h2>
+      <h2 className="text-[15px] font-[600] text-primary mb-5">Organization</h2>
       <form onSubmit={handleSave} className="flex flex-col gap-4 max-w-[420px]">
         <Input
           label="Organization name"

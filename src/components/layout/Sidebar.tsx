@@ -1,7 +1,7 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   BookOpen,
-  Plus,
   FlaskConical,
   Archive,
   FileText,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import NavItem from './NavItem'
 import { createClient } from '@/lib/supabase/server'
+import logo from '../../../logo/Logo Noir sans Fond.webp'
 
 async function getUserInfo() {
   const supabase = await createClient()
@@ -37,10 +38,19 @@ export default async function Sidebar() {
   return (
     <aside className="fixed top-0 left-0 h-full w-[220px] bg-white border-r border-nb-cream-border flex flex-col z-20 font-nb-mono">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-nb-cream-border">
-        <Link href="/notebook" className="block">
-          <span className="text-[18px] font-[700] text-nb-green">Sylvy</span>
-          <p className="text-[10px] text-nb-muted uppercase tracking-[0.08em] mt-0.5">WET LAB MIND</p>
+      <div className="px-6 py-5 border-b border-nb-cream-border flex justify-center">
+        <Link href="/notebook" className="flex items-center gap-3">
+          <Image
+            src={logo}
+            alt="Sylvy logo"
+            width={26}
+            height={26}
+            className="h-6 w-6 object-contain"
+            priority
+          />
+          <span className="text-[13px] font-[600] tracking-[0.2em] uppercase text-nb-charcoal">
+            Sylvy
+          </span>
         </Link>
       </div>
 
@@ -53,16 +63,6 @@ export default async function Sidebar() {
           label="Notebook"
         />
 
-        <div className="mx-2 my-1.5">
-          <Link
-            href="/notebook"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-[6px] text-[13px] text-nb-green font-[600] hover:bg-nb-green-light transition-all duration-150"
-          >
-            <Plus size={16} strokeWidth={1.5} />
-            <span>New Project</span>
-          </Link>
-        </div>
-
         <div className="border-t border-nb-cream-border mx-4 my-1" />
 
         <NavItem
@@ -70,13 +70,6 @@ export default async function Sidebar() {
           icon={<FlaskConical size={16} strokeWidth={1.5} />}
           label="Protocols"
         />
-        {userType === 'lab_manager' && (
-          <NavItem
-            href="/resources"
-            icon={<Archive size={16} strokeWidth={1.5} />}
-            label="Resources"
-          />
-        )}
         <NavItem
           href="/templates"
           icon={<FileText size={16} strokeWidth={1.5} />}
@@ -95,6 +88,11 @@ export default async function Sidebar() {
 
         <div className="border-t border-nb-cream-border mx-4 my-1 mt-auto" />
 
+        <NavItem
+          href="/resources"
+          icon={<Archive size={16} strokeWidth={1.5} />}
+          label="Resources"
+        />
         <NavItem
           href="/settings"
           icon={<Settings size={16} strokeWidth={1.5} />}

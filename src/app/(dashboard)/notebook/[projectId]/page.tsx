@@ -42,7 +42,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
         ]}
       />
 
-      <h1 className="text-[22px] font-[700] text-nb-charcoal mb-8">{project.name}</h1>
+      <div className="mb-6">
+        <h1 className="text-[22px] font-[700] text-primary">{project.name}</h1>
+        <p className="mt-1 text-[13px] text-nb-muted">
+          Experiment section — experiments within this project, each containing their manipulations.
+        </p>
+      </div>
 
       <ExperimentSetListClient experimentSets={experimentSets} projectId={project.id} />
     </div>
