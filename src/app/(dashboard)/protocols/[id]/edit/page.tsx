@@ -24,6 +24,7 @@ export default async function EditProtocolPage({ params }: { params: Promise<{ i
       defaultValues={{
         name: protocol.name,
         timing: protocol.timing,
+        content: protocol.content ?? '',
         machine_ids: protocol.machines.map((m) => m.id),
         reagent_ids: protocol.reagents.map((r) => r.id),
       }}

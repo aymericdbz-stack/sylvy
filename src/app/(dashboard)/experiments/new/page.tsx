@@ -18,8 +18,27 @@ async function getOptions(orgId: string) {
   }
 }
 
-export default async function NewExperimentPage() {
+export default async function NewExperimentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ experiment_set_id?: string; project_id?: string }>
+}) {
   const { orgId } = await getAuthContext()
   const options = await getOptions(orgId)
-  return <ExperimentForm mode="create" {...options} />
+  const params = await searchParams
+  const experimentSetId = params.experiment_set_id ?? null
+  const projectId = params.project_id ?? null
+
+  const backHref = experimentSetId && projectId
+    ? `/notebook/${projectId}/${experimentSetId}`
+    : '/notebook'
+
+  return (
+    <ExperimentForm
+      mode="create"
+      {...options}
+      experimentSetId={experimentSetId}
+      backHref={backHref}
+    />
+  )
 }

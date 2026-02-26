@@ -12,9 +12,15 @@ export async function getReport(experimentId: string, orgId: string): Promise<Re
     .from('reports')
     .select('*, report_blocks(*)')
     .eq('experiment_id', experimentId)
-    .single()
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  if (error) return null
+  if (error || !data) {
+    // If there is no visible report for this experiment (RLS, no rows, etc.),
+    // signal absence to the caller so the UI can handle it gracefully.
+    return null
+  }
 
   return {
     ...data,

@@ -4,18 +4,24 @@ import { createClient } from '@/lib/supabase/server'
 import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { getExperiment } from '@/lib/queries/experiments'
-import { createReport } from '@/lib/queries/reports'
+import { createReport, getReport } from '@/lib/queries/reports'
 import Button from '@/components/ui/nb/Button'
 import Badge from '@/components/ui/nb/Badge'
 import FileUploader from '@/components/experiments/FileUploader'
 import ExperimentActions from './ExperimentActions'
+import ExportPdfButton from '@/components/reports/ExportPdfButton'
+import { redirect } from 'next/navigation'
 
 export default async function ExperimentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const { user } = await getAuthenticatedUser()
   const orgId = await getUserOrg(user.id)
 
-  const experiment = await getExperiment(id, orgId)
+  const [experiment, report] = await Promise.all([
+    getExperiment(id, orgId),
+    getReport(id, orgId),
+  ])
+
   if (!experiment) notFound()
 
   return (
@@ -70,23 +76,47 @@ export default async function ExperimentPage({ params }: { params: Promise<{ id:
       <div className="bg-white border border-nb-cream-border rounded-[8px] p-5 font-nb-mono">
         <h2 className="text-[15px] font-[600] text-nb-charcoal mb-3">Report</h2>
         {experiment.has_report ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Badge variant="green">Generated</Badge>
             <Link href={`/experiments/${id}/report`}>
-              <Button variant="primary" size="sm">Open Report</Button>
+              <Button variant="primary" size="sm">
+                Open Report
+              </Button>
             </Link>
+            {report && (
+              <ExportPdfButton
+                experimentId={id}
+                experimentName={experiment.name}
+                createdAt={report.created_at}
+                blocks={report.blocks}
+                project={experiment.project}
+                protocolName={experiment.protocol_name}
+                sampleName={experiment.sample_name}
+                templateTitle={experiment.template_title}
+                createdBy={experiment.owner_email}
+                experimentCreatedAt={experiment.created_at}
+                initialFiles={experiment.files}
+              />
+            )}
           </div>
         ) : experiment.report_template_id ? (
           <div className="flex flex-col gap-3">
             <p className="text-[13px] text-nb-muted">
               Template: <span className="text-nb-charcoal font-[600]">{experiment.template_title}</span>
             </p>
-            <GenerateReportButton experimentId={id} templateId={experiment.report_template_id} userId={user.id} orgId={orgId} />
+            <GenerateReportButton
+              experimentId={id}
+              templateId={experiment.report_template_id}
+              userId={user.id}
+              orgId={orgId}
+            />
           </div>
         ) : (
           <p className="text-[13px] text-nb-muted">
             Set a report template to generate a report.{' '}
-            <Link href={`/experiments/${id}/edit`} className="text-nb-green hover:underline">Edit experiment</Link>
+            <Link href={`/experiments/${id}/edit`} className="text-nb-green hover:underline">
+              Edit experiment
+            </Link>
           </p>
         )}
       </div>
@@ -101,6 +131,7 @@ async function GenerateReportButton({
     <form action={async () => {
       'use server'
       await createReport(experimentId, templateId, userId, orgId)
+      redirect(`/experiments/${experimentId}/report`)
     }}>
       <Button type="submit" variant="primary" size="sm">Generate Report</Button>
     </form>

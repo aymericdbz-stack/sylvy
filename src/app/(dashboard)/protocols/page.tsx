@@ -35,7 +35,7 @@ export default async function ProtocolsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-nb-cream-border bg-nb-cream">
-                {['Name', 'Owner', 'Duration', 'Machines', 'Reagents', 'Actions'].map((h) => (
+                {['Name', 'Owner', 'Duration', 'Equipment', 'Reagents', 'Actions'].map((h) => (
                   <th key={h} className="text-[11px] font-[600] uppercase tracking-[0.04em] text-nb-muted py-2.5 px-4 text-left">
                     {h}
                   </th>

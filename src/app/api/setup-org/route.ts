@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   }
 
   // 2. Parse body
-  let body: { orgName: string }
+  let body: { orgName: string; userType?: 'researcher' | 'lab_manager' }
   try {
     body = await request.json()
   } catch {
@@ -23,6 +23,8 @@ export async function POST(request: Request) {
   if (!orgName) {
     return NextResponse.json({ error: 'Lab name is required' }, { status: 400 })
   }
+
+  const userType = body.userType === 'lab_manager' ? 'lab_manager' : 'researcher'
 
   const sc = getServiceClient()
 
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: orgErr.message }, { status: 500 })
   }
 
-  // 5. Create user row
+  // 5. Create user row (with onboarding user_type: researcher | lab_manager)
   const { error: userErr } = await sc
     .from('users')
     .insert({
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
       org_id: org.id,
       email: user.email ?? '',
       role: 'admin',
+      user_type: userType,
     })
 
   if (userErr) {

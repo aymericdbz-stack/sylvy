@@ -47,8 +47,8 @@ export default function MachinesTab({ orgId }: { orgId: string }) {
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase.from('machines').insert({ name: name.trim(), model: model || null, status, org_id: orgId })
-    if (error) { toast.error('Failed to create machine'); setSaving(false); return }
-    toast.success('Machine added')
+    if (error) { toast.error('Failed to create equipment'); setSaving(false); return }
+    toast.success('Equipment added')
     setName(''); setModel(''); setStatus('active'); setModalOpen(false)
     load(); setSaving(false)
   }
@@ -56,7 +56,7 @@ export default function MachinesTab({ orgId }: { orgId: string }) {
   const handleDelete = async (id: string) => {
     const supabase = createClient()
     await supabase.from('machines').delete().eq('id', id)
-    toast.success('Machine deleted')
+    toast.success('Equipment deleted')
     load()
   }
 
@@ -64,14 +64,14 @@ export default function MachinesTab({ orgId }: { orgId: string }) {
     <div>
       <div className="flex justify-end mb-4">
         <Button variant="secondary" size="sm" onClick={() => setModalOpen(true)}>
-          <Plus size={14} strokeWidth={1.5} /> Add Machine
+          <Plus size={14} strokeWidth={1.5} /> Add Equipment
         </Button>
       </div>
 
       {machines.length === 0 ? (
         <div className="text-center py-16 font-nb-mono">
           <Cpu size={40} strokeWidth={1} className="mx-auto mb-3 text-nb-muted-light" />
-          <p className="text-[13px] text-nb-muted">No machines yet. Add your first machine.</p>
+          <p className="text-[13px] text-nb-muted">No equipment yet. Add your first equipment.</p>
         </div>
       ) : (
         <div className="bg-white border border-nb-cream-border rounded-[8px] overflow-hidden font-nb-mono">
@@ -98,14 +98,14 @@ export default function MachinesTab({ orgId }: { orgId: string }) {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Machine">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Equipment">
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
           <Input label="Name *" placeholder="e.g. FACS Aria III" value={name} onChange={(e) => setName(e.target.value)} required />
           <Input label="Model" placeholder="Model number or description" value={model} onChange={(e) => setModel(e.target.value)} />
           <Select label="Status" options={STATUS_OPTIONS} value={status} onChange={(v) => setStatus(v as Machine['status'])} />
           <div className="flex justify-end gap-3">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="primary" loading={saving}>Add Machine</Button>
+            <Button type="submit" variant="primary" loading={saving}>Add Equipment</Button>
           </div>
         </form>
       </Modal>

@@ -17,20 +17,30 @@ export async function getSamples(orgId: string): Promise<(Sample & { owner_email
   }))
 }
 
-export async function createSample(name: string, ownerId: string, orgId: string): Promise<string> {
+export async function createSample(
+  name: string,
+  ownerId: string,
+  orgId: string,
+  options?: { description?: string | null; created_at?: string }
+): Promise<string> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('samples')
-    .insert({ name, owner_id: ownerId, org_id: orgId })
-    .select('id')
-    .single()
+  const payload: { name: string; owner_id: string; org_id: string; description?: string | null; created_at?: string } = {
+    name,
+    owner_id: ownerId,
+    org_id: orgId,
+  }
+  if (options?.description !== undefined) payload.description = options.description
+  if (options?.created_at !== undefined) payload.created_at = options.created_at
+  const { data, error } = await supabase.from('samples').insert(payload).select('id').single()
   if (error) throw error
   return data.id
 }
 
-export async function updateSample(id: string, name: string, orgId: string): Promise<void> {
+export type UpdateSamplePayload = { name?: string; description?: string | null; created_at?: string }
+
+export async function updateSample(id: string, orgId: string, payload: UpdateSamplePayload): Promise<void> {
   const supabase = await createClient()
-  const { error } = await supabase.from('samples').update({ name }).eq('id', id).eq('org_id', orgId)
+  const { error } = await supabase.from('samples').update(payload).eq('id', id).eq('org_id', orgId)
   if (error) throw error
 }
 

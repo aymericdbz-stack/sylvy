@@ -16,17 +16,17 @@ export type Database = {
         Relationships: []
       }
       users: {
-        Row: { id: string; org_id: string; email: string; role: 'admin' | 'member'; created_at: string }
-        Insert: { id: string; org_id: string; email: string; role?: 'admin' | 'member'; created_at?: string }
-        Update: { id?: string; org_id?: string; email?: string; role?: 'admin' | 'member'; created_at?: string }
+        Row: { id: string; org_id: string; email: string; role: 'admin' | 'member'; user_type: 'researcher' | 'lab_manager'; created_at: string }
+        Insert: { id: string; org_id: string; email: string; role?: 'admin' | 'member'; user_type?: 'researcher' | 'lab_manager'; created_at?: string }
+        Update: { id?: string; org_id?: string; email?: string; role?: 'admin' | 'member'; user_type?: 'researcher' | 'lab_manager'; created_at?: string }
         Relationships: [
           { foreignKeyName: 'users_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] }
         ]
       }
       samples: {
-        Row: { id: string; org_id: string; owner_id: string; name: string; created_at: string }
-        Insert: { id?: string; org_id: string; owner_id: string; name: string; created_at?: string }
-        Update: { id?: string; org_id?: string; owner_id?: string; name?: string; created_at?: string }
+        Row: { id: string; org_id: string; owner_id: string; name: string; description: string | null; created_at: string }
+        Insert: { id?: string; org_id: string; owner_id: string; name: string; description?: string | null; created_at?: string }
+        Update: { id?: string; org_id?: string; owner_id?: string; name?: string; description?: string | null; created_at?: string }
         Relationships: [
           { foreignKeyName: 'samples_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] },
           { foreignKeyName: 'samples_owner_id_fkey'; columns: ['owner_id']; isOneToOne: false; referencedRelation: 'users'; referencedColumns: ['id'] }
@@ -49,9 +49,39 @@ export type Database = {
         ]
       }
       protocols: {
-        Row: { id: string; org_id: string; owner_id: string; name: string; timing: string | null; created_at: string; updated_at: string }
-        Insert: { id?: string; org_id: string; owner_id: string; name: string; timing?: string | null; created_at?: string; updated_at?: string }
-        Update: { id?: string; org_id?: string; owner_id?: string; name?: string; timing?: string | null; created_at?: string; updated_at?: string }
+        Row: {
+          id: string
+          org_id: string
+          owner_id: string
+          name: string
+          timing: string | null
+          /** Full textual content of the protocol (methods, steps, etc.) */
+          content: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          owner_id: string
+          name: string
+          timing?: string | null
+          /** Full textual content of the protocol (methods, steps, etc.) */
+          content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          owner_id?: string
+          name?: string
+          timing?: string | null
+          /** Full textual content of the protocol (methods, steps, etc.) */
+          content?: string | null
+          created_at?: string
+          updated_at?: string
+        }
         Relationships: [
           { foreignKeyName: 'protocols_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] },
           { foreignKeyName: 'protocols_owner_id_fkey'; columns: ['owner_id']; isOneToOne: false; referencedRelation: 'users'; referencedColumns: ['id'] }
@@ -92,16 +122,36 @@ export type Database = {
           { foreignKeyName: 'template_blocks_template_id_fkey'; columns: ['template_id']; isOneToOne: false; referencedRelation: 'report_templates'; referencedColumns: ['id'] }
         ]
       }
+      projects: {
+        Row: { id: string; org_id: string; owner_id: string; name: string; description: string | null; created_at: string }
+        Insert: { id?: string; org_id: string; owner_id: string; name: string; description?: string | null; created_at?: string }
+        Update: { id?: string; org_id?: string; owner_id?: string; name?: string; description?: string | null; created_at?: string }
+        Relationships: [
+          { foreignKeyName: 'projects_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] },
+          { foreignKeyName: 'projects_owner_id_fkey'; columns: ['owner_id']; isOneToOne: false; referencedRelation: 'users'; referencedColumns: ['id'] }
+        ]
+      }
+      experiment_sets: {
+        Row: { id: string; org_id: string; owner_id: string; project_id: string; name: string; created_at: string }
+        Insert: { id?: string; org_id: string; owner_id: string; project_id: string; name: string; created_at?: string }
+        Update: { id?: string; org_id?: string; owner_id?: string; project_id?: string; name?: string; created_at?: string }
+        Relationships: [
+          { foreignKeyName: 'experiment_sets_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] },
+          { foreignKeyName: 'experiment_sets_owner_id_fkey'; columns: ['owner_id']; isOneToOne: false; referencedRelation: 'users'; referencedColumns: ['id'] },
+          { foreignKeyName: 'experiment_sets_project_id_fkey'; columns: ['project_id']; isOneToOne: false; referencedRelation: 'projects'; referencedColumns: ['id'] }
+        ]
+      }
       experiments: {
-        Row: { id: string; org_id: string; owner_id: string; protocol_id: string | null; sample_id: string | null; report_template_id: string | null; name: string; project: string | null; created_at: string; last_edited_at: string }
-        Insert: { id?: string; org_id: string; owner_id: string; protocol_id?: string | null; sample_id?: string | null; report_template_id?: string | null; name: string; project?: string | null; created_at?: string; last_edited_at?: string }
-        Update: { id?: string; org_id?: string; owner_id?: string; protocol_id?: string | null; sample_id?: string | null; report_template_id?: string | null; name?: string; project?: string | null; created_at?: string; last_edited_at?: string }
+        Row: { id: string; org_id: string; owner_id: string; protocol_id: string | null; sample_id: string | null; report_template_id: string | null; experiment_set_id: string | null; name: string; project: string | null; created_at: string; last_edited_at: string }
+        Insert: { id?: string; org_id: string; owner_id: string; protocol_id?: string | null; sample_id?: string | null; report_template_id?: string | null; experiment_set_id?: string | null; name: string; project?: string | null; created_at?: string; last_edited_at?: string }
+        Update: { id?: string; org_id?: string; owner_id?: string; protocol_id?: string | null; sample_id?: string | null; report_template_id?: string | null; experiment_set_id?: string | null; name?: string; project?: string | null; created_at?: string; last_edited_at?: string }
         Relationships: [
           { foreignKeyName: 'experiments_org_id_fkey'; columns: ['org_id']; isOneToOne: false; referencedRelation: 'organizations'; referencedColumns: ['id'] },
           { foreignKeyName: 'experiments_owner_id_fkey'; columns: ['owner_id']; isOneToOne: false; referencedRelation: 'users'; referencedColumns: ['id'] },
           { foreignKeyName: 'experiments_protocol_id_fkey'; columns: ['protocol_id']; isOneToOne: false; referencedRelation: 'protocols'; referencedColumns: ['id'] },
           { foreignKeyName: 'experiments_sample_id_fkey'; columns: ['sample_id']; isOneToOne: false; referencedRelation: 'samples'; referencedColumns: ['id'] },
-          { foreignKeyName: 'experiments_report_template_id_fkey'; columns: ['report_template_id']; isOneToOne: false; referencedRelation: 'report_templates'; referencedColumns: ['id'] }
+          { foreignKeyName: 'experiments_report_template_id_fkey'; columns: ['report_template_id']; isOneToOne: false; referencedRelation: 'report_templates'; referencedColumns: ['id'] },
+          { foreignKeyName: 'experiments_experiment_set_id_fkey'; columns: ['experiment_set_id']; isOneToOne: false; referencedRelation: 'experiment_sets'; referencedColumns: ['id'] }
         ]
       }
       experiment_files: {
@@ -173,6 +223,8 @@ export type Reagent = Database['public']['Tables']['reagents']['Row']
 export type Protocol = Database['public']['Tables']['protocols']['Row']
 export type ReportTemplate = Database['public']['Tables']['report_templates']['Row']
 export type TemplateBlock = Database['public']['Tables']['template_blocks']['Row']
+export type Project = Database['public']['Tables']['projects']['Row']
+export type ExperimentSet = Database['public']['Tables']['experiment_sets']['Row']
 export type Experiment = Database['public']['Tables']['experiments']['Row']
 export type ExperimentFile = Database['public']['Tables']['experiment_files']['Row']
 export type Report = Database['public']['Tables']['reports']['Row']

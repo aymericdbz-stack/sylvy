@@ -18,6 +18,7 @@ const schema = z.object({
   protocol_id: z.string().uuid().optional().nullable(),
   sample_id: z.string().uuid().optional().nullable(),
   report_template_id: z.string().uuid().optional().nullable(),
+  experiment_set_id: z.string().uuid().optional().nullable(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -31,15 +32,17 @@ interface ExperimentFormProps {
   protocols: Option[]
   samples: Option[]
   templates: Option[]
+  experimentSetId?: string | null
+  backHref?: string
 }
 
 export default function ExperimentForm({
-  mode, experimentId, defaultValues, protocols, samples, templates,
+  mode, experimentId, defaultValues, protocols, samples, templates, experimentSetId, backHref,
 }: ExperimentFormProps) {
   const router = useRouter()
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: defaultValues ?? {},
+    defaultValues: { ...defaultValues, experiment_set_id: experimentSetId ?? defaultValues?.experiment_set_id ?? null },
   })
 
   const protocolId = watch('protocol_id')
@@ -64,6 +67,7 @@ export default function ExperimentForm({
           protocol_id: data.protocol_id ?? null,
           sample_id: data.sample_id ?? null,
           report_template_id: data.report_template_id ?? null,
+          experiment_set_id: data.experiment_set_id ?? null,
           owner_id: user.id,
           org_id: orgId,
         })
@@ -94,14 +98,14 @@ export default function ExperimentForm({
   return (
     <div>
       <div className="mb-6">
-        <Link href={experimentId ? `/experiments/${experimentId}` : '/notebook'}>
+        <Link href={backHref ?? (experimentId ? `/experiments/${experimentId}` : '/notebook')}>
           <button className="flex items-center gap-1.5 text-[13px] text-nb-muted hover:text-nb-charcoal transition-colors mb-4">
             <ArrowLeft size={14} strokeWidth={1.5} />
-            {experimentId ? 'Back to experiment' : 'Notebook'}
+            {experimentId ? 'Back to experiment' : 'Back'}
           </button>
         </Link>
         <h1 className="text-[22px] font-[700] text-nb-charcoal">
-          {mode === 'create' ? 'New Experiment' : 'Edit Experiment'}
+          {mode === 'create' ? 'New Manipulation' : 'Edit Manipulation'}
         </h1>
       </div>
 
@@ -164,7 +168,7 @@ export default function ExperimentForm({
           )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-nb-cream-border">
-            <Link href={experimentId ? `/experiments/${experimentId}` : '/notebook'}>
+            <Link href={backHref ?? (experimentId ? `/experiments/${experimentId}` : '/notebook')}>
               <Button type="button" variant="secondary">Cancel</Button>
             </Link>
             <Button type="submit" variant="primary" loading={isSubmitting}>
