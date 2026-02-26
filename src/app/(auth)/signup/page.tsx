@@ -12,82 +12,52 @@ type Step = 1 | 2
 
 export default function SignupPage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>(1)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [step,            setStep]            = useState<Step>(1)
+  const [email,           setEmail]           = useState('')
+  const [password,        setPassword]        = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [orgName, setOrgName] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [orgName,         setOrgName]         = useState('')
+  const [error,           setError]           = useState<string | null>(null)
+  const [loading,         setLoading]         = useState(false)
 
-  const handleStep1 = async (e: React.FormEvent) => {
+  // ── Step 1: validate passwords, move to step 2 ────────────────────────────
+  const handleStep1 = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
-
-    setLoading(true)
-    const supabase = createClient()
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
-
-    if (signUpError) {
-      setError(signUpError.message)
-      setLoading(false)
-      return
-    }
-
-    if (data.user) {
-      setUserId(data.user.id)
-    }
-    setLoading(false)
+    if (password.length < 8) { setError('Password must be at least 8 characters'); return }
+    if (password !== confirmPassword) { setError('Passwords do not match'); return }
     setStep(2)
   }
 
+  // ── Step 2: create org via server route, then sign in ─────────────────────
   const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!orgName.trim() || !userId) return
+    if (!orgName.trim()) return
     setError(null)
     setLoading(true)
 
-    const supabase = createClient()
+    try {
+      // Server-side signup (service role bypasses RLS)
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, orgName }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Signup failed')
 
-    // Create organization
-    const { data: org, error: orgErr } = await supabase
-      .from('organizations')
-      .insert({ name: orgName.trim() })
-      .select('id')
-      .single()
+      // Sign in now that the user + org exist
+      const supabase = createClient()
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInErr) throw signInErr
 
-    if (orgErr) {
-      setError(orgErr.message)
+      router.push('/notebook')
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unexpected error')
+    } finally {
       setLoading(false)
-      return
     }
-
-    // Create user record
-    const { error: userErr } = await supabase.from('users').insert({
-      id: userId,
-      org_id: org.id,
-      email,
-      role: 'admin',
-    })
-
-    if (userErr) {
-      setError(userErr.message)
-      setLoading(false)
-      return
-    }
-
-    router.push('/notebook')
-    router.refresh()
   }
 
   const handleJoinOrg = () => {
@@ -139,7 +109,7 @@ export default function SignupPage() {
                   required
                 />
                 {error && <p className="text-[13px] text-nb-error">{error}</p>}
-                <Button type="submit" variant="primary" loading={loading} className="w-full mt-2">
+                <Button type="submit" variant="primary" className="w-full mt-2">
                   Continue
                 </Button>
               </form>

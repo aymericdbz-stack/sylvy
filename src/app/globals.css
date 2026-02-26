@@ -1110,11 +1110,38 @@ body {
   --font-nb-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* =============================================
+   SYLVY PLANNER — DESIGN SYSTEM TOKENS
+   ============================================= */
+
+@theme {
+  --color-pl-cream: #FDFAF5;
+  --color-pl-cream-dark: #F5EFE4;
+  --color-pl-cream-border: #E8DFCF;
+  --color-pl-orange: #F97316;
+  --color-pl-orange-dark: #EA580C;
+  --color-pl-orange-light: #FFF7ED;
+  --color-pl-orange-muted: #FED7AA;
+  --color-pl-charcoal: #1C1917;
+  --color-pl-muted: #78716C;
+  --color-pl-muted-light: #A8A29E;
+  --color-pl-error: #DC2626;
+  --color-pl-success: #16A34A;
+  --color-pl-surface: #FFFFFF;
+}
+
 /* Notebook app base — applied to the dashboard wrapper */
 .nb-app {
   font-family: "JetBrains Mono", ui-monospace, monospace;
   background-color: #F5F0E8;
   color: #1A1A1A;
+}
+
+/* Planner app base — applied to the planner wrapper */
+.pl-app {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  background-color: #FDFAF5;
+  color: #1C1917;
 }
 
 /* Slider — pixel-style thumb */

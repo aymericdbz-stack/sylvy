@@ -9,6 +9,7 @@ const DASHBOARD_PATHS = [
   '/resources',
   '/templates',
   '/settings',
+  '/planner',
 ]
 
 export async function middleware(request: NextRequest) {
