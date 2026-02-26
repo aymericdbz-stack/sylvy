@@ -15,23 +15,24 @@ import { createClient } from '@/lib/supabase/server'
 async function getUserInfo() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { email: '', orgName: '' }
+  if (!user) return { email: '', orgName: '', userType: 'researcher' as const }
 
   const { data: userRow } = await supabase
     .from('users')
-    .select('org_id, organizations(name)')
+    .select('org_id, user_type, organizations(name)')
     .eq('id', user.id)
     .single()
 
   const orgName = userRow
     ? (userRow.organizations as { name: string } | null)?.name ?? ''
     : ''
+  const userType = (userRow?.user_type === 'lab_manager' ? 'lab_manager' : 'researcher') as 'researcher' | 'lab_manager'
 
-  return { email: user.email ?? '', orgName }
+  return { email: user.email ?? '', orgName, userType }
 }
 
 export default async function Sidebar() {
-  const { email, orgName } = await getUserInfo()
+  const { email, orgName, userType } = await getUserInfo()
 
   return (
     <aside className="fixed top-0 left-0 h-full w-[220px] bg-white border-r border-nb-cream-border flex flex-col z-20 font-nb-mono">
@@ -54,11 +55,11 @@ export default async function Sidebar() {
 
         <div className="mx-2 my-1.5">
           <Link
-            href="/experiments/new"
+            href="/notebook"
             className="flex items-center gap-3 px-4 py-2.5 rounded-[6px] text-[13px] text-nb-green font-[600] hover:bg-nb-green-light transition-all duration-150"
           >
             <Plus size={16} strokeWidth={1.5} />
-            <span>New Experiment</span>
+            <span>New Project</span>
           </Link>
         </div>
 
@@ -69,11 +70,13 @@ export default async function Sidebar() {
           icon={<FlaskConical size={16} strokeWidth={1.5} />}
           label="Protocols"
         />
-        <NavItem
-          href="/resources"
-          icon={<Archive size={16} strokeWidth={1.5} />}
-          label="Resources"
-        />
+        {userType === 'lab_manager' && (
+          <NavItem
+            href="/resources"
+            icon={<Archive size={16} strokeWidth={1.5} />}
+            label="Resources"
+          />
+        )}
         <NavItem
           href="/templates"
           icon={<FileText size={16} strokeWidth={1.5} />}

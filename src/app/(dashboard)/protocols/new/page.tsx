@@ -1,12 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import ProtocolForm from '@/components/protocols/ProtocolForm'
 import { getMachines, getReagents } from '@/lib/queries/resources'
 
 export default async function NewProtocolPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
 
   const [machines, reagents] = await Promise.all([getMachines(orgId), getReagents(orgId)])
 
@@ -16,7 +14,7 @@ export default async function NewProtocolPage() {
       machines={machines}
       reagents={reagents}
       orgId={orgId}
-      userId={user!.id}
+      userId={user.id}
     />
   )
 }

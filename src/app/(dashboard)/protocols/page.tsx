@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { FlaskConical } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getProtocols } from '@/lib/queries/protocols'
 import { formatInterval, formatDate } from '@/lib/utils'
 import Button from '@/components/ui/nb/Button'
@@ -8,11 +8,8 @@ import Badge from '@/components/ui/nb/Badge'
 import ProtocolActions from './ProtocolActions'
 
 export default async function ProtocolsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
-
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
   const protocols = await getProtocols(orgId)
 
   return (
@@ -38,7 +35,7 @@ export default async function ProtocolsPage() {
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-nb-cream-border bg-nb-cream">
-                {['Name', 'Owner', 'Duration', 'Machines', 'Reagents', 'Actions'].map((h) => (
+                {['Name', 'Owner', 'Duration', 'Equipment', 'Reagents', 'Actions'].map((h) => (
                   <th key={h} className="text-[11px] font-[600] uppercase tracking-[0.04em] text-nb-muted py-2.5 px-4 text-left">
                     {h}
                   </th>

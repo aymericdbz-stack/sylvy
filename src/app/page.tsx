@@ -906,6 +906,9 @@ export default function Home() {
 
       setFormStatus("success");
       setFormState({ firstName: "", lastName: "", email: "", phone: "" });
+      setTimeout(() => {
+        window.location.href = "/signup";
+      }, 1500);
     } catch {
       setFormStatus("error");
     }
@@ -985,7 +988,17 @@ export default function Home() {
                 })}
               </div>
             )}
-            <div className="flex flex-1 justify-end">
+            <div className="flex flex-1 items-center justify-end gap-3">
+              <a
+                href="/login"
+                className={`text-sm font-medium transition-colors ${
+                  isCompact
+                    ? "text-neutral-600 hover:text-neutral-900"
+                    : "text-white/80 hover:text-white"
+                }`}
+              >
+                Sign in
+              </a>
               <Button
                 size="sm"
                 className={`rounded-full px-5 transition-all duration-300 ${

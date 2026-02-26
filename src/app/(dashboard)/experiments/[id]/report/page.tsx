@@ -1,19 +1,18 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getReport } from '@/lib/queries/reports'
 import { getExperiment } from '@/lib/queries/experiments'
 import { formatDate } from '@/lib/utils'
 import Button from '@/components/ui/nb/Button'
 import ReportEditor from '@/components/reports/ReportEditor'
-import Tooltip from '@/components/ui/nb/Tooltip'
+import ExportPdfButton from '@/components/reports/ExportPdfButton'
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
 
   const [experiment, report] = await Promise.all([
     getExperiment(id, orgId),
@@ -38,9 +37,19 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
           </p>
         </div>
         <div className="flex items-center gap-2 mt-8">
-          <Tooltip content="Export to PDF — coming soon">
-            <Button variant="secondary" disabled>Export PDF</Button>
-          </Tooltip>
+          <ExportPdfButton
+            experimentId={id}
+            experimentName={experiment.name}
+            createdAt={report.created_at}
+            blocks={report.blocks}
+            project={experiment.project}
+            protocolName={experiment.protocol_name}
+            sampleName={experiment.sample_name}
+            templateTitle={experiment.template_title}
+            createdBy={experiment.owner_email}
+            experimentCreatedAt={experiment.created_at}
+            initialFiles={experiment.files}
+          />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getAuthContext } from '@/lib/auth-helpers'
 import ExperimentForm from '@/components/experiments/ExperimentForm'
 
 async function getOptions(orgId: string) {
@@ -18,14 +18,27 @@ async function getOptions(orgId: string) {
   }
 }
 
-export default async function NewExperimentPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user.id).single()
-  const orgId = userRow?.org_id ?? ''
-
+export default async function NewExperimentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ experiment_set_id?: string; project_id?: string }>
+}) {
+  const { orgId } = await getAuthContext()
   const options = await getOptions(orgId)
+  const params = await searchParams
+  const experimentSetId = params.experiment_set_id ?? null
+  const projectId = params.project_id ?? null
 
-  return <ExperimentForm mode="create" {...options} />
+  const backHref = experimentSetId && projectId
+    ? `/notebook/${projectId}/${experimentSetId}`
+    : '/notebook'
+
+  return (
+    <ExperimentForm
+      mode="create"
+      {...options}
+      experimentSetId={experimentSetId}
+      backHref={backHref}
+    />
+  )
 }

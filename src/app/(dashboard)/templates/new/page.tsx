@@ -1,11 +1,9 @@
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import TemplateBuilder from '@/components/templates/TemplateBuilder'
 
 export default async function NewTemplatePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
 
-  return <TemplateBuilder mode="create" orgId={orgId} userId={user!.id} />
+  return <TemplateBuilder mode="create" orgId={orgId} userId={user.id} />
 }

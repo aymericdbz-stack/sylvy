@@ -16,9 +16,11 @@ export default function SignupPage() {
   const [email,           setEmail]           = useState('')
   const [password,        setPassword]        = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [orgName,         setOrgName]         = useState('')
-  const [error,           setError]           = useState<string | null>(null)
-  const [loading,         setLoading]         = useState(false)
+  const [orgName, setOrgName] = useState('')
+  const [userType, setUserType] = useState<'researcher' | 'lab_manager'>('researcher')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   // ── Step 1: validate passwords, move to step 2 ────────────────────────────
   const handleStep1 = (e: React.FormEvent) => {
@@ -36,28 +38,23 @@ export default function SignupPage() {
     setError(null)
     setLoading(true)
 
-    try {
-      // Server-side signup (service role bypasses RLS)
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, orgName }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Signup failed')
+    // Use server-side API route (service role) so RLS doesn't block org/user creation
+    const res = await fetch('/api/setup-org', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgName: orgName.trim(), userType }),
+    })
 
-      // Sign in now that the user + org exist
-      const supabase = createClient()
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
-      if (signInErr) throw signInErr
+    const data = await res.json()
 
-      router.push('/notebook')
-      router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unexpected error')
-    } finally {
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to create lab. Please try again.')
       setLoading(false)
+      return
     }
+
+    router.push('/choose-tool')
+    router.refresh()
   }
 
   const handleJoinOrg = () => {
@@ -119,7 +116,32 @@ export default function SignupPage() {
           {step === 2 && (
             <>
               <h1 className="text-[15px] font-[600] text-nb-charcoal mb-2">Set up your lab</h1>
-              <p className="text-[13px] text-nb-muted mb-6">Create a new lab or join an existing one.</p>
+              <p className="text-[13px] text-nb-muted mb-3">What best describes you?</p>
+              <div className="flex gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setUserType('researcher')}
+                  className={`flex-1 py-2.5 px-4 rounded-[8px] border text-[13px] font-[600] transition-all ${
+                    userType === 'researcher'
+                      ? 'border-nb-green bg-nb-green-light text-nb-green'
+                      : 'border-nb-cream-border bg-white text-nb-muted hover:border-nb-green'
+                  }`}
+                >
+                  Researcher
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserType('lab_manager')}
+                  className={`flex-1 py-2.5 px-4 rounded-[8px] border text-[13px] font-[600] transition-all ${
+                    userType === 'lab_manager'
+                      ? 'border-nb-green bg-nb-green-light text-nb-green'
+                      : 'border-nb-cream-border bg-white text-nb-muted hover:border-nb-green'
+                  }`}
+                >
+                  Lab Manager
+                </button>
+              </div>
+              <p className="text-[13px] text-nb-muted mb-4">Create a new lab or join an existing one.</p>
 
               <div className="grid grid-cols-2 gap-3">
                 {/* Create org */}

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { FileText } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { getAuthenticatedUser, getUserOrg } from '@/lib/auth-helpers'
 import { getTemplates } from '@/lib/queries/templates'
 import { formatDate } from '@/lib/utils'
 import Button from '@/components/ui/nb/Button'
@@ -8,11 +8,8 @@ import Badge from '@/components/ui/nb/Badge'
 import TemplateActions from './TemplateActions'
 
 export default async function TemplatesPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: userRow } = await supabase.from('users').select('org_id').eq('id', user!.id).single()
-  const orgId = userRow?.org_id ?? ''
-
+  const { user } = await getAuthenticatedUser()
+  const orgId = await getUserOrg(user.id)
   const templates = await getTemplates(orgId)
 
   return (

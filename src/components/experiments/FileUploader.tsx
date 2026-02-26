@@ -11,6 +11,12 @@ import type { ExperimentFile } from '@/lib/supabase/types'
 
 const MAX_SIZE = 50 * 1024 * 1024
 
+const ALLOWED_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.webp', '.heic', '.tif', '.tiff',
+  '.pdf',
+  '.csv', '.tsv', '.xlsx', '.xls',
+]
+
 interface FileUploaderProps {
   experimentId: string
   orgId: string
@@ -23,7 +29,32 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const isAllowedFile = (file: File) => {
+    const lowerName = file.name.toLowerCase()
+    const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => lowerName.endsWith(ext))
+    if (hasAllowedExtension) return true
+
+    const type = file.type
+    if (type.startsWith('image/')) return true
+    if (type === 'application/pdf') return true
+    if (
+      type === 'text/csv' ||
+      type === 'text/tab-separated-values' ||
+      type === 'application/vnd.ms-excel' ||
+      type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      return true
+    }
+
+    return false
+  }
+
   const uploadFile = useCallback(async (file: File) => {
+    if (!isAllowedFile(file)) {
+      toast.error('Only images (HEIC/JPEG/PNG/WEBP), tables (CSV/XLSX), and PDFs can be uploaded as raw data.')
+      return
+    }
+
     if (file.size > MAX_SIZE) {
       toast.error(`${file.name} exceeds the 50MB limit`)
       return
@@ -102,13 +133,16 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
         <p className="text-[13px] text-nb-muted">
           {uploading ? 'Uploading...' : 'Drop files here or click to upload'}
         </p>
-        <p className="text-[11px] text-nb-muted-light mt-1">Max 50MB per file</p>
+        <p className="text-[11px] text-nb-muted-light mt-1">
+          Max 50MB per file. Images (HEIC/JPEG/PNG/WEBP), tables (CSV/XLSX), and PDFs are supported.
+        </p>
       </div>
 
       <input
         ref={inputRef}
         type="file"
         multiple
+        accept={ALLOWED_EXTENSIONS.join(',')}
         className="hidden"
         onChange={(e) => e.target.files && handleFiles(e.target.files)}
       />
@@ -117,12 +151,24 @@ export default function FileUploader({ experimentId, orgId, initialFiles }: File
       {files.length > 0 && (
         <div className="mt-4 flex flex-col gap-2">
           {files.map((f) => (
-            <div key={f.id} className="flex items-center gap-3 p-3 bg-white border border-nb-cream-border rounded-[6px]">
+            <div
+              key={f.id}
+              className="flex items-center gap-3 p-3 bg-white border border-nb-cream-border rounded-[6px]"
+            >
               <File size={16} strokeWidth={1.5} className="text-nb-muted shrink-0" />
-              <span className="flex-1 text-[13px] font-[600] text-nb-charcoal truncate">{f.file_name}</span>
+              <span className="flex-1 text-[13px] font-[600] text-nb-charcoal truncate">
+                {f.file_name}
+              </span>
               <Badge variant="gray">{f.file_type.split('/').at(-1) ?? 'file'}</Badge>
-              <span className="text-[11px] text-nb-muted-light shrink-0">{formatDate(f.uploaded_at)}</span>
-              <a href={f.storage_url} target="_blank" rel="noreferrer" className="text-nb-muted hover:text-nb-charcoal transition-colors p-1">
+              <span className="text-[11px] text-nb-muted-light shrink-0">
+                {formatDate(f.uploaded_at)}
+              </span>
+              <a
+                href={f.storage_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-nb-muted hover:text-nb-charcoal transition-colors p-1"
+              >
                 <Download size={14} strokeWidth={1.5} />
               </a>
               <button
