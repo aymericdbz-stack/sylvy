@@ -63,8 +63,8 @@ export default function SyncMenu({ events, weekEvents, open, onClose }: SyncMenu
         >
           <Download size={13} className="text-pl-orange flex-shrink-0" />
           <div>
-            <div className="font-[600]">Exporter la semaine (.ics)</div>
-            <div className="text-[10px] text-pl-muted">{weekEvents.length} événement{weekEvents.length > 1 ? 's' : ''}</div>
+            <div className="font-[600]">Export this week (.ics)</div>
+            <div className="text-[10px] text-pl-muted">{weekEvents.length} event{weekEvents.length > 1 ? 's' : ''}</div>
           </div>
         </button>
         <button
@@ -73,8 +73,8 @@ export default function SyncMenu({ events, weekEvents, open, onClose }: SyncMenu
         >
           <Download size={13} className="text-pl-muted-light flex-shrink-0" />
           <div>
-            <div className="font-[600]">Exporter tout (.ics)</div>
-            <div className="text-[10px] text-pl-muted">{events.length} événement{events.length > 1 ? 's' : ''} au total</div>
+            <div className="font-[600]">Export all (.ics)</div>
+            <div className="text-[10px] text-pl-muted">{events.length} event{events.length > 1 ? 's' : ''} total</div>
           </div>
         </button>
       </div>
@@ -95,8 +95,8 @@ export default function SyncMenu({ events, weekEvents, open, onClose }: SyncMenu
         >
           <ExternalLink size={13} className="text-blue-500 flex-shrink-0" />
           <div>
-            <div className="font-[600]">Importer dans Google Calendar</div>
-            <div className="text-[10px] text-pl-muted">Utilise le fichier .ics exporté</div>
+            <div className="font-[600]">Import into Google Calendar</div>
+            <div className="text-[10px] text-pl-muted">Use the exported .ics file</div>
           </div>
         </a>
       </div>
@@ -106,8 +106,8 @@ export default function SyncMenu({ events, weekEvents, open, onClose }: SyncMenu
         <div className="flex items-start gap-2">
           <Calendar size={11} className="text-pl-muted flex-shrink-0 mt-0.5" />
           <p className="text-[10px] text-pl-muted leading-relaxed">
-            Pour un abonnement en direct, ouvre le fichier .ics importé puis choisis{' '}
-            <span className="text-pl-charcoal font-[600]">« S&apos;abonner »</span> dans Apple Calendar.
+            For a live subscription, open the imported .ics file and choose{' '}
+            <span className="text-pl-charcoal font-[600]">&quot;Subscribe&quot;</span> in Apple Calendar.
           </p>
         </div>
       </div>

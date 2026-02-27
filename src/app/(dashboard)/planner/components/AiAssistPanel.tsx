@@ -115,7 +115,7 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
     } catch (e) {
       setMessages([...newMessages, {
         role:    'assistant',
-        content: e instanceof Error ? e.message : 'Erreur inattendue',
+        content: e instanceof Error ? e.message : 'Unexpected error',
         isError: true,
       }])
     } finally {
@@ -147,15 +147,15 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-pl-cream-border flex-shrink-0">
         <div>
-          <p className="text-[12px] font-[700] text-pl-charcoal font-nb-mono">Assistant IA</p>
-          <p className="text-[10px] text-pl-muted font-nb-mono">Décris tes expériences, je planifie</p>
+          <p className="text-[12px] font-[700] text-pl-charcoal font-nb-mono">AI Assistant</p>
+          <p className="text-[10px] text-pl-muted font-nb-mono">Describe your experiments, I schedule them</p>
         </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <button
               onClick={() => setMessages([])}
               className="p-1 text-pl-muted hover:text-pl-charcoal transition-colors"
-              title="Nouvelle conversation"
+              title="New conversation"
             >
               <RotateCcw size={13} />
             </button>
@@ -173,9 +173,9 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center mt-6 space-y-2">
-            <p className="text-[12px] font-[600] text-pl-charcoal font-nb-mono">Décris tes tâches de labo</p>
+            <p className="text-[12px] font-[600] text-pl-charcoal font-nb-mono">Describe your lab tasks</p>
             <p className="text-[11px] text-pl-muted font-nb-mono leading-relaxed">
-              Ex : « western blot sur 6 échantillons, préparer les cultures »
+              e.g. &quot;western blot on 6 samples, prepare cell cultures&quot;
             </p>
           </div>
         )}
@@ -210,7 +210,7 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
                       className="w-full"
                     >
                       <CalendarPlus size={12} />
-                      Ajouter au calendrier
+                      Add to calendar
                     </Button>
                   </div>
                 )}
@@ -224,7 +224,7 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
             <div className="bg-white border border-pl-cream-border rounded-[8px] rounded-tl-[3px] px-3 py-2">
               <div className="flex items-center gap-2 text-[11px] text-pl-muted font-nb-mono">
                 <Loader2 size={11} className="animate-spin" />
-                Planification en cours…
+                Scheduling…
               </div>
             </div>
           </div>
@@ -249,7 +249,7 @@ export default function AiAssistPanel({ onAddToCalendar, onClose }: AiAssistPane
               t.style.height = 'auto'
               t.style.height = `${Math.min(t.scrollHeight, 100)}px`
             }}
-            placeholder="Décris tes tâches… (Entrée pour envoyer)"
+            placeholder="Describe your tasks… (Enter to send)"
             disabled={loading}
             rows={1}
             className="flex-1 resize-none bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 disabled:opacity-50 leading-relaxed"

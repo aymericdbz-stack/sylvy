@@ -4,31 +4,36 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/types'
 
+export type Placement = 'manual' | 'auto'
+
 export interface StepData {
-  id: string
-  name: string
-  duration: number      // minutes
-  startOffset: number   // minutes from task start (T+)
+  id:          string
+  name:        string
+  duration:    number      // minutes
+  startOffset: number      // T+ minutes from task start
 }
 
 export interface PlannerTask {
-  id: string
-  user_id: string
-  name: string
-  deadline: string | null
-  steps: StepData[]
+  id:              string
+  user_id:         string
+  name:            string
+  placement:       Placement
+  deadline:        string | null
+  steps:           StepData[]
   scheduled_start: string | null
-  color: string | null
-  conflict: boolean
+  color:           string | null
+  conflict:        boolean
   conflict_reason: string | null
-  created_at: string
+  created_at:      string
 }
 
 export interface PlannerTaskInsert {
-  name: string
-  deadline?: string | null
-  steps: StepData[]
-  color?: string | null
+  name:             string
+  placement?:       Placement
+  deadline?:        string | null
+  steps:            StepData[]
+  color?:           string | null
+  scheduled_start?: string | null  // set by user when placement === 'manual'
 }
 
 const TASK_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
@@ -39,11 +44,22 @@ function nextColor(): string {
   return c
 }
 
+/** Parse raw JSONB step */
+function parseStep(raw: unknown): StepData {
+  const s = raw as Record<string, unknown>
+  return {
+    id:          String(s.id ?? crypto.randomUUID()),
+    name:        String(s.name ?? ''),
+    duration:    Number(s.duration ?? 30),
+    startOffset: Number(s.startOffset ?? 0),
+  }
+}
+
 export function usePlannerTasks() {
   const [tasks,   setTasks]   = useState<PlannerTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
-  const [dirty,   setDirty]   = useState(false) // true when tasks changed since last optimize
+  const [dirty,   setDirty]   = useState(false)
 
   const fetchTasks = useCallback(async () => {
     setLoading(true)
@@ -51,7 +67,7 @@ export function usePlannerTasks() {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Non authentifié')
+      if (!user) throw new Error('Not authenticated')
 
       const { data, error: err } = await supabase
         .from('planner_tasks')
@@ -59,23 +75,16 @@ export function usePlannerTasks() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: true })
 
-      if (err) {
-        const code = (err as { code?: string }).code
-        // If the planner_tasks table does not exist yet, fail silently with empty list
-        if (code === '42P01') {
-          setTasks([])
-          return
-        }
-        throw err
-      }
+      if (err) throw err
 
       setTasks((data ?? []).map(row => ({
         ...row,
-        steps: (row.steps as unknown as StepData[]) ?? [],
+        placement: (row.placement as Placement | undefined) ?? 'auto',
+        steps:     ((row.steps as unknown[]) ?? []).map(parseStep),
       })))
     } catch (e) {
       console.error('[usePlannerTasks]', e)
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : 'Failed to load tasks')
     } finally {
       setLoading(false)
     }
@@ -86,16 +95,18 @@ export function usePlannerTasks() {
   const createTask = useCallback(async (data: PlannerTaskInsert) => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Non authentifié')
+    if (!user) throw new Error('Not authenticated')
 
     const { error } = await supabase
       .from('planner_tasks')
       .insert({
-        user_id:  user.id,
-        name:     data.name,
-        deadline: data.deadline ?? null,
-        steps:    data.steps as unknown as Json,
-        color:    data.color ?? nextColor(),
+        user_id:         user.id,
+        name:            data.name,
+        placement:       data.placement ?? 'auto',
+        deadline:        data.deadline  ?? null,
+        steps:           data.steps     as unknown as Json,
+        color:           data.color     ?? nextColor(),
+        scheduled_start: data.scheduled_start ?? null,
       })
 
     if (error) throw error
@@ -108,10 +119,12 @@ export function usePlannerTasks() {
     const { error } = await supabase
       .from('planner_tasks')
       .update({
-        name:     data.name,
-        deadline: data.deadline ?? null,
-        steps:    data.steps as unknown as Json,
-        color:    data.color ?? null,
+        name:            data.name,
+        placement:       data.placement ?? 'auto',
+        deadline:        data.deadline  ?? null,
+        steps:           data.steps     as unknown as Json,
+        color:           data.color     ?? null,
+        scheduled_start: data.scheduled_start ?? null,
       })
       .eq('id', id)
     if (error) throw error
@@ -139,7 +152,7 @@ export function usePlannerTasks() {
         .from('planner_tasks')
         .update({
           scheduled_start: u.scheduled_start,
-          conflict: u.conflict,
+          conflict:        u.conflict,
           conflict_reason: u.conflict_reason,
         })
         .eq('id', u.id)
@@ -149,5 +162,9 @@ export function usePlannerTasks() {
     await fetchTasks()
   }, [fetchTasks])
 
-  return { tasks, loading, error, dirty, setDirty, refetch: fetchTasks, createTask, updateTask, deleteTask, bulkUpdateSchedule }
+  return {
+    tasks, loading, error, dirty, setDirty,
+    refetch: fetchTasks,
+    createTask, updateTask, deleteTask, bulkUpdateSchedule,
+  }
 }

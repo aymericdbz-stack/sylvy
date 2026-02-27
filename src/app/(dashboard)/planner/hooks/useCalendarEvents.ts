@@ -13,14 +13,14 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
 
-  const fetchEvents = useCallback(async () => {
+  const doFetch = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const supabase = createClient()
 
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Non authentifié')
+      if (!user) throw new Error('Not authenticated')
       const userId = user.id
 
       const { data: userRow, error: userErr } = await supabase
@@ -28,7 +28,7 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
         .select('org_id')
         .eq('id', userId)
         .single()
-      if (userErr || !userRow) throw new Error('Impossible de récupérer l\'organisation')
+      if (userErr || !userRow) throw new Error('Failed to retrieve organisation')
       const orgId = userRow.org_id
 
       // ISO range with one extra day on each side to catch edge cases
@@ -97,23 +97,25 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       setEvents(combined)
     } catch (e) {
       console.error('[useCalendarEvents]', e)
-      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+      setError(e instanceof Error ? e.message : 'Failed to load events')
     } finally {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startKey, endKey])
 
+  const fetchEvents = useCallback(() => doFetch(), [doFetch])
+
   useEffect(() => { fetchEvents() }, [fetchEvents])
 
   const createEvent = useCallback(async (data: CalendarEventInsert): Promise<CalendarEvent> => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Non authentifié')
+    if (!user) throw new Error('Not authenticated')
     const uid = user.id
     const { data: userRow } = await supabase.from('users').select('org_id').eq('id', uid).single()
     const orgId = userRow?.org_id
-    if (!orgId) throw new Error('Impossible de récupérer l\'organisation')
+    if (!orgId) throw new Error('Failed to retrieve organisation')
 
     const { data: row, error } = await supabase
       .from('calendar_events')
@@ -134,7 +136,7 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       .single()
 
     if (error) throw error
-    await fetchEvents()
+    await doFetch()
     return {
       id:            row.id,
       title:         row.title,
@@ -148,7 +150,7 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       location:      row.location,
       source:        'event',
     }
-  }, [fetchEvents])
+  }, [doFetch])
 
   const updateEvent = useCallback(async (id: string, data: Partial<CalendarEventInsert>) => {
     const supabase = createClient()
@@ -157,8 +159,8 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       .update({ ...data, updated_at: new Date().toISOString() })
       .eq('id', id)
     if (error) throw error
-    await fetchEvents()
-  }, [fetchEvents])
+    await doFetch()
+  }, [doFetch])
 
   const deleteEvent = useCallback(async (id: string) => {
     const supabase = createClient()
@@ -167,8 +169,8 @@ export function useCalendarEvents(rangeStart: Date, rangeEnd: Date) {
       .delete()
       .eq('id', id)
     if (error) throw error
-    await fetchEvents()
-  }, [fetchEvents])
+    await doFetch()
+  }, [doFetch])
 
   return { events, loading, error, refetch: fetchEvents, createEvent, updateEvent, deleteEvent }
 }

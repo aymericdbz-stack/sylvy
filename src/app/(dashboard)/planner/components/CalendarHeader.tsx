@@ -1,15 +1,12 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Sparkles, Download } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, BookTemplate } from 'lucide-react'
 import Button from '@/components/ui/pl/Button'
 import type { CalendarView, CalendarEvent } from '../types'
 
-// ── French locale helpers ─────────────────────────────────────────────────────
-const MONTHS_FR = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-]
-const MONTHS_SHORT = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
+// ── Locale helpers ────────────────────────────────────────────────────────────
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTHS_FULL  = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 function weekLabel(monday: Date): string {
   const sunday = new Date(monday)
@@ -28,27 +25,26 @@ function weekLabel(monday: Date): string {
 }
 
 function monthLabel(d: Date): string {
-  return `${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`
+  return `${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()}`
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface CalendarHeaderProps {
-  view:          CalendarView
-  currentDate:   Date    // for week view: the Monday; for month view: any day in the month
-  events:        CalendarEvent[]
-  aiOpen:        boolean
-  onViewChange:  (v: CalendarView) => void
-  onPrev:        () => void
-  onNext:        () => void
-  onToday:       () => void
-  onAiToggle:    () => void
-  onSyncOpen:    () => void
+  view:             CalendarView
+  currentDate:      Date
+  events:           CalendarEvent[]
+  onViewChange:     (v: CalendarView) => void
+  onPrev:           () => void
+  onNext:           () => void
+  onToday:          () => void
+  onSyncOpen:       () => void
+  onTemplatesOpen:  () => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CalendarHeader({
-  view, currentDate, aiOpen,
-  onViewChange, onPrev, onNext, onToday, onAiToggle, onSyncOpen,
+  view, currentDate,
+  onViewChange, onPrev, onNext, onToday, onSyncOpen, onTemplatesOpen,
 }: CalendarHeaderProps) {
   const label = view === 'week' ? weekLabel(currentDate) : monthLabel(currentDate)
 
@@ -57,7 +53,6 @@ export default function CalendarHeader({
 
       {/* Left: title + navigation */}
       <div className="flex items-center gap-3">
-        {/* Nav arrows */}
         <button
           onClick={onPrev}
           className="p-1 rounded-[5px] text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
@@ -77,7 +72,7 @@ export default function CalendarHeader({
         </button>
 
         <Button variant="ghost" size="sm" onClick={onToday}>
-          Aujourd&apos;hui
+          Today
         </Button>
       </div>
 
@@ -95,32 +90,27 @@ export default function CalendarHeader({
                   : 'text-pl-muted hover:text-pl-charcoal'
               }`}
             >
-              {v === 'week' ? 'Semaine' : 'Mois'}
+              {v === 'week' ? 'Week' : 'Month'}
             </button>
           ))}
         </div>
+
+        {/* Templates */}
+        <button
+          onClick={onTemplatesOpen}
+          className="p-1.5 rounded-[5px] text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
+          title="Task templates"
+        >
+          <BookTemplate size={15} />
+        </button>
 
         {/* Export / sync */}
         <button
           onClick={onSyncOpen}
           className="p-1.5 rounded-[5px] text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
-          title="Exporter / Synchroniser"
+          title="Export / Sync"
         >
           <Download size={15} />
-        </button>
-
-        {/* AI assistant */}
-        <button
-          onClick={onAiToggle}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] text-[11px] font-[600] font-nb-mono transition-colors ${
-            aiOpen
-              ? 'bg-pl-orange text-white'
-              : 'bg-pl-orange/10 text-pl-orange hover:bg-pl-orange/20'
-          }`}
-          title="Assistant IA"
-        >
-          <Sparkles size={12} />
-          IA
         </button>
       </div>
 

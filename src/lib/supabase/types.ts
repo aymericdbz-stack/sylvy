@@ -173,9 +173,15 @@ export type Database = {
         ]
       }
       planner_tasks: {
-        Row: { id: string; user_id: string; name: string; deadline: string | null; steps: Json; scheduled_start: string | null; color: string | null; conflict: boolean; conflict_reason: string | null; created_at: string }
-        Insert: { id?: string; user_id: string; name: string; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
-        Update: { id?: string; user_id?: string; name?: string; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
+        Row: { id: string; user_id: string; name: string; priority: 'critical' | 'normal' | 'low'; placement: 'manual' | 'auto'; deadline: string | null; steps: Json; scheduled_start: string | null; color: string | null; conflict: boolean; conflict_reason: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; name: string; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; name?: string; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
+        Relationships: []
+      }
+      task_templates: {
+        Row: { id: string; user_id: string; name: string; color: string | null; steps: Json; created_at: string }
+        Insert: { id?: string; user_id: string; name: string; color?: string | null; steps?: Json; created_at?: string }
+        Update: { id?: string; user_id?: string; name?: string; color?: string | null; steps?: Json; created_at?: string }
         Relationships: []
       }
       reports: {
@@ -247,3 +253,4 @@ export type Report = Database['public']['Tables']['reports']['Row']
 export type ReportBlock = Database['public']['Tables']['report_blocks']['Row']
 export type CalendarEventRow = Database['public']['Tables']['calendar_events']['Row']
 export type PlannerTaskRow = Database['public']['Tables']['planner_tasks']['Row']
+export type TaskTemplateRow = Database['public']['Tables']['task_templates']['Row']
