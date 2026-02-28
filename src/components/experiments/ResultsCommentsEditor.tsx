@@ -288,11 +288,7 @@ export default function ResultsCommentsEditor({ reportId: initialReportId, exper
       </div>
 
       <div className="bg-white border border-nb-cream-border rounded-[8px] p-5 font-nb-mono">
-        <h2 className="text-[13px] font-[700] text-nb-muted uppercase tracking-[0.06em] mb-4">Results</h2>
         <div>
-          <label className="block text-[11px] font-[600] text-nb-muted uppercase tracking-[0.04em] mb-2">
-            Results
-          </label>
           <textarea
             value={resultsValue}
             onChange={(e) => handleResultsChange(e.target.value)}
@@ -310,11 +306,7 @@ export default function ResultsCommentsEditor({ reportId: initialReportId, exper
       </div>
 
       <div className="bg-white border border-nb-cream-border rounded-[8px] p-5 font-nb-mono">
-        <h2 className="text-[13px] font-[700] text-nb-muted uppercase tracking-[0.06em] mb-4">Comments</h2>
         <div>
-          <label className="block text-[11px] font-[600] text-nb-muted uppercase tracking-[0.04em] mb-2">
-            Comments
-          </label>
           <textarea
             value={commentsValue}
             onChange={(e) => handleCommentsChange(e.target.value)}

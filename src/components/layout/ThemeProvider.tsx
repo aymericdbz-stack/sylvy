@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import AuthSessionCleaner from "@/components/auth/AuthSessionCleaner";
 
 type ThemeMode = "light" | "dark";
 type AccentTheme = "green" | "purple" | "orange";
@@ -24,41 +25,53 @@ const MODE_STORAGE_KEY = "sylvy-theme-mode";
 const ACCENT_STORAGE_KEY = "sylvy-theme-accent";
 
 function getInitialMode(): ThemeMode {
-  if (typeof window === "undefined") return "light";
-  try {
-    const stored = window.localStorage.getItem(MODE_STORAGE_KEY) as
-      | ThemeMode
-      | null;
-    if (stored === "light" || stored === "dark") return stored;
-  } catch {
-    // ignore
-  }
-  if (typeof window !== "undefined" && "matchMedia" in window) {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
   return "light";
 }
 
 function getInitialAccent(): AccentTheme {
-  if (typeof window === "undefined") return "green";
-  try {
-    const stored = window.localStorage.getItem(ACCENT_STORAGE_KEY) as
-      | AccentTheme
-      | null;
-    if (stored === "green" || stored === "purple" || stored === "orange") {
-      return stored;
-    }
-  } catch {
-    // ignore
-  }
   return "green";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(getInitialMode);
   const [accent, setAccentState] = useState<AccentTheme>(getInitialAccent);
+
+  // After hydration, read stored preferences on the client
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(MODE_STORAGE_KEY) as
+        | ThemeMode
+        | null;
+      if (stored === "light" || stored === "dark") {
+        queueMicrotask(() => setMode(stored));
+        return;
+      }
+      if ("matchMedia" in window) {
+        const prefersDark = window.matchMedia(
+          "(prefers-color-scheme: dark)",
+        ).matches;
+        const nextMode: ThemeMode = prefersDark ? "dark" : "light";
+        queueMicrotask(() => setMode(nextMode));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = window.localStorage.getItem(ACCENT_STORAGE_KEY) as
+        | AccentTheme
+        | null;
+      if (stored === "green" || stored === "purple" || stored === "orange") {
+        queueMicrotask(() => setAccentState(stored));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -103,6 +116,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={value}>
+      <AuthSessionCleaner />
       <ThemeFloatingToggle />
       {children}
     </ThemeContext.Provider>
@@ -128,7 +142,7 @@ function ThemeFloatingToggle() {
       type="button"
       aria-label={label}
       onClick={toggleMode}
-      className="fixed right-4 top-4 z-[9999] inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white/80 text-neutral-800 shadow-sm backdrop-blur-md transition hover:shadow-md dark:border-white/20 dark:bg-neutral-900/80 dark:text-neutral-100 sm:right-6 sm:top-5"
+      className="fixed right-4 top-4 z-[9999] hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-white/80 text-neutral-800 shadow-sm backdrop-blur-md transition hover:shadow-md dark:border-white/20 dark:bg-neutral-900/80 dark:text-neutral-100 sm:right-6 sm:top-5"
     >
       <span className="relative inline-flex h-4 w-4 overflow-hidden rounded-full border border-current">
         <span className="h-full w-1/2 bg-current" />

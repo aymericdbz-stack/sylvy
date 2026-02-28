@@ -55,7 +55,7 @@ export default async function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 flex flex-col gap-0.5 overflow-y-auto">
+      <nav className="flex-1 py-4 flex flex-col overflow-y-auto">
         <NavItem
           href="/notebook"
           exact
@@ -63,7 +63,7 @@ export default async function Sidebar() {
           label="Notebook"
         />
 
-        <div className="border-t border-nb-cream-border mx-4 my-1" />
+        <p className="px-4 pt-5 pb-1 text-[9px] font-[600] tracking-[0.15em] uppercase text-nb-muted-light select-none">Lab</p>
 
         <NavItem
           href="/protocols"
@@ -76,9 +76,8 @@ export default async function Sidebar() {
           label="Templates"
         />
 
-        <div className="border-t border-nb-cream-border mx-4 my-3" />
+        <p className="px-4 pt-5 pb-1 text-[9px] font-[600] tracking-[0.15em] uppercase text-nb-muted-light select-none">Planning</p>
 
-        {/* Planner — separate product, orange accent */}
         <NavItem
           href="/planner"
           icon={<CalendarDays size={16} strokeWidth={1.5} />}
@@ -86,7 +85,9 @@ export default async function Sidebar() {
           accent="orange"
         />
 
-        <div className="border-t border-nb-cream-border mx-4 my-1 mt-auto" />
+        <div className="flex-1" />
+
+        <div className="border-t border-nb-cream-border mx-4 mb-1" />
 
         <NavItem
           href="/resources"
