@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, Plus, Trash2, Pencil, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
@@ -12,6 +12,108 @@ function uid() { return crypto.randomUUID() }
 const TEMPLATE_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
 
 const emptyStep = (): StepData => ({ id: uid(), name: '', duration: 30, startOffset: 0 })
+
+// ── T+ helpers ────────────────────────────────────────────────────────────────
+function minsToHHMM(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+function hhmmToMins(val: string): number {
+  const [hStr = '0', mStr = '0'] = val.split(':')
+  const h = Math.max(0, parseInt(hStr, 10) || 0)
+  const m = Math.min(59, Math.max(0, parseInt(mStr, 10) || 0))
+  return h * 60 + m
+}
+
+// ── T+ offset input (hh:mm) ───────────────────────────────────────────────────
+function TOffsetInput({ value, onChange, className }: { value: number; onChange: (v: number) => void; className?: string }) {
+  const [focused, setFocused] = useState(false)
+  const [text, setText] = useState(minsToHHMM(value))
+  return (
+    <input
+      type="text"
+      value={focused ? text : minsToHHMM(value)}
+      onChange={e => { setText(e.target.value); onChange(hhmmToMins(e.target.value)) }}
+      onFocus={e => { setFocused(true); setText(minsToHHMM(value)); e.target.select() }}
+      onBlur={() => setFocused(false)}
+      placeholder="00:00"
+      className={className}
+    />
+  )
+}
+
+// ── Standard template definitions ─────────────────────────────────────────────
+const STANDARD_DEFS = [
+  {
+    name: 'Western Blot',
+    color: '#3B82F6',
+    steps: [
+      { name: 'Cell lysis (add lysis buffer, vortex)',               duration: 10,  startOffset: 0   },
+      { name: 'Lysis incubation on ice',                             duration: 10,  startOffset: 10  },
+      { name: 'Protein quantification (BCA / Bradford)',              duration: 25,  startOffset: 20  },
+      { name: 'Laemmli sample prep & denaturation (95°C, 5 min)',    duration: 10,  startOffset: 45  },
+      { name: 'Load gel & set up SDS-PAGE',                          duration: 10,  startOffset: 55  },
+      { name: 'SDS-PAGE migration',                                  duration: 60,  startOffset: 65  },
+      { name: 'Activate PVDF membrane (methanol)',                   duration: 10,  startOffset: 125 },
+      { name: 'Assemble transfer sandwich & run wet transfer',       duration: 75,  startOffset: 135 },
+      { name: 'Block membrane (5% milk / BSA, RT)',                  duration: 45,  startOffset: 210 },
+      { name: 'Add primary antibody',                                duration:  5,  startOffset: 255 },
+      { name: 'Primary antibody incubation (RT, 2h)',                duration: 120, startOffset: 260 },
+      { name: 'Wash × 3 (TBST, 10 min each)',                       duration: 30,  startOffset: 380 },
+      { name: 'Add secondary antibody',                              duration:  5,  startOffset: 410 },
+      { name: 'Secondary antibody incubation (RT, 1h)',              duration: 60,  startOffset: 415 },
+      { name: 'Wash × 3 (TBST, 10 min each)',                       duration: 30,  startOffset: 475 },
+      { name: 'ECL substrate & image acquisition',                   duration: 20,  startOffset: 505 },
+    ],
+  },
+  {
+    name: 'Sandwich ELISA',
+    color: '#14B8A6',
+    steps: [
+      { name: 'Coat plate with capture antibody',                    duration: 20,  startOffset: 0    },
+      { name: 'Overnight coating incubation (4°C)',                  duration: 720, startOffset: 20   },
+      { name: 'Wash × 3 (PBS-T)',                                    duration: 10,  startOffset: 740  },
+      { name: 'Add blocking solution (1% BSA / 5% milk)',            duration: 10,  startOffset: 750  },
+      { name: 'Blocking incubation (RT, 1h)',                        duration: 60,  startOffset: 760  },
+      { name: 'Prepare standards & distribute samples',              duration: 25,  startOffset: 820  },
+      { name: 'Sample incubation (RT, 2h)',                          duration: 120, startOffset: 845  },
+      { name: 'Wash × 5 (PBS-T)',                                    duration: 15,  startOffset: 965  },
+      { name: 'Add detection antibody',                              duration: 10,  startOffset: 980  },
+      { name: 'Detection antibody incubation (RT, 1h)',              duration: 60,  startOffset: 990  },
+      { name: 'Wash × 5 (PBS-T)',                                    duration: 15,  startOffset: 1050 },
+      { name: 'Add streptavidin-HRP conjugate',                      duration: 10,  startOffset: 1065 },
+      { name: 'Conjugate incubation (RT, 30 min)',                   duration: 30,  startOffset: 1075 },
+      { name: 'Critical wash × 7 (PBS-T)',                          duration: 20,  startOffset: 1105 },
+      { name: 'Add TMB substrate',                                   duration:  5,  startOffset: 1125 },
+      { name: 'Color development monitoring',                        duration: 10,  startOffset: 1130 },
+      { name: 'Stop reaction & read absorbance (450 nm)',            duration: 10,  startOffset: 1140 },
+    ],
+  },
+  {
+    name: 'PCR (endpoint)',
+    color: '#8B5CF6',
+    steps: [
+      { name: 'Prepare PCR master mix',                              duration: 10, startOffset: 0   },
+      { name: 'Distribute mix & samples (seal plates)',              duration: 10, startOffset: 10  },
+      { name: 'Initial denaturation (95°C, 3 min)',                  duration:  3, startOffset: 20  },
+      { name: '30 cycles: denature / anneal / extend (95/60/72°C)', duration: 60, startOffset: 23  },
+      { name: 'Final extension (72°C, 5 min)',                       duration:  5, startOffset: 83  },
+      { name: 'Hold at 4°C',                                         duration: 10, startOffset: 88  },
+      { name: 'Prepare agarose gel (1-2%)',                          duration: 15, startOffset: 98  },
+      { name: 'Load samples & run gel',                              duration: 45, startOffset: 113 },
+      { name: 'Gel imaging & analysis',                              duration: 10, startOffset: 158 },
+    ],
+  },
+]
+
+function makeStandardTemplates(): TaskTemplateInsert[] {
+  return STANDARD_DEFS.map(def => ({
+    name:  def.name,
+    color: def.color,
+    steps: def.steps.map(s => ({ ...s, id: uid() })),
+  }))
+}
 
 // ── Step builder ──────────────────────────────────────────────────────────────
 function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (s: StepData[]) => void }) {
@@ -69,10 +171,10 @@ function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (s: Ste
               />
             </div>
             <div className="flex-1 space-y-1">
-              <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+</label>
-              <input
-                type="number" min={0} value={step.startOffset}
-                onChange={e => update(step.id, { startOffset: Math.max(0, parseInt(e.target.value) || 0) })}
+              <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+ (hh:mm)</label>
+              <TOffsetInput
+                value={step.startOffset}
+                onChange={v => update(step.id, { startOffset: v })}
                 className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
               />
             </div>
@@ -185,11 +287,53 @@ export default function TemplatesPanel({
   const [view,       setView]       = useState<'list' | 'create' | 'edit'>('list')
   const [editTarget, setEditTarget] = useState<TaskTemplate | null>(null)
   const [deleting,   setDeleting]   = useState<string | null>(null)
+  const [seeding,    setSeeding]    = useState(false)
+  const seededRef = useRef(false)
+
+  async function handleSeedStandard() {
+    const toCreate = makeStandardTemplates().filter(
+      tpl => !templates.some(t => t.name === tpl.name)
+    )
+    if (toCreate.length === 0) {
+      toast.info('Standard templates already loaded')
+      return
+    }
+    setSeeding(true)
+    try {
+      for (const tpl of toCreate) await onCreate(tpl)
+      toast.success(`${toCreate.length} standard template${toCreate.length > 1 ? 's' : ''} loaded`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   // Reset to list when panel closes
   useEffect(() => {
     if (!open) { setView('list'); setEditTarget(null) }
   }, [open])
+
+  // Auto-seed any missing standard templates on first open
+  useEffect(() => {
+    if (!open || seededRef.current) return
+    const toCreate = makeStandardTemplates().filter(
+      tpl => !templates.some(t => t.name === tpl.name)
+    )
+    if (toCreate.length === 0) return
+    seededRef.current = true
+    setSeeding(true)
+    ;(async () => {
+      try {
+        for (const tpl of toCreate) await onCreate(tpl)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Error')
+      } finally {
+        setSeeding(false)
+      }
+    })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, templates.length])
 
   // Escape to close
   useEffect(() => {
@@ -277,7 +421,7 @@ export default function TemplatesPanel({
               ))}
             </div>
 
-            <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border">
+            <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border space-y-2">
               <Button
                 variant="primary"
                 size="md"
@@ -287,6 +431,14 @@ export default function TemplatesPanel({
                 <Plus size={14} />
                 New template
               </Button>
+              <button
+                type="button"
+                onClick={handleSeedStandard}
+                disabled={seeding}
+                className="w-full text-[10px] font-nb-mono text-pl-muted hover:text-pl-charcoal transition-colors disabled:opacity-40 py-1"
+              >
+                {seeding ? 'Loading...' : '↓ Load standard templates'}
+              </button>
             </div>
           </div>
         )}

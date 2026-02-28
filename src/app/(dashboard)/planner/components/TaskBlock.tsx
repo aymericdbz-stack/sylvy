@@ -4,6 +4,13 @@ import { useState } from 'react'
 import { AlertTriangle, Hand, Sparkles } from 'lucide-react'
 import type { StepData, PlannerTask } from '../hooks/usePlannerTasks'
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function minsToHHMM(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 // ── Constants (must match WeekCalendar) ──────────────────────────────────────
 const PX_PER_HOUR   = 80
 const PX_PER_MIN    = PX_PER_HOUR / 60
@@ -163,7 +170,7 @@ export default function TaskBlock({ block, col, maxCols, onClick }: TaskBlockPro
           <div className="space-y-0.5 border-t border-white/10 pt-1.5 mt-1">
             {sortedSteps.map(s => (
               <p key={s.id} className="text-[9px] flex items-center gap-1">
-                <span className="text-pl-muted-light">T+{s.startOffset}</span>
+                <span className="text-pl-muted-light">T+{minsToHHMM(s.startOffset)}</span>
                 <span>{s.name}</span>
                 <span className="text-pl-muted-light ml-auto">({s.duration}min)</span>
               </p>

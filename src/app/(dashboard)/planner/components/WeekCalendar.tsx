@@ -7,7 +7,7 @@ import type { ScheduledTaskBlock } from './TaskBlock'
 import { getTimezone } from '@/lib/preferences'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PX_PER_HOUR  = 80
+const PX_PER_HOUR  = 52
 const PX_PER_MIN   = PX_PER_HOUR / 60
 const DAY_START    = 0   // 00:00
 const DAY_END      = 24  // 24:00
@@ -57,10 +57,22 @@ function toISO(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// Display label (AM/PM) — used in gutter and drag preview
 function minToLabel(min: number): string {
   let h = Math.floor(min / 60)
   const m = min % 60
-  // Display 24:00 as 00:00 (midnight)
+  if (h === 24) h = 0
+  const period = h < 12 ? 'AM' : 'PM'
+  const h12 = h % 12 || 12
+  return m === 0
+    ? `${h12} ${period}`
+    : `${h12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+// HH:MM string — used for slot callbacks (EventModal expects this format)
+function minToHHMM(min: number): string {
+  let h = Math.floor(min / 60)
+  const m = min % 60
   if (h === 24) h = 0
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
@@ -117,8 +129,8 @@ function EventBlock({
   const isSmall = height < 44
   const colW    = 100 / maxCols
 
-  const sTime = new Date(event.start_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-  const eTime = new Date(event.end_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  const sTime = new Date(event.start_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const eTime = new Date(event.end_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
 
   return (
     <div
@@ -186,6 +198,7 @@ export default function WeekCalendar({
   const [dragPreview, setDragPreview] = useState<{
     dayIdx: number; startMin: number; endMin: number
   } | null>(null)
+  const dragPreviewRef = useRef<{ dayIdx: number; startMin: number; endMin: number } | null>(null)
 
   // Re-read timezone when user changes it in settings
   useEffect(() => {
@@ -237,23 +250,27 @@ export default function WeekCalendar({
   const showNow  = nowMin >= DAY_START_MIN && nowMin <= DAY_END_MIN
   const todayInWeek = weekDays.some(d => toISO(d) === todayISO)
 
-  // Stable helper: reads from refs/constants only, safe to call from any closure
-  const clientYToMin = useRef((clientY: number): number => {
+  // "Latest ref" pattern — updated every render so effects/callbacks always use
+  // the current PX_PER_MIN (avoids stale-closure bugs after HMR or constant changes)
+  const clientYToMinRef = useRef<(clientY: number) => number>(null!)
+  clientYToMinRef.current = (clientY: number): number => {
     const container = scrollRef.current
     if (!container) return DAY_START_MIN
     const rect = container.getBoundingClientRect()
     const y    = clientY - rect.top + container.scrollTop
     const min  = Math.round(y / PX_PER_MIN / 15) * 15 + DAY_START_MIN
     return Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, min))
-  }).current
+  }
 
   function handleColMouseDown(e: React.MouseEvent, dayISO: string, dayIdx: number) {
     if (e.button !== 0) return
     e.preventDefault()
-    const anchorMin = clientYToMin(e.clientY)
+    const anchorMin = clientYToMinRef.current(e.clientY)
     dragRef.current = { dayISO, dayIdx, anchorMin }
     // Start with a minimal 15-min block — grows as the user drags
-    setDragPreview({ dayIdx, startMin: anchorMin, endMin: anchorMin + 15 })
+    const preview = { dayIdx, startMin: anchorMin, endMin: anchorMin + 15 }
+    dragPreviewRef.current = preview
+    setDragPreview(preview)
   }
 
   // Global mouse listeners for drag
@@ -261,27 +278,29 @@ export default function WeekCalendar({
     function onMouseMove(e: MouseEvent) {
       if (!dragRef.current) return
       const { anchorMin, dayIdx } = dragRef.current
-      const currentMin = clientYToMin(e.clientY)
+      const currentMin = clientYToMinRef.current(e.clientY)
       // Anchor is always the TOP — extend downward only (like Google Calendar)
       const endMin = Math.max(currentMin, anchorMin + 15)
-      setDragPreview({ dayIdx, startMin: anchorMin, endMin })
+      const preview = { dayIdx, startMin: anchorMin, endMin }
+      dragPreviewRef.current = preview
+      setDragPreview(preview)
     }
 
     function onMouseUp() {
       const d = dragRef.current
       if (!d) return
       dragRef.current = null
-      setDragPreview(prev => {
-        if (prev) {
-          // ≥ 30 min drag → pass end time; shorter → simple click (default 1h in modal)
-          if (prev.endMin - prev.startMin >= 30) {
-            onSlotRef.current(d.dayISO, minToLabel(prev.startMin), minToLabel(prev.endMin))
-          } else {
-            onSlotRef.current(d.dayISO, minToLabel(prev.startMin))
-          }
+      const prev = dragPreviewRef.current
+      dragPreviewRef.current = null
+      setDragPreview(null)
+      if (prev) {
+        // ≥ 30 min drag → pass end time; shorter → simple click (default 1h in modal)
+        if (prev.endMin - prev.startMin >= 30) {
+          onSlotRef.current(d.dayISO, minToHHMM(prev.startMin), minToHHMM(prev.endMin))
+        } else {
+          onSlotRef.current(d.dayISO, minToHHMM(prev.startMin))
         }
-        return null
-      })
+      }
     }
 
     window.addEventListener('mousemove', onMouseMove)

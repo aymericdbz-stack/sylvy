@@ -14,6 +14,36 @@ function uid() { return crypto.randomUUID() }
 
 const STEP_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
 
+// ── T+ helpers ────────────────────────────────────────────────────────────────
+function minsToHHMM(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+function hhmmToMins(val: string): number {
+  const [hStr = '0', mStr = '0'] = val.split(':')
+  const h = Math.max(0, parseInt(hStr, 10) || 0)
+  const m = Math.min(59, Math.max(0, parseInt(mStr, 10) || 0))
+  return h * 60 + m
+}
+
+// ── T+ offset input (hh:mm) ───────────────────────────────────────────────────
+function TOffsetInput({ value, onChange, className }: { value: number; onChange: (v: number) => void; className?: string }) {
+  const [focused, setFocused] = useState(false)
+  const [text, setText] = useState(minsToHHMM(value))
+  return (
+    <input
+      type="text"
+      value={focused ? text : minsToHHMM(value)}
+      onChange={e => { setText(e.target.value); onChange(hhmmToMins(e.target.value)) }}
+      onFocus={e => { setFocused(true); setText(minsToHHMM(value)); e.target.select() }}
+      onBlur={() => setFocused(false)}
+      placeholder="00:00"
+      className={className}
+    />
+  )
+}
+
 interface TaskPanelProps {
   open:       boolean
   onClose:    () => void
@@ -79,9 +109,10 @@ function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (steps:
               />
             </div>
             <div className="flex-1 space-y-1">
-              <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+</label>
-              <input type="number" min={0} value={step.startOffset}
-                onChange={e => update(step.id, { startOffset: Math.max(0, parseInt(e.target.value) || 0) })}
+              <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+ (hh:mm)</label>
+              <TOffsetInput
+                value={step.startOffset}
+                onChange={v => update(step.id, { startOffset: v })}
                 className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
               />
             </div>
