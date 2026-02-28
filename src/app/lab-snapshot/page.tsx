@@ -360,8 +360,8 @@ export default function LabSnapshotPage() {
   const generatePdf = useCallback(async (): Promise<Blob> => {
     const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
     const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.Courier);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.CourierBold);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let logoEmbed: any = null;
@@ -387,63 +387,20 @@ export default function LabSnapshotPage() {
       }
     } catch { /* fallback */ }
 
-    const margin = 60, A4W = 595.28, A4H = 841.89, lh = 16;
-    const green = rgb(0, 0.675, 0.451), bgColor = rgb(0.878, 0.973, 0.925);
+    const margin = 60, A4W = 595.28, A4H = 841.89, baseLineHeight = 15;
+    const green = rgb(0, 0.675, 0.451), lightGray = rgb(0.6, 0.6, 0.6), darkGray = rgb(0.42, 0.42, 0.42);
     let pageNum = 0;
     let page = pdfDoc.addPage([A4W, A4H]);
     let { width, height } = page.getSize();
     let y = height - margin;
-    let pageKind = "DETAILS";
-
-    const drawHeader = (kind: string) => {
-      const hh = 40;
-      page.drawRectangle({ x: 0, y: height - hh, width, height: hh, color: bgColor });
-      if (logoEmbed) {
-        const lh2 = 24, lw = (logoEmbed.width / logoEmbed.height) * lh2;
-        page.drawImage(logoEmbed, { x: margin, y: height - hh / 2 - lh2 / 2, width: lw, height: lh2 });
-      } else {
-        page.drawText("Sylvy", { x: margin, y: height - hh / 2 - 4, size: 20, font: boldFont, color: green });
-      }
-      const tw = boldFont.widthOfTextAtSize(kind, 10);
-      page.drawText(kind, { x: width - margin - tw, y: height - hh / 2, size: 10, font: boldFont, color: green });
-      y = height - hh - 24;
-    };
-
-    const drawFooter = (pn: number) => {
-      const fh = 40;
-      page.drawRectangle({ x: 0, y: 0, width, height: fh, color: bgColor });
-      const ft = `Page ${pn}    ·    Generated via Sylvy Lab Snapshot`;
-      const tw = font.widthOfTextAtSize(ft, 9);
-      page.drawText(ft, { x: (width - tw) / 2, y: fh / 2 - 4, size: 9, font, color: rgb(0.25, 0.25, 0.25) });
-    };
 
     const newPage = () => {
       pageNum++;
       if (pageNum === 1) { page = pdfDoc.getPages()[0]; page.setSize(A4W, A4H); }
       else page = pdfDoc.addPage([A4W, A4H]);
       ({ width, height } = page.getSize());
-      drawHeader(pageKind);
-      drawFooter(pageNum);
       y = height - margin;
     };
-
-    const drawLine = (text: string, opts?: { bold?: boolean; size?: number; color?: [number, number, number] }) => {
-      const sz = opts?.size ?? 11, uf = opts?.bold ? boldFont : font, c = opts?.color ?? [0, 0, 0];
-      if (y < margin + lh) newPage();
-      page.drawText(text, { x: margin, y, size: sz, font: uf, color: rgb(c[0], c[1], c[2]) });
-      y -= lh;
-    };
-
-    const drawCentered = (text: string, opts?: { bold?: boolean; size?: number; color?: [number, number, number] }) => {
-      const sz = opts?.size ?? 11, uf = opts?.bold ? boldFont : font, c = opts?.color ?? [0, 0, 0];
-      if (y < margin + sz + 6) newPage();
-      const tw = uf.widthOfTextAtSize(text, sz);
-      page.drawText(text, { x: (width - tw) / 2, y, size: sz, font: uf, color: rgb(c[0], c[1], c[2]) });
-      y -= sz + 8;
-    };
-
-    // Strip **bold** markers for PDF plain text rendering
-    const stripBold = (text: string) => text.replace(/\*\*([^*]+)\*\*/g, "$1");
 
     // Replace characters that WinAnsi (Windows-1252) cannot encode
     const sanitizeForPdf = (text: string) =>
@@ -472,48 +429,140 @@ export default function LabSnapshotPage() {
         .replace(/√/g, "sqrt").replace(/∂/g, "d").replace(/∫/g, "int")
         .replace(/[^\x00-\xFF]/g, "?");
 
-    const wrap = (text: unknown, opts?: { bold?: boolean; size?: number; color?: [number, number, number] }) => {
+    // Parse text with **bold** markers into mixed text runs
+    const parseAndDrawText = (text: string, xPos: number, yPos: number, size: number, color: ReturnType<typeof rgb>, maxWidth: number) => {
+      const parts = text.split(/(\*\*[^*]+\*\*)/g);
+      let currentX = xPos;
+      
+      for (const part of parts) {
+        if (!part) continue;
+        
+        if (part.startsWith("**") && part.endsWith("**")) {
+          const boldText = sanitizeForPdf(part.slice(2, -2));
+          const textWidth = boldFont.widthOfTextAtSize(boldText, size);
+          if (currentX + textWidth > xPos + maxWidth) break;
+          page.drawText(boldText, { x: currentX, y: yPos, size, font: boldFont, color });
+          currentX += textWidth;
+        } else {
+          const normalText = sanitizeForPdf(part);
+          const textWidth = font.widthOfTextAtSize(normalText, size);
+          if (currentX + textWidth > xPos + maxWidth) break;
+          page.drawText(normalText, { x: currentX, y: yPos, size, font, color });
+          currentX += textWidth;
+        }
+      }
+      
+      return currentX - xPos;
+    };
+
+    // Wrap and draw paragraph with **bold** support
+    const wrapWithBold = (text: unknown, size: number, color: ReturnType<typeof rgb>, lineSpacing = 1.85) => {
       const safeText = typeof text === "string" ? text : String(text ?? "");
-      const sz = opts?.size ?? 11, uf = opts?.bold ? boldFont : font, mw = width - margin * 2;
+      const maxWidth = width - margin * 2;
+      const lineHeight = size * lineSpacing;
+      
       for (const para of safeText.split("\n")) {
         if (/^[=\-_]{3,}$/.test(para.trim())) continue;
-        const cleanPara = sanitizeForPdf(stripBold(para));
-        const words = cleanPara.split(/\s+/);
-        let line = "";
-        for (const w of words) {
-          const t = line ? `${line} ${w}` : w;
-          if (uf.widthOfTextAtSize(t, sz) > mw && line) {
-            drawLine(line, { ...opts, size: sz });
-            line = w;
-          } else {
-            line = t;
+        if (!para.trim()) {
+          y -= lineHeight * 0.5;
+          continue;
+        }
+        
+        // Split by **bold** boundaries to process mixed content
+        const parts = para.split(/(\*\*[^*]+\*\*)/g);
+        let currentLine = "";
+        let lineSegments: Array<{ text: string; bold: boolean }> = [];
+        
+        for (const part of parts) {
+          if (!part) continue;
+          
+          const isBold = part.startsWith("**") && part.endsWith("**");
+          const content = isBold ? part.slice(2, -2) : part;
+          const words = content.split(/\s+/);
+          
+          for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            const testWidth = (isBold ? boldFont : font).widthOfTextAtSize(sanitizeForPdf(testLine), size);
+            
+            if (testWidth > maxWidth && currentLine) {
+              // Draw the current line
+              if (y - lineHeight < margin) newPage();
+              
+              let currentX = margin;
+              for (const seg of lineSegments) {
+                const cleanText = sanitizeForPdf(seg.text);
+                const segFont = seg.bold ? boldFont : font;
+                page.drawText(cleanText, { x: currentX, y, size, font: segFont, color });
+                currentX += segFont.widthOfTextAtSize(cleanText, size);
+              }
+              
+              y -= lineHeight;
+              currentLine = word;
+              lineSegments = [{ text: word, bold: isBold }];
+            } else {
+              currentLine = testLine;
+              if (lineSegments.length > 0 && lineSegments[lineSegments.length - 1].bold === isBold) {
+                lineSegments[lineSegments.length - 1].text += (currentLine === word ? "" : " ") + word;
+              } else {
+                lineSegments.push({ text: (currentLine === word ? "" : " ") + word, bold: isBold });
+              }
+            }
           }
         }
-        if (line) drawLine(line, { ...opts, size: sz });
-        y -= 4;
+        
+        // Draw remaining line
+        if (currentLine) {
+          if (y - lineHeight < margin) newPage();
+          
+          let currentX = margin;
+          for (const seg of lineSegments) {
+            const cleanText = sanitizeForPdf(seg.text);
+            const segFont = seg.bold ? boldFont : font;
+            page.drawText(cleanText, { x: currentX, y, size, font: segFont, color });
+            currentX += segFont.widthOfTextAtSize(cleanText, size);
+          }
+          
+          y -= lineHeight;
+        }
       }
     };
 
-    const sectionTitle = (num: number, title: string) => {
-      y -= 14;
-      if (y < margin + lh * 3) newPage();
-      const barH = 24;
-      page.drawRectangle({ x: margin, y: y - 6, width: width - margin * 2, height: barH, color: bgColor });
-      page.drawText(sanitizeForPdf(`${num}. ${title.toUpperCase()}`), { x: margin + 8, y: y + 2, size: 13, font: boldFont, color: green });
-      y -= barH + 8;
+    const drawCentered = (text: string, size: number, useBold: boolean, color: ReturnType<typeof rgb>) => {
+      const cleanText = sanitizeForPdf(text);
+      const usedFont = useBold ? boldFont : font;
+      const tw = usedFont.widthOfTextAtSize(cleanText, size);
+      if (y - size - 10 < margin) newPage();
+      page.drawText(cleanText, { x: (width - tw) / 2, y, size, font: usedFont, color });
+      y -= size + 10;
     };
 
-    // Cover
+    const sectionHeading = (num: number, title: string, color: ReturnType<typeof rgb> = green) => {
+      if (y - 35 < margin) newPage();
+      y -= 25;
+      const headingText = sanitizeForPdf(`${num}. ${title.toUpperCase()}`);
+      page.drawText(headingText, { x: margin, y, size: 13, font: boldFont, color });
+      y -= 20;
+    };
+
+    // Cover page
     newPage();
+    y -= 80;
+    drawCentered("EXPERIMENT REPORT", 20, true, green);
+    y += 5;
+    drawCentered(experimentName || "Untitled Experiment", 16, true, rgb(0, 0, 0));
+    y -= 10;
+    
+    // Decorative line
+    page.drawLine({ 
+      start: { x: width / 2 - 100, y }, 
+      end: { x: width / 2 + 100, y }, 
+      thickness: 0.5, 
+      color: lightGray 
+    });
     y -= 20;
-    drawCentered("EXPERIMENT REPORT", { bold: true, size: 22, color: [0, 0.675, 0.451] });
-    y -= 4;
-    drawCentered(sanitizeForPdf(experimentName || "Untitled Experiment"), { bold: true, size: 16 });
-    y -= 14;
-    page.drawLine({ start: { x: margin + 60, y }, end: { x: width - margin - 60, y }, thickness: 0.5, color: rgb(0.75, 0.75, 0.75) });
-    y -= 18;
-    drawLine(`Generated: ${new Date().toLocaleDateString()}`, { size: 10, color: [0.45, 0.45, 0.45] });
-    y -= 14;
+    
+    drawCentered(`Generated: ${new Date().toLocaleDateString()}`, 10, false, lightGray);
 
     // Sections
     const imageFiles = uploadedFiles.filter(
@@ -528,40 +577,55 @@ export default function LabSnapshotPage() {
       if (section.type === "rawNotebook") {
         if (imageFiles.length > 0 || pdfFiles.length > 0) {
           sectionNum++;
-          pageKind = "RAW NOTEBOOK";
-          sectionTitle(sectionNum, "Raw Notebook");
-          if (imageFiles.length > 0) newPage();
+          newPage();
+          sectionHeading(sectionNum, "Raw Notebook");
+          
           for (const f of imageFiles) {
             try {
               const isPng = f.type === "image/png" || f.name.toLowerCase().endsWith(".png");
               const img = isPng
                 ? await pdfDoc.embedPng(new Uint8Array(f.data))
                 : await pdfDoc.embedJpg(new Uint8Array(f.data));
-              const mw = width - margin * 2, mh = height - margin * 2 - 40;
-              const scale = Math.min(mw / img.width, mh / img.height);
-              const iw = img.width * scale, ih = img.height * scale;
-              if (y - ih - 21 < margin) newPage();
-              const ix = (width - iw) / 2, iy = y - ih;
-              page.drawImage(img, { x: ix, y: iy, width: iw, height: ih });
-              const cw = boldFont.widthOfTextAtSize(f.name, 11);
-              page.drawText(f.name, { x: (width - cw) / 2, y: iy - 15, size: 11, font: boldFont, color: green });
-              y = iy - 36;
+              const maxImgWidth = width - margin * 2;
+              const maxImgHeight = height - margin * 2 - 100;
+              const scale = Math.min(maxImgWidth / img.width, maxImgHeight / img.height, 1);
+              const imgWidth = img.width * scale;
+              const imgHeight = img.height * scale;
+              
+              if (y - imgHeight - 30 < margin) newPage();
+              
+              const imgX = (width - imgWidth) / 2;
+              const imgY = y - imgHeight;
+              page.drawImage(img, { x: imgX, y: imgY, width: imgWidth, height: imgHeight });
+              
+              y = imgY - 15;
+              const captionText = sanitizeForPdf(f.name);
+              const captionWidth = font.widthOfTextAtSize(captionText, 9);
+              page.drawText(captionText, { 
+                x: (width - captionWidth) / 2, 
+                y, 
+                size: 9, 
+                font, 
+                color: darkGray 
+              });
+              y -= 25;
             } catch { /* skip */ }
           }
+          
           for (const f of pdfFiles) {
             try {
               const src = await PDFDocument.load(f.data);
               for (const pg of src.getPages()) {
                 const [emb] = await pdfDoc.embedPages([pg]);
-                pageKind = "RAW NOTEBOOK";
                 newPage();
-                const aw = width - margin * 2, ah = height - margin * 2;
-                const sc = Math.min(aw / emb.width, ah / emb.height);
+                const availWidth = width - margin * 2;
+                const availHeight = height - margin * 2;
+                const scale = Math.min(availWidth / emb.width, availHeight / emb.height);
                 page.drawPage(emb, {
-                  x: (width - emb.width * sc) / 2,
-                  y: margin + (ah - emb.height * sc) / 2,
-                  width: emb.width * sc,
-                  height: emb.height * sc,
+                  x: (width - emb.width * scale) / 2,
+                  y: margin + (availHeight - emb.height * scale) / 2,
+                  width: emb.width * scale,
+                  height: emb.height * scale,
                 });
               }
             } catch { /* skip */ }
@@ -569,19 +633,26 @@ export default function LabSnapshotPage() {
         }
       } else if (section.type === "rawTranscription") {
         sectionNum++;
-        pageKind = "DETAILS";
-        sectionTitle(sectionNum, "Raw Transcription");
-        if (section.content) wrap(section.content, { size: 10, color: [0.45, 0.45, 0.45] });
-        else wrap("—", { size: 10 });
+        newPage();
+        sectionHeading(sectionNum, "Raw Transcription", lightGray);
+        if (section.content) {
+          wrapWithBold(section.content, 9, darkGray, 1.7);
+        } else {
+          wrapWithBold("—", 9, darkGray, 1.7);
+        }
       } else {
         sectionNum++;
-        pageKind = "DETAILS";
+        newPage();
         const title =
           section.type === "custom"
             ? section.customTitle || "Section"
             : SECTION_LABELS[section.type];
-        sectionTitle(sectionNum, title);
-        wrap(section.content || "—");
+        sectionHeading(sectionNum, title);
+        if (section.content) {
+          wrapWithBold(section.content, 11, rgb(0, 0, 0), 1.85);
+        } else {
+          wrapWithBold("—", 11, rgb(0, 0, 0), 1.85);
+        }
       }
     }
 
@@ -909,10 +980,10 @@ export default function LabSnapshotPage() {
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <Button variant="ghost" size="sm" onClick={() => triggerExport("docx")} disabled={exporting} className="gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm px-2 sm:px-3">
-              <Download size={11} className="sm:size-[13px]" /> <span className="hidden sm:inline">DOCX</span>
+              <Download size={11} className="sm:size-[13px]" /> DOCX
             </Button>
             <Button variant="primary" size="sm" onClick={() => triggerExport("pdf")} disabled={exporting} className="gap-0.5 sm:gap-1.5 text-[10px] sm:text-sm px-2 sm:px-3">
-              <Download size={11} className="sm:size-[13px]" /> <span className="hidden sm:inline">PDF</span>
+              <Download size={11} className="sm:size-[13px]" /> PDF
             </Button>
           </div>
         </div>
