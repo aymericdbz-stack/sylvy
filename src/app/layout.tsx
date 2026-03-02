@@ -79,9 +79,26 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;600;700&display=swap"
           rel="stylesheet"
+          media="print"
+          id="fonts-stylesheet"
         />
+        <Script id="fonts-async" strategy="afterInteractive">
+          {`(function(){var l=document.getElementById('fonts-stylesheet');if(l){l.media='print';l.onload=function(){l.media='all';};if(l.sheet)l.media='all';}})();`}
+        </Script>
+        <noscript>
+          <link
+            href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,300..800;1,300..800&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;600;700&display=swap"
+            rel="stylesheet"
+          />
+        </noscript>
       </head>
       <body className="antialiased">
+        <div className="pwa-loading-shell" aria-hidden="true">
+          <div className="pwa-loading-shell-inner">
+            <div className="pwa-loading-spinner" />
+            <span className="pwa-loading-text">Sylvy</span>
+          </div>
+        </div>
         {process.env.NODE_ENV === "development" && (
           <Script id="suppress-extension-errors" strategy="beforeInteractive">
             {suppressExtensionErrorsScript}
