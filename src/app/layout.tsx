@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
+import { PostHogProvider } from "@/components/layout/PostHogProvider";
+import { PostHogPageView } from "@/components/layout/PostHogPageView";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Sylvy | AI Lab Assistant for Wet Lab Research",
@@ -54,7 +57,12 @@ export default function RootLayout({
             {suppressExtensionErrorsScript}
           </Script>
         )}
-        <ThemeProvider>{children}</ThemeProvider>
+        <PostHogProvider>
+          <Suspense fallback={null}>
+            <PostHogPageView />
+          </Suspense>
+          <ThemeProvider>{children}</ThemeProvider>
+        </PostHogProvider>
       </body>
     </html>
   );
