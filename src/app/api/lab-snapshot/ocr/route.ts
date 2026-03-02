@@ -6,7 +6,7 @@ const SYSTEM_PROMPT = `You are a scientific lab notebook transcription and synth
 
 Your job:
 - Transcribe ALL visible content from ALL pages completely and accurately
-- Organize content chronologically by date if dates are visible
+- If dates are visible, reorder the day-by-day notes in calendar order (oldest → newest) in the synthesized fields (especially "summary"). If a date is ambiguous, keep the original order for that portion.
 - Synthesize the content into a structured scientific document
 
 Return a JSON object with exactly these six string keys:
@@ -25,7 +25,7 @@ tags — Exactly 5 short tags, one per line, starting with capital letters. Form
 
 abstract — A summary with key points. 5-7 items maximum, one per line. Cover: type of experiment, date range, organisms/samples/molecules, conditions tested, key outcome if visible. Use "-" for each item.
 
-summary — A clean, reformatted version of the full notebook content. This is the ENTIRE raw transcription but cleaned and organized better. The word count must be almost identical to the original document (aim for 95-100% of the original length). Preserve ALL information — same level of detail as the original, nothing omitted. Only make very slight improvements: fix obvious typos, expand clear abbreviations, improve formatting. Keep prose where original is prose; use "-" markers where content is naturally a list. No bold markers or ** symbols.
+summary — A clean, reformatted version of the full notebook content. This is the ENTIRE raw transcription but cleaned and organized better. Reorder content by date in true calendar order (oldest → newest) when dates are present; keep each day's description with its date. The word count must be almost identical to the original document (aim for 95-100% of the original length). Preserve ALL information — same level of detail as the original, nothing omitted. Only make very slight improvements: fix obvious typos, expand clear abbreviations, improve formatting. Keep prose where original is prose; use "-" markers where content is naturally a list. No bold markers or ** symbols.
 
 analysis — Three labeled sections, each with 3-5 items. This must be a single plain string formatted exactly as:
 MAIN FINDINGS:
@@ -35,7 +35,7 @@ WATCH CLOSELY:
 POSITIVES:
 - what worked well or confirmed hypothesis
 
-rawOcrText — COMPLETE verbatim transcription of ALL text visible across ALL pages. This must be EXACTLY the same word count as the original document — word-for-word transcription with absolutely nothing omitted or summarized. Where dates appear, write the date on its own line (no dashes around it), then the content below. Include all handwritten notes, values, labels, table contents, headers, marginal notes, crossed-out text, and any other text present. This is a pure OCR output with zero modifications.
+rawOcrText — COMPLETE verbatim transcription of ALL text visible across ALL pages. CRITICAL: You must transcribe EVERY PAGE with equal thoroughness - do not skip or summarize any page. Do NOT reorder content by date here; keep the original page/visual reading order. This must be EXACTLY the same word count as the original document — word-for-word transcription with absolutely nothing omitted or summarized. For each page, scan and transcribe EVERY SINGLE WORD, including: dates, all handwritten notes, all printed text, numerical values, chemical formulas, labels, table contents, headers, column headers, marginal notes, crossed-out text, arrows, annotations, units, measurements, and any other text present anywhere on the page (including edges and corners). When moving between pages, clearly indicate the page break. This is a pure OCR output with zero modifications. If you see text on ANY page, transcribe it - no exceptions.
 
 Rules:
 - Never invent data. Transcribe only what is visible.
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
       imageBlocks.push({
         type: "image_url",
-        image_url: { url: `data:${mimeType};base64,${base64}`, detail: "auto" },
+        image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" },
       });
     }
 
@@ -99,13 +99,13 @@ export async function POST(req: NextRequest) {
           content: [
             {
               type: "text",
-              text: `Analyze these ${imageBlocks.length} lab notebook page(s). Transcribe everything and produce the structured document as instructed.`,
+              text: `You must analyze ALL ${imageBlocks.length} lab notebook pages with equal thoroughness. For EVERY SINGLE PAGE, scan and transcribe EVERY word visible. Do not skip any page. Do not summarize any page. Each page must receive the same complete OCR treatment. Transcribe everything and produce the structured document as instructed.`,
             },
             ...imageBlocks,
           ],
         },
       ],
-      max_tokens: 6000,
+      max_tokens: 8000,
       temperature: 0.3,
       response_format: { type: "json_object" },
     });

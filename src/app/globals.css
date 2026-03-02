@@ -22,6 +22,13 @@ body {
   scroll-behavior: smooth;
 }
 
+body {
+  min-height: 100svh;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: geometricPrecision;
+}
+
 .snap-section {
   /* content-driven height */
 }

@@ -67,7 +67,7 @@ const copy = {
         "Secure, compliant data",
         "Cross-site collaboration",
       ],
-      primaryCta: "Try it !",
+      primaryCta: "Book a demo",
       secondaryCta: "Sign up",
     },
     modalitiesLabel: "Therapies",
@@ -197,7 +197,7 @@ const copy = {
       title: "Ready to modernize your lab?",
       description:
         "See how Sylvy unifies ELN, LIMS, and analytics for faster decisions.",
-      primary: "Try it !",
+      primary: "Book a demo",
       secondary: "Sign up",
     },
     footer: {
@@ -256,13 +256,13 @@ const copy = {
       legal: "Copyright 2026 Sylvy. All rights reserved.",
     },
     modal: {
-      title: "Try it !",
+      title: "Book a demo",
       description: "Tell us about you and we'll reach out.",
       firstName: "First name",
       lastName: "Last name",
       email: "Work email",
       phone: "Phone number",
-      submit: "Try it !",
+      submit: "Book a demo",
       cancel: "Cancel",
       success: "Thanks. We will reach out.",
       error: "Something went wrong.",
@@ -298,7 +298,7 @@ const copy = {
         "Donnees securisees",
         "Collaboration multi-sites",
       ],
-      primaryCta: "Try it !",
+      primaryCta: "Book a demo",
       secondaryCta: "Sign up",
     },
     modalitiesLabel: "Therapies",
@@ -428,7 +428,7 @@ const copy = {
       title: "Pret a moderniser votre labo ?",
       description:
         "Voyez comment Sylvy unifie ELN, LIMS et analytics pour des decisions rapides.",
-      primary: "Try it !",
+      primary: "Book a demo",
       secondary: "Sign up",
     },
     footer: {
@@ -487,13 +487,13 @@ const copy = {
       legal: "Copyright 2025 Sylvy. Tous droits reserves.",
     },
     modal: {
-      title: "Try it !",
+      title: "Book a demo",
       description: "Parlez-nous de votre labo, nous vous recontacterons.",
       firstName: "Prenom",
       lastName: "Nom",
       email: "Email pro",
       phone: "Telephone",
-      submit: "Try it !",
+      submit: "Book a demo",
       cancel: "Annuler",
       success: "Merci. Nous vous recontactons.",
       error: "Une erreur est survenue.",
@@ -512,6 +512,9 @@ const themeOptions = [
 const SCROLL_THRESHOLD = 60;
 const WORKFLOW_AUTO_SCROLL_INTERVAL = 6500;
 const WORKFLOW_AUTO_SCROLL_RESUME_DELAY = 4000;
+
+const BOOK_A_DEMO_URL =
+  "https://outlook.office.com/bookwithme/user/f4fc14d1c85e4de2993adb172a854fd4@hec.edu/meetingtype/LGKMid7waEeOlEtvPFjfVg2?anonymous&ep=owaSlotsCopyLink";
 
 const PLANNER_CHAT_ITEMS = [
   { text: "ELISA assay on HEK", highlightColor: "bg-emerald-500/30" },
@@ -577,6 +580,7 @@ export default function Home() {
   const [isLabmindExpanded, setIsLabmindExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState("");
   const [formState, setFormState] = useState({
     firstName: "",
     lastName: "",
@@ -849,14 +853,16 @@ export default function Home() {
   const openModal = () => {
     setIsModalOpen(true);
     setFormStatus("idle");
+    setErrorMessage("");
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setFormStatus("idle");
+    setErrorMessage("");
   };
 
-  /* ── Inactivity popup: show "Try it" modal after 10 s of no interaction ── */
+  /* ── Inactivity popup: show "Book a demo" modal after 10 s of no interaction ── */
   const inactivityShown = useRef(false);
   useEffect(() => {
     if (inactivityShown.current) return;
@@ -866,11 +872,12 @@ export default function Home() {
     const reset = () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        if (!inactivityShown.current) {
-          inactivityShown.current = true;
-          setIsModalOpen(true);
-          setFormStatus("idle");
-        }
+      if (!inactivityShown.current) {
+        inactivityShown.current = true;
+        setIsModalOpen(true);
+        setFormStatus("idle");
+        setErrorMessage("");
+      }
       }, 10_000);
     };
 
@@ -887,6 +894,7 @@ export default function Home() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormStatus("loading");
+    setErrorMessage("");
 
     try {
       const response = await fetch("/api/subscribe", {
@@ -901,16 +909,18 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        throw new Error("Submit failed");
+        const errorData = await response.json().catch(() => ({ error: "Request failed" }));
+        throw new Error(errorData.error || `Request failed with status ${response.status}`);
       }
 
       setFormStatus("success");
       setFormState({ firstName: "", lastName: "", email: "", phone: "" });
       setTimeout(() => {
-        window.location.href = "/signup";
+        window.location.href = BOOK_A_DEMO_URL;
       }, 1500);
-    } catch {
+    } catch (error) {
       setFormStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "An unknown error occurred");
     }
   };
 
@@ -1565,7 +1575,7 @@ export default function Home() {
                 <p className="text-xs text-[color:var(--theme-accent-strong)]">{t.modal.success}</p>
               ) : null}
               {formStatus === "error" ? (
-                <p className="text-xs text-red-600">{t.modal.error}</p>
+                <p className="text-xs text-red-600">{errorMessage || t.modal.error}</p>
               ) : null}
             </form>
           </div>
