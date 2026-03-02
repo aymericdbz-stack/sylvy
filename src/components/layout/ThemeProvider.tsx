@@ -36,6 +36,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(getInitialMode);
   const [accent, setAccentState] = useState<AccentTheme>(getInitialAccent);
 
+  // Hide PWA loading shell as soon as the app has mounted (avoids Safari "recurring problem")
+  useEffect(() => {
+    document.body.classList.add("app-loaded");
+  }, []);
+
   // After hydration, read stored preferences on the client
   useEffect(() => {
     if (typeof window === "undefined") return;

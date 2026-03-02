@@ -794,12 +794,16 @@ export default function LabSnapshotPage() {
     try {
       let blob: Blob;
       let filename: string;
+      let pdfBlobForEmail: Blob;
+      
       if (pendingExport === "pdf") {
         blob = await generatePdf();
+        pdfBlobForEmail = blob;
         filename = `${(experimentName || "report").replace(/[^a-zA-Z0-9]/g, "_")}_report.pdf`;
       } else {
         blob = await generateDocx();
         filename = `${(experimentName || "report").replace(/[^a-zA-Z0-9]/g, "_")}_report.docx`;
+        pdfBlobForEmail = await generatePdf();
       }
 
       const url = URL.createObjectURL(blob);
@@ -813,7 +817,13 @@ export default function LabSnapshotPage() {
 
       toast.success(`${pendingExport.toUpperCase()} downloaded`);
 
-      // Fire-and-forget: save feedback + second email
+      // Convert PDF to base64 for email attachment
+      const pdfArrayBuffer = await pdfBlobForEmail.arrayBuffer();
+      const pdfBase64 = btoa(
+        new Uint8Array(pdfArrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+
+      // Fire-and-forget: save feedback + send email with PDF attachment
       fetch("/api/lab-snapshot/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -828,6 +838,7 @@ export default function LabSnapshotPage() {
             title: s.type === "custom" ? s.customTitle || "Section" : SECTION_LABELS[s.type],
             content: s.content,
           })),
+          documentBlob: pdfBase64,
         }),
       }).catch(() => { /* silent */ });
 
