@@ -38,7 +38,7 @@ export default async function Sidebar() {
   return (
     <aside className="fixed top-0 left-0 h-full w-[220px] bg-white border-r border-nb-cream-border flex flex-col z-20 font-nb-mono">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-nb-cream-border flex justify-center">
+      <div className="h-[48px] px-6 border-b border-nb-cream-border flex items-center justify-center">
         <Link href="/notebook" className="flex items-center gap-3">
           <Image
             src={logo}

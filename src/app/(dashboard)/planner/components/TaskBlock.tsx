@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Hand, Sparkles } from 'lucide-react'
 import type { StepData, PlannerTask } from '../hooks/usePlannerTasks'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function minsToHHMM(mins: number): string {
   const h = Math.floor(mins / 60)
   const m = mins % 60
@@ -18,7 +18,14 @@ function hexToRgba(hex: string, a: number): string {
   return `rgba(${r},${g},${b},${a})`
 }
 
-/** Multiply each RGB channel by `factor` to get a darker shade (for readable text on light bg). */
+function mixWithWhite(hex: string, mix = 0.9): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const to = (c: number) => Math.round(c * (1 - mix) + 255 * mix)
+  return `rgb(${to(r)},${to(g)},${to(b)})`
+}
+
 function darkenHex(hex: string, factor = 0.52): string {
   const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor)
   const g = Math.round(parseInt(hex.slice(3, 5), 16) * factor)
@@ -26,11 +33,15 @@ function darkenHex(hex: string, factor = 0.52): string {
   return `rgb(${r},${g},${b})`
 }
 
-// ── Constants (must match WeekCalendar) ──────────────────────────────────────
+function formatTimeLabel(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 const PX_PER_HOUR = 52
 const DAY_MINS    = 1440
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 export interface ScheduledTaskBlock {
   task:            PlannerTask
   scheduledStart:  Date
@@ -39,85 +50,94 @@ export interface ScheduledTaskBlock {
 }
 
 interface TaskBlockProps {
-  block:       ScheduledTaskBlock
-  col:         number
-  maxCols:     number
-  /** 0 = day-of, 1440 = next-day overflow (workflow crosses midnight) */
-  dayOffset?:  number
-  pxPerHour?:  number
-  onClick?:    (task: PlannerTask) => void
+  block:      ScheduledTaskBlock
+  col:        number
+  maxCols:    number
+  dayOffset?: number  // 0 = day-of, 1440 = next-day overflow
+  pxPerHour?: number
+  onClick?:   (task: PlannerTask, stepId?: string) => void
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
-// Steps are clipped to the current day's [dayOffset, dayOffset+1440] window so
-// that workflows crossing midnight continue into the next day column.
-export default function TaskBlock({ block, col, maxCols, onClick, dayOffset = 0, pxPerHour }: TaskBlockProps) {
-  const [hovered, setHovered] = useState(false)
+// ── Hatched background for available steps ────────────────────────────────────
+function hatchedBg(color: string): string {
+  // Diagonal stripe pattern using CSS gradient
+  const rgba = hexToRgba(color, 0.18)
+  const rgba2 = hexToRgba(color, 0.06)
+  return `repeating-linear-gradient(
+    -45deg,
+    ${rgba} 0px,
+    ${rgba} 2px,
+    ${rgba2} 2px,
+    ${rgba2} 8px
+  )`
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function TaskBlock({
+  block, col, maxCols, onClick, dayOffset = 0, pxPerHour,
+}: TaskBlockProps) {
+  const [hoveredStepId, setHoveredStepId] = useState<string | null>(null)
   const { task, scheduledStart, conflict, conflictReason } = block
   const steps   = task.steps as StepData[]
   const color   = task.color ?? '#F97316'
   const borderC = conflict ? '#EF4444' : color
 
-  // Zoom-aware pixel/minute ratio — kept in sync with WeekCalendar
   const PX_PER_MIN = (pxPerHour ?? PX_PER_HOUR) / 60
 
   const taskStartMin = scheduledStart.getHours() * 60 + scheduledStart.getMinutes()
 
-  // Day visibility window in absolute minutes (relative to day J's 00:00)
-  const dayVisStart = dayOffset            // 0 or 1440
-  const dayVisEnd   = dayOffset + DAY_MINS // 1440 or 2880
+  const dayVisStart = dayOffset
+  const dayVisEnd   = dayOffset + DAY_MINS
 
-  // Connector: spans the visible portion of the full workflow for this day
-  const lastStep     = steps.reduce((acc, s) => Math.max(acc, s.startOffset + s.duration), 0)
+  // Connector spans the full visible workflow portion (busy + available)
+  const lastStepEnd  = steps.reduce((acc, s) => {
+    const dur = s.scheduledDuration ?? s.duration
+    return Math.max(acc, s.startOffset + dur)
+  }, 0)
   const connAbsStart = Math.max(taskStartMin, dayVisStart)
-  const connAbsEnd   = Math.min(taskStartMin + lastStep, dayVisEnd)
+  const connAbsEnd   = Math.min(taskStartMin + lastStepEnd, dayVisEnd)
   const connTop      = (connAbsStart - dayVisStart) * PX_PER_MIN
   const connHeight   = Math.max((connAbsEnd - connAbsStart) * PX_PER_MIN, 0)
 
-  // Column layout
   const colW    = 100 / maxCols
   const colLeft = `calc(${col * colW}% + 1px)`
   const colWidth = `calc(${colW}% - 2px)`
 
   const sortedSteps = [...steps].sort((a, b) => a.startOffset - b.startOffset)
 
-  // Compute each step's visible slice within this day column
+  // Resolve each step's visible slice — using scheduledDuration for flexible available steps
   const visibleSteps = sortedSteps
     .map(s => {
+      const dur      = s.scheduledDuration ?? s.duration
       const absStart = taskStartMin + s.startOffset
-      const absEnd   = absStart + s.duration
+      const absEnd   = absStart + dur
       const visStart = Math.max(absStart, dayVisStart)
       const visEnd   = Math.min(absEnd, dayVisEnd)
       if (visEnd <= visStart) return null
       return {
         s,
+        dur,
         sTop:    (visStart - dayVisStart) * PX_PER_MIN,
-        // No artificial floor — actual pixel height prevents consecutive steps from overlapping.
-        // 2px minimum just keeps a tiny sliver visible for very short steps.
         sHeight: Math.max((visEnd - visStart) * PX_PER_MIN, 2),
       }
     })
-    .filter(Boolean) as Array<{ s: StepData; sTop: number; sHeight: number }>
+    .filter(Boolean) as Array<{ s: StepData; dur: number; sTop: number; sHeight: number }>
 
-  // Nothing to render in this day column
   if (!visibleSteps.length || connHeight === 0) return null
 
-  // Tooltip data
-  const totalDuration = steps.reduce((a, s) => a + s.duration, 0)
-  const deadlineLabel = task.deadline
-    ? new Date(task.deadline).toLocaleDateString('en-US', {
-        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-      })
+  const deadlineLabel  = task.deadline
+    ? new Date(task.deadline).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
     : null
-  const textColor = conflict ? '#7F1D1D' : darkenHex(color)
+  const textColor      = conflict ? '#7F1D1D' : darkenHex(color)
+  const firstStep      = visibleSteps[0]
+  const isContinuation = dayOffset > 0
 
-  const firstStep = visibleSteps[0]
+  const PRIORITY_LABELS = { critical: '!', normal: '', low: '↓' }
+  const priorityMark = task.priority !== 'normal' ? PRIORITY_LABELS[task.priority] : ''
 
   return (
     <>
-      {/* ── Connector line ─────────────────────────────────────────────────
-          Thin vertical line spanning the visible workflow portion. pointer-events-none
-          so incubation gaps fall through to the calendar (create event). */}
+      {/* Connector line */}
       <div
         className="absolute pointer-events-none"
         style={{
@@ -130,97 +150,152 @@ export default function TaskBlock({ block, col, maxCols, onClick, dayOffset = 0,
         }}
       />
 
-      {/* ── Workflow title — floats above the first step box, day-of only ── */}
-      {dayOffset === 0 && <div
-        className="absolute flex items-center gap-1 pointer-events-none overflow-hidden"
-        style={{
-          top:    `${firstStep.sTop - 14}px`,
-          left:   colLeft,
-          width:  colWidth,
-          height: '13px',
-          zIndex: 21,
-        }}
-      >
-        {conflict && <AlertTriangle size={9} className="text-pl-error flex-shrink-0" />}
-        <span
-          className="text-[9px] font-[700] truncate font-nb-mono leading-tight"
-          style={{ color: textColor }}
-        >
-          {task.name}
-        </span>
-      </div>}
-
-      {/* ── Step blocks ────────────────────────────────────────────────────
-          Each step renders only the slice that falls within this day. */}
-      {visibleSteps.map(({ s, sTop, sHeight }) => {
-        // Scale font size down for small boxes — always visible, never hidden
-        const labelSize = sHeight >= 14 ? 8 : sHeight >= 8 ? 7 : 6
+      {/* Busy step blocks — available steps show only via labels */}
+      {visibleSteps.filter(v => v.s.stepType === 'busy').map(({ s, dur, sTop, sHeight }) => {
+        const isAvailable = false
+        const labelSize   = sHeight >= 14 ? 8 : sHeight >= 8 ? 7 : 6
+        const isHovered   = hoveredStepId === s.id
 
         return (
           <div
             key={s.id}
             className="absolute flex flex-col overflow-hidden cursor-pointer"
             style={{
-              top:             `${sTop}px`,
-              height:          `${sHeight}px`,
-              left:            colLeft,
-              width:           colWidth,
-              backgroundColor: conflict ? '#FEF2F2' : hexToRgba(color, 0.12),
-              borderLeft:      `2.5px solid ${borderC}`,
-              borderTop:       `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
-              borderRight:     `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
-              borderBottom:    `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
-              borderRadius:    '0 4px 4px 0',
-              zIndex:          20,
+              top:    `${sTop}px`,
+              height: `${sHeight}px`,
+              left:   colLeft,
+              width:  colWidth,
+              // Busy: solid tinted background. Available: hatched at reduced opacity.
+              background: conflict
+                ? '#FEF2F2'
+                : isAvailable
+                  ? hatchedBg(color)
+                  : mixWithWhite(color, 0.9),
+              opacity:     isAvailable ? 0.75 : 1,
+              borderLeft:  `2.5px solid ${borderC}`,
+              borderTop:   `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
+              borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
+              borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
+              borderRadius:'0 4px 4px 0',
+              zIndex:      20,
+              transition:  'opacity 0.1s',
             }}
-            onClick={e => { e.stopPropagation(); onClick?.(task) }}
+            onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
             onMouseDown={e => e.stopPropagation()}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
+            onMouseEnter={() => setHoveredStepId(s.id)}
+            onMouseLeave={() => setHoveredStepId(prev => prev === s.id ? null : prev)}
           >
-            {/* Step name — always visible, font shrinks for tiny boxes */}
-            <div className="flex items-center px-1 flex-1 min-h-0 overflow-hidden">
+            <div className="flex items-center gap-0.5 px-1 flex-1 min-h-0 overflow-hidden">
+              {isAvailable && sHeight >= 10 && (
+                <span style={{ color: textColor, fontSize: `${labelSize}px`, opacity: 0.7, flexShrink: 0 }}>~</span>
+              )}
               <span
                 className="font-nb-mono truncate leading-none"
                 style={{ color: textColor, fontSize: `${labelSize}px` }}
               >
-                {s.name}
+                {isAvailable
+                  ? `${s.name || 'Wait'} (${dur}min)`
+                  : s.name}
               </span>
             </div>
+
+            {/* Hover glow */}
+            {isHovered && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ backgroundColor: mixWithWhite(color, 0.82), borderRadius: '0 4px 4px 0' }}
+              />
+            )}
           </div>
         )
       })}
 
-      {/* ── Tooltip (any step hovered) ─────────────────────────────────── */}
-      {hovered && (() => {
-        const first = visibleSteps[0]
+      {/* Available step labels — no boxes, just text at start */}
+      {visibleSteps.filter(v => v.s.stepType === 'available').map(({ s, sTop }) => (
+        <div
+          key={`avail-${s.id}`}
+          className="absolute pointer-events-none"
+          style={{
+            top:    `${sTop + 1}px`,
+            left:   `calc(${colLeft} + 4px)`,
+            width:  `calc(${colWidth} - 6px)`,
+            zIndex: 21,
+          }}
+        >
+          <span
+            className="text-[10px] font-[600] font-nb-mono truncate block"
+            style={{ color: textColor, opacity: 0.75, lineHeight: '12px' }}
+          >
+            {s.name || 'Available'}
+          </span>
+        </div>
+      ))}
+
+      {/* Tooltip on hover */}
+      {hoveredStepId && (() => {
+        const hoveredStep    = sortedSteps.find(s => s.id === hoveredStepId)
+        const hoveredVisible = visibleSteps.find(v => v.s.id === hoveredStepId)
+        if (!hoveredStep || !hoveredVisible) return null
+
+        const stepDur = hoveredStep.scheduledDuration ?? hoveredStep.duration
+        const stepStartDate = new Date(scheduledStart.getTime() + hoveredStep.startOffset * 60_000)
+        const stepEndDate   = new Date(stepStartDate.getTime() + stepDur * 60_000)
+        const stepStartLabel = formatTimeLabel(stepStartDate)
+        const stepEndLabel   = formatTimeLabel(stepEndDate)
+        const isAvail = hoveredStep.stepType === 'available'
+        const typeLabel = isAvail
+          ? `Available · ${hoveredStep.availableType}`
+          : 'Busy'
+
         return (
           <div
             className="absolute z-50 bg-pl-charcoal text-white rounded-[6px] px-3 py-2.5 shadow-xl font-nb-mono pointer-events-none"
             style={{
-              top:      `${first.sTop + first.sHeight + 6}px`,
-              left:     colLeft,
-              width:    '230px',
+              top:   `${hoveredVisible.sTop + hoveredVisible.sHeight + 6}px`,
+              left:  colLeft,
+              width: '240px',
               fontSize: '10px',
             }}
           >
-            <p className="font-[700] text-[11px] truncate mb-1">{task.name}</p>
-            {deadlineLabel && (
-              <p className="text-[9px] text-pl-muted-light mb-1.5">Deadline: {deadlineLabel}</p>
-            )}
-            <p className="text-[9px] text-pl-muted-light mb-1.5">Duration: {totalDuration} min</p>
-            {conflict && conflictReason && (
-              <p className="text-[9px] text-red-300 mb-1.5">{conflictReason}</p>
-            )}
-            <div className="space-y-0.5 border-t border-white/10 pt-1.5 mt-1">
-              {sortedSteps.map(s => (
-                <p key={s.id} className="text-[9px] flex items-center gap-1">
-                  <span className="text-pl-muted-light">T+{minsToHHMM(s.startOffset)}</span>
-                  <span>{s.name}</span>
-                  <span className="text-pl-muted-light ml-auto">({s.duration}min)</span>
-                </p>
-              ))}
+            {/* Task header */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              {task.placement === 'manual'
+                ? <Hand size={10} className="text-pl-muted-light flex-shrink-0" />
+                : <Sparkles size={10} className="text-pl-orange flex-shrink-0" />
+              }
+              <p className="font-[700] text-[11px] truncate">{task.name}</p>
+              {task.priority !== 'normal' && (
+                <span className={`text-[9px] font-[600] px-1.5 py-0.5 rounded-[3px] flex-shrink-0 ${
+                  task.priority === 'critical' ? 'bg-red-500' : 'bg-pl-muted'
+                }`}>
+                  {task.priority}
+                </span>
+              )}
             </div>
+
+            {deadlineLabel && (
+              <p className="text-[9px] text-pl-muted-light mb-1">Deadline: {deadlineLabel}</p>
+            )}
+
+            {conflict && conflictReason && (
+              <p className="text-[9px] text-red-300 mb-1.5 flex items-center gap-1">
+                <AlertTriangle size={9} className="flex-shrink-0" />{conflictReason}
+              </p>
+            )}
+
+            {/* Current step */}
+            <div className="border-t border-white/10 pt-1.5 mt-1 space-y-0.5">
+              <p className="text-[9px] font-[600]">{hoveredStep.name || '—'}</p>
+              <p className="text-[9px] text-pl-muted-light">{typeLabel}</p>
+              <p className="text-[9px] text-pl-muted-light">{stepStartLabel} – {stepEndLabel}</p>
+              <p className="text-[9px] text-pl-muted-light">
+                T+{minsToHHMM(hoveredStep.startOffset)} · {stepDur}min
+                {hoveredStep.scheduledDuration && hoveredStep.scheduledDuration !== hoveredStep.duration
+                  ? ` (min: ${hoveredStep.duration}min)`
+                  : ''}
+              </p>
+            </div>
+
           </div>
         )
       })()}

@@ -27,6 +27,28 @@ function toISO(date: string, time: string): string {
   return tzDatetimeToUTC(date, time, getTimezone())
 }
 
+function formatTime12(time24: string): string {
+  const [hStr, mStr] = time24.split(':')
+  const h = Number(hStr)
+  const m = Number(mStr)
+  if (Number.isNaN(h) || Number.isNaN(m)) return time24
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 || 12
+  return `${hour12}:${String(m).padStart(2, '0')}${period}`
+}
+
+function parseTime12(input: string): string | null {
+  const trimmed = input.trim()
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/)
+  if (!match) return null
+  const hour = Number(match[1])
+  const minute = Number(match[2])
+  if (hour < 1 || hour > 12 || minute > 59) return null
+  const period = match[3].toUpperCase()
+  const h24 = (hour % 12) + (period === 'PM' ? 12 : 0)
+  return `${String(h24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface EventModalProps {
   open:             boolean
@@ -59,6 +81,8 @@ export default function EventModal({
   const [sTime,   setSTime]   = useState(defaultTime)
   const [eDate,   setEDate]   = useState(defaultDate)
   const [eTime,   setETime]   = useState(defaultEnd)
+  const [sTimeDisplay, setSTimeDisplay] = useState(formatTime12(defaultTime))
+  const [eTimeDisplay, setETimeDisplay] = useState(formatTime12(defaultEnd))
   const [color,   setColor]   = useState<EventColor>('orange')
   const [desc,    setDesc]    = useState('')
   const [loc,     setLoc]     = useState('')
@@ -76,15 +100,23 @@ export default function EventModal({
       const e2 = toLocalDateTimeInputs(event.end_at)
       setSDate(s.date); setSTime(s.time)
       setEDate(e2.date); setETime(e2.time)
+      setSTimeDisplay(formatTime12(s.time))
+      setETimeDisplay(formatTime12(e2.time))
     } else {
       setTitle('')
       setColor('orange')
       setDesc('')
       setLoc('')
-      setSDate(initialDate ?? new Date().toISOString().slice(0, 10))
-      setSTime(initialTime ?? '09:00')
-      setEDate(initialDate ?? new Date().toISOString().slice(0, 10))
-      setETime(initialEndTime ?? defaultEnd)
+      const nextSDate = initialDate ?? new Date().toISOString().slice(0, 10)
+      const nextSTime = initialTime ?? '09:00'
+      const nextEDate = initialDate ?? new Date().toISOString().slice(0, 10)
+      const nextETime = initialEndTime ?? defaultEnd
+      setSDate(nextSDate)
+      setSTime(nextSTime)
+      setEDate(nextEDate)
+      setETime(nextETime)
+      setSTimeDisplay(formatTime12(nextSTime))
+      setETimeDisplay(formatTime12(nextETime))
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, open])
@@ -93,13 +125,22 @@ export default function EventModal({
 
   async function handleSave() {
     if (!title.trim()) return
+    const parsedStart = parseTime12(sTimeDisplay)
+    const parsedEnd = parseTime12(eTimeDisplay)
+    if (!parsedStart || !parsedEnd) {
+      setSTimeDisplay(formatTime12(sTime))
+      setETimeDisplay(formatTime12(eTime))
+      return
+    }
+    setSTime(parsedStart)
+    setETime(parsedEnd)
     setSaving(true)
     try {
       await onSave({
         title:       title.trim(),
         description: desc.trim() || null,
-        start_at:    toISO(sDate, sTime),
-        end_at:      toISO(eDate, eTime),
+        start_at:    toISO(sDate, parsedStart),
+        end_at:      toISO(eDate, parsedEnd),
         all_day:     false,
         color,
         location:    loc.trim() || null,
@@ -195,9 +236,20 @@ export default function EventModal({
                   className="w-full bg-white border border-pl-cream-border rounded-[6px] px-2 py-1.5 text-[12px] text-pl-charcoal focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
                 />
                 <input
-                  type="time"
-                  value={sTime}
-                  onChange={e => setSTime(e.target.value)}
+                  type="text"
+                  inputMode="text"
+                  placeholder="5:30PM"
+                  value={sTimeDisplay}
+                  onChange={e => {
+                    const next = e.target.value
+                    setSTimeDisplay(next)
+                    const parsed = parseTime12(next)
+                    if (parsed) setSTime(parsed)
+                  }}
+                  onBlur={() => {
+                    const parsed = parseTime12(sTimeDisplay)
+                    setSTimeDisplay(parsed ? formatTime12(parsed) : formatTime12(sTime))
+                  }}
                   className="w-full bg-white border border-pl-cream-border rounded-[6px] px-2 py-1.5 text-[12px] text-pl-charcoal focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
                 />
               </div>
@@ -210,9 +262,20 @@ export default function EventModal({
                   className="w-full bg-white border border-pl-cream-border rounded-[6px] px-2 py-1.5 text-[12px] text-pl-charcoal focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
                 />
                 <input
-                  type="time"
-                  value={eTime}
-                  onChange={e => setETime(e.target.value)}
+                  type="text"
+                  inputMode="text"
+                  placeholder="6:30PM"
+                  value={eTimeDisplay}
+                  onChange={e => {
+                    const next = e.target.value
+                    setETimeDisplay(next)
+                    const parsed = parseTime12(next)
+                    if (parsed) setETime(parsed)
+                  }}
+                  onBlur={() => {
+                    const parsed = parseTime12(eTimeDisplay)
+                    setETimeDisplay(parsed ? formatTime12(parsed) : formatTime12(eTime))
+                  }}
                   className="w-full bg-white border border-pl-cream-border rounded-[6px] px-2 py-1.5 text-[12px] text-pl-charcoal focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
                 />
               </div>

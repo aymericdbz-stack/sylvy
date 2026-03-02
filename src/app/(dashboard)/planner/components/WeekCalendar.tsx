@@ -174,7 +174,7 @@ interface WeekCalendarProps {
   scheduledTasks?: ScheduledTaskBlock[]
   onEventClick:    (event: CalendarEvent) => void
   onSlotClick:     (date: string, time: string, endTime?: string) => void
-  onTaskClick?:    (task: import('../hooks/usePlannerTasks').PlannerTask) => void
+  onTaskClick?:    (task: import('../hooks/usePlannerTasks').PlannerTask, stepId?: string) => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

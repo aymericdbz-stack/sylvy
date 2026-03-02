@@ -30,8 +30,8 @@ export function setTimezone(tz: string): void {
 export function getWorkHours(): { start: number; end: number } {
   const prefs = getPrefs()
   return {
-    start: prefs.workStart ?? 0,
-    end:   prefs.workEnd   ?? 24,
+    start: prefs.workStart ?? 9,
+    end:   prefs.workEnd   ?? 18,
   }
 }
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/types'
-import type { StepData } from './usePlannerTasks'
+import type { StepData, FlexDir } from './usePlannerTasks'
 
 export interface TaskTemplate {
   id:         string
@@ -24,11 +24,17 @@ export interface TaskTemplateInsert {
 function parseStep(raw: unknown): StepData {
   const s = raw as Record<string, unknown>
   return {
-    id:          String(s.id ?? crypto.randomUUID()),
-    name:        String(s.name ?? ''),
-    description: String(s.description ?? ''),
-    duration:    Number(s.duration ?? 30),
-    startOffset: Number(s.startOffset ?? 0),
+    id:               String(s.id ?? crypto.randomUUID()),
+    name:             String(s.name ?? ''),
+    description:      String(s.description ?? ''),
+    duration:         Number(s.duration ?? 30),
+    startOffset:      Number(s.startOffset ?? 0),
+    stepType:         (s.stepType === 'available') ? 'available' : 'busy',
+    availableType:    (s.availableType === 'strict') ? 'strict' : 'flexible',
+    flexibleDir:      (['+', '-', '+/-'] as FlexDir[]).includes(s.flexibleDir as FlexDir)
+                        ? (s.flexibleDir as FlexDir) : '+',
+    flexibleMax:      s.flexibleMax != null ? Number(s.flexibleMax) : undefined,
+    scheduledDuration: s.scheduledDuration != null ? Number(s.scheduledDuration) : undefined,
   }
 }
 

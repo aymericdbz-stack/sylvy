@@ -6,42 +6,11 @@ import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
 import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
 import type { StepData } from '../hooks/usePlannerTasks'
+import { StepBuilder, emptyStep } from './StepBuilder'
 
 function uid() { return crypto.randomUUID() }
 
 const TEMPLATE_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
-
-const emptyStep = (): StepData => ({ id: uid(), name: '', description: '', duration: 30, startOffset: 0 })
-
-// ── T+ helpers ────────────────────────────────────────────────────────────────
-function minsToHHMM(mins: number): string {
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-}
-function hhmmToMins(val: string): number {
-  const [hStr = '0', mStr = '0'] = val.split(':')
-  const h = Math.max(0, parseInt(hStr, 10) || 0)
-  const m = Math.min(59, Math.max(0, parseInt(mStr, 10) || 0))
-  return h * 60 + m
-}
-
-// ── T+ offset input (hh:mm) ───────────────────────────────────────────────────
-function TOffsetInput({ value, onChange, className }: { value: number; onChange: (v: number) => void; className?: string }) {
-  const [focused, setFocused] = useState(false)
-  const [text, setText] = useState(minsToHHMM(value))
-  return (
-    <input
-      type="text"
-      value={focused ? text : minsToHHMM(value)}
-      onChange={e => { setText(e.target.value); onChange(hhmmToMins(e.target.value)) }}
-      onFocus={e => { setFocused(true); setText(minsToHHMM(value)); e.target.select() }}
-      onBlur={() => setFocused(false)}
-      placeholder="00:00"
-      className={className}
-    />
-  )
-}
 
 // ── Standard template definitions ─────────────────────────────────────────────
 const STANDARD_DEFS = [
@@ -111,110 +80,14 @@ function makeStandardTemplates(): TaskTemplateInsert[] {
   return STANDARD_DEFS.map(def => ({
     name:  def.name,
     color: def.color,
-    steps: def.steps.map(s => ({ ...s, id: uid(), description: '' })),
+    steps: def.steps.map(s => ({
+      ...s,
+      id:            uid(),
+      description:   '',
+      stepType:      'busy' as const,
+      availableType: 'flexible' as const,
+    })),
   }))
-}
-
-// ── Step builder ──────────────────────────────────────────────────────────────
-function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (s: StepData[]) => void }) {
-  const [notesOpen, setNotesOpen] = useState<Set<string>>(
-    () => new Set(steps.filter(s => s.description).map(s => s.id))
-  )
-
-  function update(id: string, patch: Partial<StepData>) {
-    onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s))
-  }
-  function remove(id: string) {
-    if (steps.length <= 1) return
-    onChange(steps.filter(s => s.id !== id))
-    setNotesOpen(prev => { const n = new Set(prev); n.delete(id); return n })
-  }
-  function add() {
-    const last   = steps[steps.length - 1]
-    const offset = last ? last.startOffset + last.duration : 0
-    onChange([...steps, { id: uid(), name: '', description: '', duration: 30, startOffset: offset }])
-  }
-  function toggleNotes(id: string) {
-    setNotesOpen(prev => {
-      const n = new Set(prev)
-      if (n.has(id)) { n.delete(id) } else { n.add(id) }
-      return n
-    })
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">Steps</span>
-        <button
-          type="button"
-          onClick={add}
-          className="flex items-center gap-1 text-[10px] font-[600] text-pl-orange hover:text-pl-orange-dark font-nb-mono transition-colors"
-        >
-          <Plus size={12} /> Add
-        </button>
-      </div>
-
-      {steps.map((step, i) => (
-        <div key={step.id} className="bg-white border border-pl-cream-border rounded-[8px] p-3 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-[600] text-pl-muted font-nb-mono">Step {i + 1}</span>
-            {steps.length > 1 && (
-              <button onClick={() => remove(step.id)} className="p-0.5 text-pl-muted-light hover:text-pl-error transition-colors">
-                <Trash2 size={12} />
-              </button>
-            )}
-          </div>
-
-          <input
-            value={step.name}
-            onChange={e => update(step.id, { name: e.target.value })}
-            placeholder="Step name"
-            className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-          />
-
-          {notesOpen.has(step.id) ? (
-            <textarea
-              autoFocus
-              value={step.description}
-              onChange={e => update(step.id, { description: e.target.value })}
-              placeholder="Notes, reagents, conditions…"
-              rows={2}
-              className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => toggleNotes(step.id)}
-              className="flex items-center gap-1 text-[10px] text-pl-muted-light hover:text-pl-muted font-nb-mono transition-colors"
-            >
-              <Plus size={10} />
-              Add notes
-            </button>
-          )}
-
-          <div className="flex gap-2">
-            <div className="flex-1 space-y-1">
-              <label className="text-[9px] text-pl-muted font-nb-mono">Duration (min)</label>
-              <input
-                type="number" min={1} value={step.duration}
-                onChange={e => update(step.id, { duration: Math.max(1, parseInt(e.target.value) || 1) })}
-                className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-              />
-            </div>
-            <div className="flex-1 space-y-1">
-              <label className="text-[9px] text-pl-muted font-nb-mono">Starts at T+ (hh:mm)</label>
-              <TOffsetInput
-                value={step.startOffset}
-                onChange={v => update(step.id, { startOffset: v })}
-                className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-              />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 // ── Template form (create / edit) ─────────────────────────────────────────────
