@@ -9,6 +9,7 @@ export type Placement = 'manual' | 'auto'
 export interface StepData {
   id:          string
   name:        string
+  description: string      // optional free-text notes for this step
   duration:    number      // minutes
   startOffset: number      // T+ minutes from task start
 }
@@ -17,6 +18,7 @@ export interface PlannerTask {
   id:              string
   user_id:         string
   name:            string
+  description:     string | null
   placement:       Placement
   deadline:        string | null
   steps:           StepData[]
@@ -29,6 +31,7 @@ export interface PlannerTask {
 
 export interface PlannerTaskInsert {
   name:             string
+  description?:     string | null
   placement?:       Placement
   deadline?:        string | null
   steps:            StepData[]
@@ -50,6 +53,7 @@ function parseStep(raw: unknown): StepData {
   return {
     id:          String(s.id ?? crypto.randomUUID()),
     name:        String(s.name ?? ''),
+    description: String(s.description ?? ''),
     duration:    Number(s.duration ?? 30),
     startOffset: Number(s.startOffset ?? 0),
   }
@@ -102,6 +106,7 @@ export function usePlannerTasks() {
       .insert({
         user_id:         user.id,
         name:            data.name,
+        description:     data.description ?? null,
         placement:       data.placement ?? 'auto',
         deadline:        data.deadline  ?? null,
         steps:           data.steps     as unknown as Json,
@@ -120,6 +125,7 @@ export function usePlannerTasks() {
       .from('planner_tasks')
       .update({
         name:            data.name,
+        description:     data.description ?? null,
         placement:       data.placement ?? 'auto',
         deadline:        data.deadline  ?? null,
         steps:           data.steps     as unknown as Json,

@@ -117,7 +117,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <ThemeContext.Provider value={value}>
       <AuthSessionCleaner />
-      <ThemeFloatingToggle />
       {children}
     </ThemeContext.Provider>
   );

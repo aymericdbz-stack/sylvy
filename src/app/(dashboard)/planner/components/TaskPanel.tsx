@@ -54,21 +54,35 @@ interface TaskPanelProps {
   templates:  TaskTemplate[]
 }
 
-const emptyStep = (): StepData => ({ id: uid(), name: '', duration: 30, startOffset: 0 })
+const emptyStep = (): StepData => ({ id: uid(), name: '', description: '', duration: 30, startOffset: 0 })
 
 // ── Step builder ──────────────────────────────────────────────────────────────
 function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (steps: StepData[]) => void }) {
+  // Track which steps have their notes textarea expanded.
+  // Pre-expand steps that already have content.
+  const [notesOpen, setNotesOpen] = useState<Set<string>>(
+    () => new Set(steps.filter(s => s.description).map(s => s.id))
+  )
+
   function update(id: string, patch: Partial<StepData>) {
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s))
   }
   function remove(id: string) {
     if (steps.length <= 1) return
     onChange(steps.filter(s => s.id !== id))
+    setNotesOpen(prev => { const n = new Set(prev); n.delete(id); return n })
   }
   function add() {
     const last = steps[steps.length - 1]
     const offset = last ? last.startOffset + last.duration : 0
-    onChange([...steps, { id: uid(), name: '', duration: 30, startOffset: offset }])
+    onChange([...steps, { id: uid(), name: '', description: '', duration: 30, startOffset: offset }])
+  }
+  function toggleNotes(id: string) {
+    setNotesOpen(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) { n.delete(id) } else { n.add(id) }
+      return n
+    })
   }
 
   return (
@@ -100,6 +114,25 @@ function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (steps:
             placeholder="Step name"
             className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
           />
+          {notesOpen.has(step.id) ? (
+            <textarea
+              autoFocus
+              value={step.description}
+              onChange={e => update(step.id, { description: e.target.value })}
+              placeholder="Notes, reagents, conditions…"
+              rows={2}
+              className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleNotes(step.id)}
+              className="flex items-center gap-1 text-[10px] text-pl-muted-light hover:text-pl-muted font-nb-mono transition-colors"
+            >
+              <Plus size={10} />
+              Add notes
+            </button>
+          )}
           <div className="flex gap-2">
             <div className="flex-1 space-y-1">
               <label className="text-[9px] text-pl-muted font-nb-mono">Duration (min)</label>
@@ -166,6 +199,7 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
   const nameRef = useRef<HTMLInputElement>(null)
 
   const [name,           setName]           = useState('')
+  const [description,    setDescription]    = useState('')
   const [startDate,      setStartDate]      = useState('')   // YYYY-MM-DD
   const [startTime,      setStartTime]      = useState('')   // HH:MM
   const [steps,          setSteps]          = useState<StepData[]>([emptyStep()])
@@ -182,6 +216,7 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
     if (!open) return
     if (task) {
       setName(task.name)
+      setDescription(task.description ?? '')
       if (task.scheduled_start) {
         const { date, time } = utcToTzDatetime(task.scheduled_start, getTimezone())
         setStartDate(date)
@@ -201,6 +236,7 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
       setSelectedTpl('')
     } else {
       setName('')
+      setDescription('')
       setStartDate('')
       setStartTime('')
       setSteps([emptyStep()])
@@ -230,7 +266,7 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
     if (!multiSteps) {
       // switching to multi: keep current step or create one with singleDuration
       if (steps.length === 0) {
-        setSteps([{ id: uid(), name: '', duration: singleDuration, startOffset: 0 }])
+        setSteps([{ id: uid(), name: '', description: '', duration: singleDuration, startOffset: 0 }])
       } else {
         setSteps(steps.map((s, i) => i === 0 ? { ...s, duration: singleDuration } : s))
       }
@@ -254,7 +290,7 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
 
     const stepsToSave: StepData[] = multiSteps
       ? steps
-      : [{ id: uid(), name: name.trim(), duration: singleDuration, startOffset: 0 }]
+      : [{ id: uid(), name: name.trim(), description: '', duration: singleDuration, startOffset: 0 }]
 
     if (multiSteps && stepsToSave.some(s => !s.name.trim())) {
       toast.error('Every step must have a name'); return
@@ -268,7 +304,8 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
     const placement = hasStart ? 'manual' : 'auto'
 
     const data: PlannerTaskInsert = {
-      name:     name.trim(),
+      name:        name.trim(),
+      description: description.trim() || null,
       placement,
       deadline: null,
       steps:    stepsToSave,
@@ -343,6 +380,20 @@ export default function TaskPanel({ open, onClose, onSave, onUpdate, onDelete, t
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Western Blot"
               className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+              Description <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Add notes, protocol references, reagent details…"
+              rows={3}
+              className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
             />
           </div>
 

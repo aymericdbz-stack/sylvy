@@ -11,7 +11,7 @@ function uid() { return crypto.randomUUID() }
 
 const TEMPLATE_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
 
-const emptyStep = (): StepData => ({ id: uid(), name: '', duration: 30, startOffset: 0 })
+const emptyStep = (): StepData => ({ id: uid(), name: '', description: '', duration: 30, startOffset: 0 })
 
 // ── T+ helpers ────────────────────────────────────────────────────────────────
 function minsToHHMM(mins: number): string {
@@ -111,23 +111,35 @@ function makeStandardTemplates(): TaskTemplateInsert[] {
   return STANDARD_DEFS.map(def => ({
     name:  def.name,
     color: def.color,
-    steps: def.steps.map(s => ({ ...s, id: uid() })),
+    steps: def.steps.map(s => ({ ...s, id: uid(), description: '' })),
   }))
 }
 
 // ── Step builder ──────────────────────────────────────────────────────────────
 function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (s: StepData[]) => void }) {
+  const [notesOpen, setNotesOpen] = useState<Set<string>>(
+    () => new Set(steps.filter(s => s.description).map(s => s.id))
+  )
+
   function update(id: string, patch: Partial<StepData>) {
     onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s))
   }
   function remove(id: string) {
     if (steps.length <= 1) return
     onChange(steps.filter(s => s.id !== id))
+    setNotesOpen(prev => { const n = new Set(prev); n.delete(id); return n })
   }
   function add() {
     const last   = steps[steps.length - 1]
     const offset = last ? last.startOffset + last.duration : 0
-    onChange([...steps, { id: uid(), name: '', duration: 30, startOffset: offset }])
+    onChange([...steps, { id: uid(), name: '', description: '', duration: 30, startOffset: offset }])
+  }
+  function toggleNotes(id: string) {
+    setNotesOpen(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) { n.delete(id) } else { n.add(id) }
+      return n
+    })
   }
 
   return (
@@ -160,6 +172,26 @@ function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: (s: Ste
             placeholder="Step name"
             className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
           />
+
+          {notesOpen.has(step.id) ? (
+            <textarea
+              autoFocus
+              value={step.description}
+              onChange={e => update(step.id, { description: e.target.value })}
+              placeholder="Notes, reagents, conditions…"
+              rows={2}
+              className="w-full bg-pl-cream border border-pl-cream-border rounded-[5px] px-2.5 py-1.5 text-[11px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => toggleNotes(step.id)}
+              className="flex items-center gap-1 text-[10px] text-pl-muted-light hover:text-pl-muted font-nb-mono transition-colors"
+            >
+              <Plus size={10} />
+              Add notes
+            </button>
+          )}
 
           <div className="flex gap-2">
             <div className="flex-1 space-y-1">
@@ -366,7 +398,7 @@ export default function TemplatesPanel({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-pl-cream-border flex-shrink-0">
-          <h2 className="text-[13px] font-[700] text-pl-charcoal font-nb-mono">Task templates</h2>
+          <h2 className="text-[13px] font-[700] text-pl-charcoal font-nb-mono">Workflow templates</h2>
           <button onClick={onClose} className="p-1 text-pl-muted hover:text-pl-charcoal transition-colors">
             <X size={16} />
           </button>

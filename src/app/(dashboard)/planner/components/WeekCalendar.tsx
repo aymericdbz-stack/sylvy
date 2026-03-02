@@ -7,13 +7,11 @@ import type { ScheduledTaskBlock } from './TaskBlock'
 import { getTimezone } from '@/lib/preferences'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PX_PER_HOUR  = 52
-const PX_PER_MIN   = PX_PER_HOUR / 60
+const PX_PER_HOUR_DEFAULT = 52
 const DAY_START    = 0   // 00:00
 const DAY_END      = 24  // 24:00
 const DAY_START_MIN = DAY_START * 60
 const DAY_END_MIN   = DAY_END   * 60
-const CAL_HEIGHT    = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN
 
 const DAY_NAMES  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -190,6 +188,14 @@ export default function WeekCalendar({
   const [nowMin, setNowMin] = useState(() => {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes()
   })
+  const [pxPerHour, setPxPerHour] = useState(PX_PER_HOUR_DEFAULT)
+
+  // Derived from zoom level
+  const PX_PER_MIN = pxPerHour / 60
+  const CAL_HEIGHT = (DAY_END_MIN - DAY_START_MIN) * PX_PER_MIN
+
+  // Gutter drag-to-zoom state
+  const gutterDragRef = useRef<{ startY: number; startPxPerHour: number } | null>(null)
 
   // Drag-to-create state
   const dragRef     = useRef<{ dayISO: string; dayIdx: number; anchorMin: number } | null>(null)
@@ -232,13 +238,25 @@ export default function WeekCalendar({
     eventsByDate.get(key)!.push(ev)
   }
 
-  // Group scheduled tasks by ISO date
+  // Group scheduled tasks by ISO date.
+  // If a workflow extends past midnight it is also added to the next day with
+  // dayOffset=1440 so TaskBlock can render only the overflow slice.
   const tasksByDate = useMemo(() => {
-    const map = new Map<string, ScheduledTaskBlock[]>()
+    const map = new Map<string, { block: ScheduledTaskBlock; dayOffset: number }[]>()
     for (const tb of scheduledTasks) {
       const key = toISO(tb.scheduledStart)
       if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(tb)
+      map.get(key)!.push({ block: tb, dayOffset: 0 })
+
+      const startMin = tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes()
+      const lastStep = tb.task.steps.reduce((acc, s) => Math.max(acc, s.startOffset + s.duration), 0)
+      if (startMin + lastStep > 1440) {
+        const nextDay = new Date(tb.scheduledStart)
+        nextDay.setDate(nextDay.getDate() + 1)
+        const nextKey = toISO(nextDay)
+        if (!map.has(nextKey)) map.set(nextKey, [])
+        map.get(nextKey)!.push({ block: tb, dayOffset: 1440 })
+      }
     }
     return map
   }, [scheduledTasks])
@@ -312,6 +330,25 @@ export default function WeekCalendar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Gutter drag-to-zoom
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!gutterDragRef.current) return
+      const delta = gutterDragRef.current.startY - e.clientY // up = zoom in
+      const next = Math.max(26, Math.min(156, gutterDragRef.current.startPxPerHour + delta * 0.6))
+      setPxPerHour(next)
+    }
+    function onMouseUp() {
+      gutterDragRef.current = null
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup',   onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup',   onMouseUp)
+    }
+  }, [])
+
   return (
     <div className="flex flex-col h-full overflow-hidden min-w-[560px]">
 
@@ -345,8 +382,15 @@ export default function WeekCalendar({
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="flex" style={{ minHeight: `${CAL_HEIGHT}px` }}>
 
-          {/* Time gutter */}
-          <div className="flex-shrink-0 w-[52px] relative bg-pl-cream" style={{ height: `${CAL_HEIGHT}px` }}>
+          {/* Time gutter — drag up/down to zoom */}
+          <div
+            className="flex-shrink-0 w-[52px] relative bg-pl-cream select-none"
+            style={{ height: `${CAL_HEIGHT}px`, cursor: 'ns-resize' }}
+            onMouseDown={e => {
+              e.preventDefault()
+              gutterDragRef.current = { startY: e.clientY, startPxPerHour: pxPerHour }
+            }}
+          >
             {hourMarks.map(min => (
               <div
                 key={min}
@@ -441,7 +485,7 @@ export default function WeekCalendar({
               return (
                 <div
                   key={i}
-                  className={`relative border-l border-pl-cream-border first:border-l-0 z-10 select-none ${isToday ? 'bg-pl-orange/[0.02]' : ''}`}
+                  className={`relative border-l border-pl-cream-border first:border-l-0 select-none ${isToday ? 'bg-pl-orange/[0.02]' : ''}`}
                   style={{ height: `${CAL_HEIGHT}px`, cursor: dragPreview ? 'ns-resize' : 'crosshair' }}
                   onMouseDown={e => handleColMouseDown(e, iso, i)}
                 >
@@ -493,15 +537,16 @@ export default function WeekCalendar({
                       />
                     )
                   })}
-                  {dayTasks.map((tb, ti) => (
-                    <div key={tb.task.id} onMouseDown={e => e.stopPropagation()}>
-                      <TaskBlock
-                        block={tb}
-                        col={ti}
-                        maxCols={taskMaxCols}
-                        onClick={onTaskClick}
-                      />
-                    </div>
+                  {dayTasks.map(({ block: tb, dayOffset }, ti) => (
+                    <TaskBlock
+                      key={`${tb.task.id}-${dayOffset}`}
+                      block={tb}
+                      col={ti}
+                      maxCols={taskMaxCols}
+                      dayOffset={dayOffset}
+                      pxPerHour={pxPerHour}
+                      onClick={onTaskClick}
+                    />
                   ))}
                 </div>
               )

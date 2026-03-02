@@ -26,6 +26,7 @@ function parseStep(raw: unknown): StepData {
   return {
     id:          String(s.id ?? crypto.randomUUID()),
     name:        String(s.name ?? ''),
+    description: String(s.description ?? ''),
     duration:    Number(s.duration ?? 30),
     startOffset: Number(s.startOffset ?? 0),
   }

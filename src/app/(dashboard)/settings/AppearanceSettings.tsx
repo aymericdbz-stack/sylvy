@@ -9,15 +9,42 @@ const ACCENT_OPTIONS = [
 ]
 
 export default function AppearanceSettings() {
-  const { accent, setAccent } = useTheme()
+  const { accent, setAccent, mode, toggleMode } = useTheme()
 
   return (
     <div className="bg-white border border-nb-cream-border rounded-[8px] p-6 font-nb-mono">
       <h2 className="text-[15px] font-[600] text-primary mb-3">Appearance</h2>
-      <p className="text-[12px] text-nb-muted mb-4">
-        Choose the accent color used for section titles across Sylvy.
-      </p>
 
+      {/* Theme mode */}
+      <p className="text-[12px] text-nb-muted mb-3">Interface mode</p>
+      <div className="flex items-center gap-2 mb-6">
+        {(['light', 'dark'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { if (mode !== m) toggleMode() }}
+            aria-pressed={mode === m}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-[6px] text-[12px] font-[500] border transition-colors ${
+              mode === m
+                ? 'bg-nb-charcoal text-white border-nb-charcoal'
+                : 'bg-white text-nb-muted border-nb-cream-border hover:text-nb-charcoal'
+            }`}
+          >
+            <span className="relative inline-flex h-3.5 w-3.5 overflow-hidden rounded-full border border-current flex-shrink-0">
+              {m === 'light'
+                ? <><span className="h-full w-1/2 bg-current" /><span className="h-full w-1/2 bg-transparent" /></>
+                : <><span className="h-full w-1/2 bg-current" /><span className="h-full w-1/2 bg-current" /></>
+              }
+            </span>
+            {m === 'light' ? 'Light' : 'Dark'}
+          </button>
+        ))}
+      </div>
+
+      {/* Accent color */}
+      <p className="text-[12px] text-nb-muted mb-3">
+        Accent color
+      </p>
       <div className="flex items-center gap-3">
         {ACCENT_OPTIONS.map((option) => {
           const isActive = accent === option.id

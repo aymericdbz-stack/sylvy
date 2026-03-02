@@ -173,9 +173,9 @@ export type Database = {
         ]
       }
       planner_tasks: {
-        Row: { id: string; user_id: string; name: string; priority: 'critical' | 'normal' | 'low'; placement: 'manual' | 'auto'; deadline: string | null; steps: Json; scheduled_start: string | null; color: string | null; conflict: boolean; conflict_reason: string | null; created_at: string }
-        Insert: { id?: string; user_id: string; name: string; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
-        Update: { id?: string; user_id?: string; name?: string; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
+        Row: { id: string; user_id: string; name: string; description: string | null; priority: 'critical' | 'normal' | 'low'; placement: 'manual' | 'auto'; deadline: string | null; steps: Json; scheduled_start: string | null; color: string | null; conflict: boolean; conflict_reason: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; name: string; description?: string | null; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; name?: string; description?: string | null; priority?: 'critical' | 'normal' | 'low'; placement?: 'manual' | 'auto'; deadline?: string | null; steps?: Json; scheduled_start?: string | null; color?: string | null; conflict?: boolean; conflict_reason?: string | null; created_at?: string }
         Relationships: []
       }
       task_templates: {
