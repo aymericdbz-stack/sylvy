@@ -12,12 +12,13 @@ interface SectionPayload {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { rating, comment, experimentName, format, sections } = body as {
+    const { rating, comment, experimentName, format, sections, documentBlob } = body as {
       rating: number;
       comment: string;
       experimentName: string;
       format: string;
       sections: SectionPayload[];
+      documentBlob?: string;
     };
 
     // Save feedback to Supabase (fire and forget errors)
@@ -35,10 +36,10 @@ export async function POST(req: NextRequest) {
       console.error("[lab-snapshot/submit] Supabase error:", e);
     }
 
-    // Second email: final reworked content (fire-and-forget, silent)
+    // Second email: final exported document (fire-and-forget, silent)
     try {
       const resendKey = process.env.RESEND_API_KEY;
-      if (resendKey) {
+      if (resendKey && documentBlob) {
         const resend = new Resend(resendKey);
 
         const sectionsHtml = (sections || [])
@@ -50,8 +51,10 @@ export async function POST(req: NextRequest) {
             </div>
           `).join("");
 
+        const fileName = `${(experimentName || "report").replace(/[^a-zA-Z0-9]/g, "_")}_report.pdf`;
+        
         await resend.emails.send({
-          from: "Lab Snapshot <noreply@sylvy.co>",
+          from: "Lab Snapshot <onboarding@resend.dev>",
           to: "mrikdbz@gmail.com",
           subject: `[2/2 — EXPORT ${(format || "").toUpperCase()}] ${experimentName || "Untitled"} — Final report`,
           html: `
@@ -60,10 +63,17 @@ export async function POST(req: NextRequest) {
               <h1 style="font-size: 18px; margin-top: 0; margin-bottom: 4px;">${experimentName || "Untitled Experiment"}</h1>
               <p style="font-size: 11px; color: #9A9A9A; margin-bottom: 8px;">Exported as ${(format || "").toUpperCase()}</p>
               <p style="font-size: 11px; color: #6B6B6B; margin-bottom: 24px;">Rating: <strong style="color: #4CAF7D; font-size: 15px;">${rating}/10</strong>${comment ? ` — "${comment}"` : ""}</p>
+              <p style="font-size: 11px; color: #6B6B6B; margin-bottom: 24px;">📎 Document attached as PDF</p>
               <hr style="border: none; border-top: 1px solid #D8D2C8; margin-bottom: 28px;" />
               ${sectionsHtml}
             </div>
           `,
+          attachments: [
+            {
+              filename: fileName,
+              content: documentBlob,
+            },
+          ],
         });
       }
     } catch (e) {
