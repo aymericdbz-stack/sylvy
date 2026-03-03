@@ -211,7 +211,7 @@ export default function DayCalendar({
 
     // Ensure that at full zoom-out, the 0–24h grid fills (at least) the viewport
     function syncZoomMinToViewport() {
-      const viewH = el.clientHeight || 0
+      const viewH = el!.clientHeight || 0
       if (!viewH) return
       const minFromViewport = viewH / (DAY_END - DAY_START) // px per hour so that 24h fits
       zoomMin = Math.max(BASE_ZOOM_MIN, minFromViewport)
@@ -225,7 +225,7 @@ export default function DayCalendar({
     }
 
     function applyZoom(nextPxPerHour: number, clientY: number) {
-      const container = el
+      const container = el!
       const rect = container.getBoundingClientRect()
       const y = clientY - rect.top
       const prevPxPerHour = pxPerHourRef.current || PX_PER_HOUR_DEFAULT
@@ -315,7 +315,7 @@ export default function DayCalendar({
       const scale = typeof e.scale === 'number' ? e.scale : 1
       const next = clampZoom(gestureBase * scale)
       if (!next) return
-      const centerY = e.clientY ?? (el.getBoundingClientRect().top + el.clientHeight / 2)
+      const centerY = e.clientY ?? (el!.getBoundingClientRect().top + el!.clientHeight / 2)
       startZoomAnimation(next, centerY)
     }
     function onGestureEnd(e: any) {

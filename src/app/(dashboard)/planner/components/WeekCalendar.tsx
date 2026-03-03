@@ -240,7 +240,7 @@ export default function WeekCalendar({
 
     // Ensure that at full zoom-out, the 0–24h grid fills (at least) the viewport
     function syncZoomMinToViewport() {
-      const viewH = el.clientHeight || 0
+      const viewH = el?.clientHeight ?? 0
       if (!viewH) return
       const minFromViewport = viewH / (DAY_END - DAY_START) // px per hour so that 24h fits
       zoomMin = Math.max(BASE_ZOOM_MIN, minFromViewport)
@@ -255,7 +255,9 @@ export default function WeekCalendar({
     }
 
     function applyZoom(nextPxPerHour: number, clientY: number) {
-      const container = el
+      const container = scrollRef.current
+      if (!container) return
+
       const rect = container.getBoundingClientRect()
       const y = clientY - rect.top
       const prevPxPerHour = pxPerHourRef.current || PX_PER_HOUR_DEFAULT
@@ -345,7 +347,9 @@ export default function WeekCalendar({
       const scale = typeof e.scale === 'number' ? e.scale : 1
       const next = clampZoom(gestureBase * scale)
       if (!next) return
-      const centerY = e.clientY ?? (el.getBoundingClientRect().top + el.clientHeight / 2)
+      const container = scrollRef.current
+      if (!container) return
+      const centerY = e.clientY ?? (container.getBoundingClientRect().top + container.clientHeight / 2)
       startZoomAnimation(next, centerY)
     }
     function onGestureEnd(e: any) {

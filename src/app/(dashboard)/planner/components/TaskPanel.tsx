@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Trash2, Hand, Clock, Save } from 'lucide-react'
+import { X, Trash2, Hand, Clock, Save, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
 import { StepBuilder, emptyStep, TOffsetInput as _TOffsetInput } from './StepBuilder'
