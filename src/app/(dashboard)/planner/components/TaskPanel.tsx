@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Trash2, Hand, Sparkles, Clock } from 'lucide-react'
+import { X, Trash2, Hand, Clock, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
 import { StepBuilder, emptyStep, TOffsetInput as _TOffsetInput } from './StepBuilder'
@@ -60,7 +60,6 @@ interface TaskPanelProps {
   onSaveTemplate?: (data: TaskTemplateInsert) => Promise<void>
   onUpdate?:       (id: string, data: PlannerTaskInsert) => Promise<void>
   onDelete?:       (id: string) => Promise<void>
-  onOptimizeTask?: (taskId: string) => Promise<void>
   onManualPlace?:  (taskId: string) => void
   task?:           PlannerTask | null
   selectedStepId?: string | null
@@ -70,13 +69,13 @@ interface TaskPanelProps {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function TaskPanel({
   open, onClose, onSave, onUpdate, onDelete,
-  onOptimizeTask, onManualPlace,
+  onManualPlace,
   task, templates,
 }: TaskPanelProps) {
   const isEdit  = !!task
   const nameRef = useRef<HTMLInputElement>(null)
 
-  const [activeTab,    setActiveTab]    = useState<'oneoff' | 'template'>('oneoff')
+  const [activeTab,    setActiveTab]    = useState<'oneoff' | 'template'>('template')
   const [name,         setName]         = useState('')
   const [description,  setDescription]  = useState('')
   const [priority,     setPriority]     = useState<Priority>('normal')
@@ -100,8 +99,14 @@ export default function TaskPanel({
       setSelectedTpl('')
       setActiveTab('oneoff')
     } else {
-      setName(''); setDescription(''); setPriority('normal'); setDeadline('')
-      setSteps([emptyStep()]); setColor(STEP_COLORS[0]); setSelectedTpl(''); setActiveTab('oneoff')
+      setName('')
+      setDescription('')
+      setPriority('normal')
+      setDeadline('')
+      setSteps([emptyStep()])
+      setColor(STEP_COLORS[0])
+      setSelectedTpl('')
+      setActiveTab('template')
     }
     setTimeout(() => nameRef.current?.focus(), 100)
   }, [open, task])
@@ -155,18 +160,6 @@ export default function TaskPanel({
       toast.success('Click the calendar to set the start time')
       onClose()
       onManualPlace?.(id)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
-    finally { setSaving(false) }
-  }
-
-  async function handleOptimize() {
-    if (!validate()) return
-    setSaving(true)
-    try {
-      const id = await onSave(buildPayload('auto'))
-      toast.success('Finding best slot…')
-      onClose()
-      await onOptimizeTask?.(id)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     finally { setSaving(false) }
   }
@@ -259,13 +252,15 @@ export default function TaskPanel({
             </div>
           )}
 
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-              Priority
-            </label>
-            <PriorityPicker value={priority} onChange={setPriority} />
-          </div>
+          {/* Priority (edit only) */}
+          {isEdit && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+                Priority
+              </label>
+              <PriorityPicker value={priority} onChange={setPriority} />
+            </div>
+          )}
 
           {/* Task name */}
           <div className="space-y-1.5">
@@ -281,38 +276,42 @@ export default function TaskPanel({
             />
           </div>
 
-          {/* Deadline */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-              Deadline <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
-            </label>
-            <input
-              type="date"
-              value={deadline}
-              onChange={e => setDeadline(e.target.value)}
-              className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-            />
-          </div>
+          {/* Deadline / description / color – keep only for edits */}
+          {isEdit && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+                  Deadline <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={e => setDeadline(e.target.value)}
+                  className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
+                />
+              </div>
 
-          {/* Description */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-              Description <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
-            </label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Notes, reagents, conditions…"
-              rows={2}
-              className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
-            />
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+                  Description <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Notes, reagents, conditions…"
+                  rows={2}
+                  className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
+                />
+              </div>
 
-          {/* Color */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">Color</label>
-            <ColorPicker value={color} onChange={setColor} />
-          </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+                  Color
+                </label>
+                <ColorPicker value={color} onChange={setColor} />
+              </div>
+            </>
+          )}
 
           {/* Edit: placement badge */}
           {isEdit && task && (
@@ -352,16 +351,14 @@ export default function TaskPanel({
                 </Button>
               )}
               <Button variant="primary" size="md" className="flex-1" onClick={handleUpdate} loading={saving}>
-                Update
+                <Save size={13} className="mr-2" />
+                Save
               </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="md" className="flex-1" onClick={handleManualPlace} loading={saving}>
                 <Hand size={13} /> Place manually
-              </Button>
-              <Button variant="primary" size="md" className="flex-1" onClick={handleOptimize} loading={saving}>
-                <Sparkles size={13} /> Optimize
               </Button>
             </div>
           )}

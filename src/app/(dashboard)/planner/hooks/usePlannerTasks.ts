@@ -20,6 +20,7 @@ export interface StepData {
   flexibleDir?:      FlexDir      // '+' extend, '-' compress, '+/-' both; default '+'
   flexibleMax?:      number       // max extra minutes allowed; undefined = unlimited (snap to next work start)
   scheduledDuration?: number      // actual duration after flexible stretching (set by scheduler)
+   overnight?:        boolean      // if true, this step is allowed to cross working-hours boundaries (overnight incubations)
 }
 
 export interface PlannerTask {
@@ -72,6 +73,7 @@ function parseStep(raw: unknown): StepData {
                         ? (s.flexibleDir as FlexDir) : '+',
     flexibleMax:      s.flexibleMax != null ? Number(s.flexibleMax) : undefined,
     scheduledDuration: s.scheduledDuration != null ? Number(s.scheduledDuration) : undefined,
+    overnight:        s.overnight === true,
   }
 }
 
@@ -129,7 +131,8 @@ export function usePlannerTasks() {
         placement:       data.placement    ?? 'auto',
         deadline:        data.deadline     ?? null,
         steps:           data.steps        as unknown as Json,
-        color:           data.color        ?? nextColor(),
+        // Always assign a fresh color from the palette for new tasks
+        color:           nextColor(),
         scheduled_start: data.scheduled_start ?? null,
       })
       .select('id')

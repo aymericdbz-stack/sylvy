@@ -56,6 +56,7 @@ interface TaskBlockProps {
   dayOffset?: number  // 0 = day-of, 1440 = next-day overflow
   pxPerHour?: number
   onClick?:   (task: PlannerTask, stepId?: string) => void
+  onMouseDown?: (e: React.MouseEvent) => void
 }
 
 // ── Hatched background for available steps ────────────────────────────────────
@@ -74,7 +75,7 @@ function hatchedBg(color: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function TaskBlock({
-  block, col, maxCols, onClick, dayOffset = 0, pxPerHour,
+  block, col, maxCols, onClick, onMouseDown, dayOffset = 0, pxPerHour,
 }: TaskBlockProps) {
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null)
   const { task, scheduledStart, conflict, conflictReason } = block
@@ -181,7 +182,7 @@ export default function TaskBlock({
               transition:  'opacity 0.1s',
             }}
             onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
-            onMouseDown={e => e.stopPropagation()}
+            onMouseDown={e => { e.stopPropagation(); onMouseDown?.(e) }}
             onMouseEnter={() => setHoveredStepId(s.id)}
             onMouseLeave={() => setHoveredStepId(prev => prev === s.id ? null : prev)}
           >

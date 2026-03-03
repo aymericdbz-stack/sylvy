@@ -4,6 +4,7 @@ interface Preferences {
   timezone?: string
   workStart?: number   // hour integer, e.g. 8 = 08:00
   workEnd?: number     // hour integer, e.g. 19 = 19:00
+  plannerIncludeWeekends?: boolean // if true, planner can use Sat/Sun
 }
 
 function getPrefs(): Preferences {
@@ -35,9 +36,17 @@ export function getWorkHours(): { start: number; end: number } {
   }
 }
 
-export function setWorkHours(start: number, end: number): void {
+export function setWorkHours(start: number, end: number, includeWeekends?: boolean): void {
   const prefs = getPrefs()
   prefs.workStart = start
   prefs.workEnd   = end
+  if (typeof includeWeekends === 'boolean') {
+    prefs.plannerIncludeWeekends = includeWeekends
+  }
   savePrefs(prefs)
+}
+
+export function getPlannerWeekendsEnabled(): boolean {
+  const prefs = getPrefs()
+  return prefs.plannerIncludeWeekends ?? false
 }

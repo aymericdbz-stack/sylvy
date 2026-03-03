@@ -103,7 +103,16 @@ function FlexDirToggle({ value, onChange }: { value: FlexDir; onChange: (d: Flex
 
 // ── Empty step factory ────────────────────────────────────────────────────────
 export function emptyStep(): StepData {
-  return { id: uid(), name: '', description: '', duration: 30, startOffset: 0, stepType: 'busy', availableType: 'flexible' }
+  return {
+    id: uid(),
+    name: '',
+    description: '',
+    duration: 30,
+    startOffset: 0,
+    stepType: 'busy',
+    availableType: 'flexible',
+    overnight: false,
+  }
 }
 
 // ── Step builder ──────────────────────────────────────────────────────────────
@@ -192,6 +201,24 @@ export function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: 
             onStepType={t => update(step.id, { stepType: t })}
             onAvailableType={t => update(step.id, { availableType: t })}
           />
+
+          {/* Overnight toggle */}
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-pl-muted font-nb-mono">
+              Overnight step
+            </span>
+            <button
+              type="button"
+              onClick={() => update(step.id, { overnight: !step.overnight })}
+              className={`px-2 py-0.5 rounded-[10px] text-[9px] font-[600] font-nb-mono border ${
+                step.overnight
+                  ? 'bg-pl-charcoal text-white border-pl-charcoal'
+                  : 'bg-pl-cream text-pl-muted border-pl-cream-border hover:text-pl-charcoal'
+              }`}
+            >
+              {step.overnight ? 'Overnight' : 'Same day only'}
+            </button>
+          </div>
 
           {step.stepType === 'available' && step.availableType === 'flexible' && (
             <div className="space-y-1.5">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Plus, Trash2, Pencil, ChevronRight } from 'lucide-react'
+import { X, Plus, Trash2, Pencil, ChevronRight, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
 import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
@@ -41,7 +41,14 @@ const STANDARD_DEFS = [
     color: '#14B8A6',
     steps: [
       { name: 'Coat plate with capture antibody',                    duration: 20,  startOffset: 0    },
-      { name: 'Overnight coating incubation (4°C)',                  duration: 720, startOffset: 20   },
+      {
+        name:           'Overnight coating incubation (4°C)',
+        duration:       720,
+        startOffset:    20,
+        stepType:       'available' as const,
+        availableType:  'flexible' as const,
+        overnight:      true,
+      },
       { name: 'Wash × 3 (PBS-T)',                                    duration: 10,  startOffset: 740  },
       { name: 'Add blocking solution (1% BSA / 5% milk)',            duration: 10,  startOffset: 750  },
       { name: 'Blocking incubation (RT, 1h)',                        duration: 60,  startOffset: 760  },
@@ -84,8 +91,9 @@ function makeStandardTemplates(): TaskTemplateInsert[] {
       ...s,
       id:            uid(),
       description:   '',
-      stepType:      'busy' as const,
-      availableType: 'flexible' as const,
+      stepType:      (s as any).stepType ?? ('busy' as const),
+      availableType: (s as any).availableType ?? ('flexible' as const),
+      overnight:     (s as any).overnight ?? false,
     })),
   }))
 }
@@ -105,6 +113,19 @@ function TemplateForm({ initial, onSave, onBack }: FormProps) {
   )
   const [saving, setSaving] = useState(false)
 
+  // Sync form when opening a different template for edit (or when initial loads)
+  useEffect(() => {
+    if (initial) {
+      setName(initial.name)
+      setColor(initial.color ?? TEMPLATE_COLORS[0])
+      setSteps(initial.steps.length > 0 ? initial.steps : [emptyStep()])
+    } else {
+      setName('')
+      setColor(TEMPLATE_COLORS[0])
+      setSteps([emptyStep()])
+    }
+  }, [initial?.id])
+
   async function handleSave() {
     if (!name.trim()) { toast.error('Template name is required'); return }
     if (steps.some(s => !s.name.trim())) { toast.error('Every step must have a name'); return }
@@ -122,15 +143,22 @@ function TemplateForm({ initial, onSave, onBack }: FormProps) {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-        {/* Back */}
+    <div className="flex flex-col h-full min-h-0">
+      {/* Sticky header with Back + Save so Save is always visible */}
+      <div className="flex-shrink-0 flex items-center justify-between gap-3 px-5 py-3 border-b border-pl-cream-border bg-pl-cream">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-[11px] text-pl-muted hover:text-pl-charcoal font-nb-mono transition-colors -mb-2"
+          className="flex items-center gap-1 text-[11px] text-pl-muted hover:text-pl-charcoal font-nb-mono transition-colors"
         >
           ← Back
         </button>
+        <Button variant="primary" size="sm" onClick={handleSave} loading={saving}>
+          <Save size={14} className="mr-1.5" />
+          {initial ? 'Save workflow' : 'Save template'}
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5 min-h-0">
 
         <div className="space-y-1.5">
           <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
@@ -167,9 +195,10 @@ function TemplateForm({ initial, onSave, onBack }: FormProps) {
         <StepBuilder steps={steps} onChange={setSteps} />
       </div>
 
-      <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border">
+      <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border bg-pl-cream">
         <Button variant="primary" size="md" className="w-full" onClick={handleSave} loading={saving}>
-          {initial ? 'Update' : 'Save template'}
+          <Save size={14} className="mr-2" />
+          {initial ? 'Save changes' : 'Save template'}
         </Button>
       </div>
     </div>
@@ -349,19 +378,23 @@ export default function TemplatesPanel({
         )}
 
         {view === 'create' && (
-          <TemplateForm
-            initial={null}
-            onSave={onCreate}
-            onBack={() => setView('list')}
-          />
+          <div className="flex-1 flex flex-col min-h-0">
+            <TemplateForm
+              initial={null}
+              onSave={onCreate}
+              onBack={() => setView('list')}
+            />
+          </div>
         )}
 
         {view === 'edit' && editTarget && (
-          <TemplateForm
-            initial={editTarget}
-            onSave={data => onUpdate(editTarget.id, data)}
-            onBack={() => setView('list')}
-          />
+          <div className="flex-1 flex flex-col min-h-0">
+            <TemplateForm
+              initial={editTarget}
+              onSave={data => onUpdate(editTarget.id, data)}
+              onBack={() => setView('list')}
+            />
+          </div>
         )}
       </div>
     </>

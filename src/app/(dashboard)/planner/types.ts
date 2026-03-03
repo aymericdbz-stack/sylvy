@@ -65,7 +65,7 @@ export interface ChatMessage {
 
 // ── Real Calendar types ───────────────────────────────────────────────────────
 
-export type CalendarView = 'week' | 'month'
+export type CalendarView = 'day' | 'week' | 'month' | 'year'
 
 export type EventColor = 'orange' | 'green' | 'blue' | 'purple' | 'red' | 'teal'
 

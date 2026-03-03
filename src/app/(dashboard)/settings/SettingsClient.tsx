@@ -6,10 +6,14 @@ import OrgSettings from './OrgSettings'
 import MembersSettings from './MembersSettings'
 import PreferencesSettings from './PreferencesSettings'
 import AppearanceSettings from './AppearanceSettings'
+import NotebookSettings from './NotebookSettings'
+import PlannerSettings from './PlannerSettings'
 
 const TABS = [
   { id: 'lab',        label: 'Lab' },
   { id: 'members',    label: 'Membres' },
+  { id: 'notebook',   label: 'Notebook' },
+  { id: 'planner',    label: 'Planner' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'prefs',      label: 'Préférences' },
 ]
@@ -41,6 +45,12 @@ export default function SettingsClient({ orgId, orgName, isAdmin, members, curre
           currentUserId={currentUserId}
           isAdmin={isAdmin}
         />
+      )}
+      {tab === 'notebook' && (
+        <NotebookSettings />
+      )}
+      {tab === 'planner' && (
+        <PlannerSettings />
       )}
       {tab === 'appearance' && (
         <AppearanceSettings />

@@ -35,6 +35,7 @@ function parseStep(raw: unknown): StepData {
                         ? (s.flexibleDir as FlexDir) : '+',
     flexibleMax:      s.flexibleMax != null ? Number(s.flexibleMax) : undefined,
     scheduledDuration: s.scheduledDuration != null ? Number(s.scheduledDuration) : undefined,
+    overnight:        s.overnight === true,
   }
 }
 
