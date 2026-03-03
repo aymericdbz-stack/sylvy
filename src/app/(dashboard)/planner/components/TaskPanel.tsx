@@ -252,16 +252,6 @@ export default function TaskPanel({
             </div>
           )}
 
-          {/* Priority (edit only) */}
-          {isEdit && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-                Priority
-              </label>
-              <PriorityPicker value={priority} onChange={setPriority} />
-            </div>
-          )}
-
           {/* Task name */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
@@ -275,66 +265,6 @@ export default function TaskPanel({
               className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
             />
           </div>
-
-          {/* Deadline / description / color – keep only for edits */}
-          {isEdit && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-                  Deadline <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
-                </label>
-                <input
-                  type="date"
-                  value={deadline}
-                  onChange={e => setDeadline(e.target.value)}
-                  className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-                  Description <span className="text-pl-muted-light font-normal normal-case">(optional)</span>
-                </label>
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Notes, reagents, conditions…"
-                  rows={2}
-                  className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 resize-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-                  Color
-                </label>
-                <ColorPicker value={color} onChange={setColor} />
-              </div>
-            </>
-          )}
-
-          {/* Edit: placement badge */}
-          {isEdit && task && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-white border border-pl-cream-border rounded-[6px]">
-              {task.placement === 'manual'
-                ? <Hand size={13} className="text-pl-muted flex-shrink-0" />
-                : <Sparkles size={13} className="text-pl-orange flex-shrink-0" />}
-              <span className="text-[11px] text-pl-muted font-nb-mono">
-                {task.placement === 'manual' ? 'Manually placed' : 'Auto-scheduled'}
-              </span>
-              {task.scheduled_start && (
-                <>
-                  <Clock size={12} className="text-pl-muted-light flex-shrink-0 ml-1" />
-                  <span className="text-[11px] text-pl-muted-light font-nb-mono">
-                    {new Date(task.scheduled_start).toLocaleString('en-US', {
-                      weekday: 'short', month: 'short', day: 'numeric',
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
 
           {/* Step builder */}
           <StepBuilder steps={steps} onChange={setSteps} />

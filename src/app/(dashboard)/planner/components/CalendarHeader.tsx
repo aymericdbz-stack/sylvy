@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Download, BookTemplate } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import Button from '@/components/ui/pl/Button'
 import type { CalendarView, CalendarEvent } from '../types'
 
@@ -38,13 +38,14 @@ interface CalendarHeaderProps {
   onNext:           () => void
   onToday:          () => void
   onDownloadWeek:   () => void
+  onOpenGoogleWeek: () => void
   onTemplatesOpen:  () => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CalendarHeader({
   view, currentDate,
-  onViewChange, onPrev, onNext, onToday, onDownloadWeek, onTemplatesOpen,
+  onViewChange, onPrev, onNext, onToday, onDownloadWeek, onOpenGoogleWeek, onTemplatesOpen,
 }: CalendarHeaderProps) {
   const label =
     view === 'week'
@@ -107,14 +108,23 @@ export default function CalendarHeader({
           ))}
         </div>
 
-        {/* Download current week (.ics) */}
-        <button
-          onClick={onDownloadWeek}
-          className="p-1.5 rounded-[5px] text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
-          title="Download this week (.ics)"
-        >
-          <Download size={15} />
-        </button>
+        {/* Download / Google Calendar for current week */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onDownloadWeek}
+            className="p-1.5 rounded-[5px] text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
+            title="Download this week (.ics)"
+          >
+            <Download size={15} />
+          </button>
+          <button
+            onClick={onOpenGoogleWeek}
+            className="px-2 py-1 rounded-[5px] text-[11px] font-[600] font-nb-mono text-pl-muted hover:text-pl-charcoal hover:bg-pl-cream-dark transition-colors"
+            title="Open weekly schedule in Google Calendar"
+          >
+            GCal
+          </button>
+        </div>
       </div>
 
     </div>

@@ -103,9 +103,10 @@ interface FormProps {
   initial?: TaskTemplate | null
   onSave:  (data: TaskTemplateInsert) => Promise<void>
   onBack:  () => void
+  onDelete?: () => Promise<void> | void
 }
 
-function TemplateForm({ initial, onSave, onBack }: FormProps) {
+function TemplateForm({ initial, onSave, onBack, onDelete }: FormProps) {
   const [name,   setName]   = useState(initial?.name  ?? '')
   const [color,  setColor]  = useState(initial?.color ?? TEMPLATE_COLORS[0])
   const [steps,  setSteps]  = useState<StepData[]>(
@@ -194,12 +195,40 @@ function TemplateForm({ initial, onSave, onBack }: FormProps) {
 
         <StepBuilder steps={steps} onChange={setSteps} />
       </div>
-
       <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border bg-pl-cream">
-        <Button variant="primary" size="md" className="w-full" onClick={handleSave} loading={saving}>
-          <Save size={14} className="mr-2" />
-          {initial ? 'Save changes' : 'Save template'}
-        </Button>
+        {initial && onDelete ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="danger"
+              size="md"
+              onClick={onDelete}
+            >
+              <Trash2 size={14} className="mr-2" />
+              Delete template
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              className="flex-1"
+              onClick={handleSave}
+              loading={saving}
+            >
+              <Save size={14} className="mr-2" />
+              Save changes
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="primary"
+            size="md"
+            className="w-full"
+            onClick={handleSave}
+            loading={saving}
+          >
+            <Save size={14} className="mr-2" />
+            Save template
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -318,7 +347,8 @@ export default function TemplatesPanel({
               {templates.map(tpl => (
                 <div
                   key={tpl.id}
-                  className="flex items-center gap-3 bg-white border border-pl-cream-border rounded-[8px] px-3 py-2.5"
+                  className="flex items-center gap-3 bg-white border border-pl-cream-border rounded-[8px] px-3 py-2.5 cursor-pointer hover:bg-pl-cream-dark/60 transition-colors"
+                  onClick={() => { setEditTarget(tpl); setView('edit') }}
                 >
                   {/* Color dot */}
                   <span
@@ -337,13 +367,13 @@ export default function TemplatesPanel({
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
-                      onClick={() => { setEditTarget(tpl); setView('edit') }}
+                      onClick={e => { e.stopPropagation(); setEditTarget(tpl); setView('edit') }}
                       className="p-1.5 text-pl-muted hover:text-pl-charcoal rounded-[4px] hover:bg-pl-cream-dark transition-colors"
                     >
                       <Pencil size={13} />
                     </button>
                     <button
-                      onClick={() => handleDelete(tpl.id)}
+                      onClick={e => { e.stopPropagation(); handleDelete(tpl.id) }}
                       disabled={deleting === tpl.id}
                       className="p-1.5 text-pl-muted-light hover:text-pl-error rounded-[4px] hover:bg-pl-cream-dark transition-colors disabled:opacity-50"
                     >
@@ -393,6 +423,10 @@ export default function TemplatesPanel({
               initial={editTarget}
               onSave={data => onUpdate(editTarget.id, data)}
               onBack={() => setView('list')}
+              onDelete={async () => {
+                await handleDelete(editTarget.id)
+                setView('list')
+              }}
             />
           </div>
         )}

@@ -4,27 +4,29 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { Plus, BookTemplate, Loader2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 
-import CalendarHeader               from './components/CalendarHeader'
-import WeekCalendar, { getMondayOf } from './components/WeekCalendar'
+import CalendarHeader                 from './components/CalendarHeader'
+import WeekCalendar, { getMondayOf }  from './components/WeekCalendar'
 import MonthCalendar                  from './components/MonthCalendar'
 import DayCalendar                    from './components/DayCalendar'
 import YearCalendar                   from './components/YearCalendar'
-import EventModal                   from './components/EventModal'
-import TaskPanel                    from './components/TaskPanel'
-import TemplatesPanel               from './components/TemplatesPanel'
-import { useCalendarEvents }         from './hooks/useCalendarEvents'
-import { usePlannerTasks }           from './hooks/usePlannerTasks'
-import { useTaskTemplates }          from './hooks/useTaskTemplates'
+import EventModal                     from './components/EventModal'
+import TaskPanel                      from './components/TaskPanel'
+import TemplatesPanel                 from './components/TemplatesPanel'
+import { useCalendarEvents }          from './hooks/useCalendarEvents'
+import { usePlannerTasks }            from './hooks/usePlannerTasks'
+import { useTaskTemplates }           from './hooks/useTaskTemplates'
 import { getWorkHours, getPlannerWeekendsEnabled, getTimezone } from '@/lib/preferences'
-import { tzDatetimeToUTC }               from './utils/timezone'
-import { downloadIcal }                  from './utils/ical'
-import type { ScheduledTaskBlock }   from './components/TaskBlock'
+import { tzDatetimeToUTC }            from './utils/timezone'
+import { downloadIcal, generateIcal } from './utils/ical'
+import type { ScheduledTaskBlock }    from './components/TaskBlock'
 import type { PlannerTask, StepData } from './hooks/usePlannerTasks'
+import type { IntercalationResult }   from './engine/solveIntercalation'
 
 import type {
   CalendarView,
   CalendarEvent,
   CalendarEventInsert,
+  EventColor,
 } from './types'
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
@@ -61,6 +63,69 @@ function getWeekEvents(events: CalendarEvent[], monday: Date): CalendarEvent[] {
     const d = ev.start_at.slice(0, 10)
     return d >= sISO && d <= eISO
   })
+}
+
+// Build one VEVENT per busy step of each scheduled task block that falls
+// within the given week. This is what populates the visual schedule, so
+// exporting these gives the user a faithful .ics of their planner.
+function hexToEventColor(hex: string | null | undefined): EventColor {
+  switch (hex) {
+    case '#F97316': return 'orange'
+    case '#4CAF7D': return 'green'
+    case '#3B82F6': return 'blue'
+    case '#8B5CF6': return 'purple'
+    case '#EF4444': return 'red'
+    case '#14B8A6': return 'teal'
+    default:        return 'orange'
+  }
+}
+
+function buildTaskEventsForWeek(
+  blocks: ScheduledTaskBlock[],
+  monday: Date,
+): CalendarEvent[] {
+  const startOfWeek = new Date(monday)
+  startOfWeek.setHours(0, 0, 0, 0)
+  const endOfWeek = new Date(monday)
+  endOfWeek.setDate(endOfWeek.getDate() + 6)
+  endOfWeek.setHours(23, 59, 59, 999)
+
+  const events: CalendarEvent[] = []
+
+  for (const block of blocks) {
+    const { task, scheduledStart } = block
+    if (!scheduledStart) continue
+
+    const steps = task.steps as StepData[]
+    if (!steps.length) continue
+
+    for (const step of steps) {
+      if (step.stepType !== 'busy') continue
+      const dur = step.scheduledDuration ?? step.duration
+      if (dur <= 0) continue
+
+      const stepStart = new Date(scheduledStart.getTime() + step.startOffset * 60_000)
+      const stepEnd   = new Date(stepStart.getTime() + dur * 60_000)
+
+      if (stepEnd < startOfWeek || stepStart > endOfWeek) continue
+
+      events.push({
+        id:          `task-${task.id}-${step.id}`,
+        title:       task.name,
+        description: step.name ? `${step.name} (${dur} min)` : null,
+        start_at:    stepStart.toISOString(),
+        end_at:      stepEnd.toISOString(),
+        all_day:     false,
+        color:       hexToEventColor(task.color),
+        experiment_id: null,
+        protocol_id:   null,
+        location:      null,
+        source:        'event',
+      })
+    }
+  }
+
+  return events
 }
 
 // ── Helpers: placement validation (working hours + overlaps) ───────────────────
@@ -304,39 +369,93 @@ export default function PlannerClient() {
     }
   }
 
-  async function handleTaskMove(taskId: string, date: string, time: string) {
+  async function handleTaskMove(
+    taskId: string,
+    date: string,
+    time: string,
+    solverResult?: IntercalationResult,
+  ) {
     const task = tasks.find(t => t.id === taskId)
     if (!task) return
     const tz  = getTimezone()
     const utc = tzDatetimeToUTC(date, time, tz)
-    try {
-      const scheduledStartLocal = new Date(`${date}T${time}:00`)
-      const ok = validateTaskPlacement(task, scheduledStartLocal, tasks, workHours, includeWeekends)
-      if (!ok.ok) {
-        toast.error(ok.reason ?? 'This task cannot be placed here')
-        return
-      }
 
-      await updateTask(taskId, {
-        name:            task.name,
-        description:     task.description,
-        priority:        task.priority,
-        placement:       'manual',
-        deadline:        task.deadline,
-        steps:           task.steps,
-        color:           task.color,
-        scheduled_start: utc,
-      })
-      toast.success('Task updated')
+    try {
+      // If the solver adjusted other tasks (flex steps), persist all changes
+      if (solverResult && solverResult.placements.length > 1) {
+        const updates = solverResult.placements.map(p => {
+          const existingTask = tasks.find(t => t.id === p.taskId)
+          if (!existingTask) return null
+
+          // For the moved task, use the date/time from the drag
+          if (p.taskId === taskId) {
+            return {
+              id:              taskId,
+              scheduled_start: utc,
+              conflict:        false,
+              conflict_reason: null as string | null,
+              steps:           p.steps,
+            }
+          }
+
+          // For other tasks that were flex-adjusted, update their steps
+          return {
+            id:              p.taskId,
+            scheduled_start: existingTask.scheduled_start,
+            conflict:        false,
+            conflict_reason: null as string | null,
+            steps:           p.steps,
+          }
+        }).filter(Boolean) as Array<{
+          id: string
+          scheduled_start: string | null
+          conflict: boolean
+          conflict_reason: string | null
+          steps: StepData[]
+        }>
+
+        await bulkUpdateSchedule(updates)
+
+        if (solverResult.moved && solverResult.message) {
+          toast.info(solverResult.message)
+        } else {
+          toast.success('Task updated')
+        }
+      } else {
+        // Simple move — no intercalation adjustments needed
+        await updateTask(taskId, {
+          name:            task.name,
+          description:     task.description,
+          priority:        task.priority,
+          placement:       'manual',
+          deadline:        task.deadline,
+          steps:           solverResult?.placements.find(p => p.taskId === taskId)?.steps ?? task.steps,
+          color:           task.color,
+          scheduled_start: utc,
+        })
+
+        if (solverResult?.moved && solverResult.message) {
+          toast.info(solverResult.message)
+        } else {
+          toast.success('Task updated')
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error updating task')
+      throw e
     }
   }
 
   // ── Calendar event CRUD ──────────────────────────────────────────────────────
-  async function handleSave(data: CalendarEventInsert) {
+  async function handleSave(data: CalendarEventInsert | CalendarEventInsert[]) {
     try {
-      if (editEvent && editEvent.source === 'event') {
+      if (Array.isArray(data)) {
+        // New recurring series created from the modal.
+        for (const ev of data) {
+          await createEvent(ev)
+        }
+        toast.success(`${data.length} events created`)
+      } else if (editEvent && editEvent.source === 'event') {
         await updateEvent(editEvent.id, data); toast.success('Event updated')
       } else {
         await createEvent(data); toast.success('Event created')
@@ -367,7 +486,27 @@ export default function PlannerClient() {
 
   // ── Download current week as .ics ────────────────────────────────────────────
   function handleDownloadWeek() {
-    downloadIcal(weekEvts, 'sylvy-week.ics')
+    const weekTaskEvents = buildTaskEventsForWeek(scheduledTaskBlocks, monday)
+    downloadIcal([...weekEvts, ...weekTaskEvents], 'sylvy-week.ics')
+  }
+
+  function handleOpenGoogleWeek() {
+    const weekTaskEvents = buildTaskEventsForWeek(scheduledTaskBlocks, monday)
+    const allWeekEvents  = [...weekEvts, ...weekTaskEvents]
+    // Trigger download of the .ics (for later import) and open Google Calendar.
+    const content = generateIcal(allWeekEvents, 'Sylvy Weekly Planner')
+    const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+    const url  = URL.createObjectURL(blob)
+    const a    = Object.assign(document.createElement('a'), {
+      href: url,
+      download: 'sylvy-week.ics',
+    })
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    window.open('https://calendar.google.com/calendar/u/0/r', '_blank', 'noopener,noreferrer')
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -400,6 +539,7 @@ export default function PlannerClient() {
           onNext={handleNext}
           onToday={handleToday}
           onDownloadWeek={handleDownloadWeek}
+          onOpenGoogleWeek={handleOpenGoogleWeek}
           onTemplatesOpen={() => { setTemplatesPanelOpen(true) }}
         />
       </div>

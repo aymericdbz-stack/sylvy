@@ -122,7 +122,34 @@ export function StepBuilder({ steps, onChange }: { steps: StepData[]; onChange: 
   )
 
   function update(id: string, patch: Partial<StepData>) {
-    onChange(steps.map(s => s.id === id ? { ...s, ...patch } : s))
+    const idx = steps.findIndex(s => s.id === id)
+    if (idx === -1) return
+
+    const current = steps[idx]
+    const nextCurrent: StepData = { ...current, ...patch }
+
+    // When the duration of a step changes, shift all subsequent steps by the
+    // same delta so that their relative spacing is preserved and they don't
+    // overlap with the edited step.
+    if (patch.duration != null && patch.duration !== current.duration) {
+      const delta = patch.duration - current.duration
+
+      const nextSteps = steps.map((s, i) => {
+        if (i === idx) return nextCurrent
+        if (i > idx) {
+          return {
+            ...s,
+            startOffset: s.startOffset + delta,
+          }
+        }
+        return s
+      })
+
+      onChange(nextSteps)
+      return
+    }
+
+    onChange(steps.map((s, i) => (i === idx ? nextCurrent : s)))
   }
   function remove(id: string) {
     if (steps.length <= 1) return

@@ -57,6 +57,12 @@ interface TaskBlockProps {
   pxPerHour?: number
   onClick?:   (task: PlannerTask, stepId?: string) => void
   onMouseDown?: (e: React.MouseEvent) => void
+  /** Optional time labels shown when the template is being dragged. */
+  dragTimeLabels?: { start: string; end: string }
+  /** When provided, renders the block as if it started at this minute offset within the day. */
+  dragOverrideStartMin?: number
+  /** When true, render as a semi-transparent drag "ghost". */
+  isDragGhost?: boolean
 }
 
 // ── Hatched background for available steps ────────────────────────────────────
@@ -76,6 +82,9 @@ function hatchedBg(color: string): string {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function TaskBlock({
   block, col, maxCols, onClick, onMouseDown, dayOffset = 0, pxPerHour,
+  dragTimeLabels,
+  dragOverrideStartMin,
+  isDragGhost,
 }: TaskBlockProps) {
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null)
   const { task, scheduledStart, conflict, conflictReason } = block
@@ -85,16 +94,26 @@ export default function TaskBlock({
 
   const PX_PER_MIN = (pxPerHour ?? PX_PER_HOUR) / 60
 
-  const taskStartMin = scheduledStart.getHours() * 60 + scheduledStart.getMinutes()
+  const baseStartMin = scheduledStart.getHours() * 60 + scheduledStart.getMinutes()
+  const taskStartMin = dragOverrideStartMin ?? baseStartMin
 
   const dayVisStart = dayOffset
   const dayVisEnd   = dayOffset + DAY_MINS
 
-  // Connector spans the full visible workflow portion (busy + available)
-  const lastStepEnd  = steps.reduce((acc, s) => {
-    const dur = s.scheduledDuration ?? s.duration
-    return Math.max(acc, s.startOffset + dur)
-  }, 0)
+  // Connector spans the full visible workflow portion (busy + available).
+  // Account for cumulative delta from flex adjustments cascading through steps.
+  const lastStepEnd = (() => {
+    const sorted = [...steps].sort((a, b) => a.startOffset - b.startOffset)
+    let cum = 0
+    let maxEnd = 0
+    for (const s of sorted) {
+      const dur = s.scheduledDuration ?? s.duration
+      maxEnd = Math.max(maxEnd, s.startOffset + cum + dur)
+      const delta = dur - s.duration
+      if (delta !== 0) cum += delta
+    }
+    return maxEnd
+  })()
   const connAbsStart = Math.max(taskStartMin, dayVisStart)
   const connAbsEnd   = Math.min(taskStartMin + lastStepEnd, dayVisEnd)
   const connTop      = (connAbsStart - dayVisStart) * PX_PER_MIN
@@ -106,11 +125,25 @@ export default function TaskBlock({
 
   const sortedSteps = [...steps].sort((a, b) => a.startOffset - b.startOffset)
 
-  // Resolve each step's visible slice — using scheduledDuration for flexible available steps
+  // Build cumulative delta map: when a flexible step is stretched/compressed,
+  // all subsequent steps shift by the same amount (cascade effect).
+  const cumulativeDeltaMap = new Map<string, number>()
+  {
+    let cum = 0
+    for (const s of sortedSteps) {
+      cumulativeDeltaMap.set(s.id, cum)
+      const dur = s.scheduledDuration ?? s.duration
+      const delta = dur - s.duration
+      if (delta !== 0) cum += delta
+    }
+  }
+
+  // Resolve each step's visible slice — using scheduledDuration + cumulative delta
   const visibleSteps = sortedSteps
     .map(s => {
       const dur      = s.scheduledDuration ?? s.duration
-      const absStart = taskStartMin + s.startOffset
+      const cumDelta = cumulativeDeltaMap.get(s.id) ?? 0
+      const absStart = taskStartMin + s.startOffset + cumDelta
       const absEnd   = absStart + dur
       const visStart = Math.max(absStart, dayVisStart)
       const visEnd   = Math.min(absEnd, dayVisEnd)
@@ -136,8 +169,30 @@ export default function TaskBlock({
   const PRIORITY_LABELS = { critical: '!', normal: '', low: '↓' }
   const priorityMark = task.priority !== 'normal' ? PRIORITY_LABELS[task.priority] : ''
 
+  const ghostFactor = isDragGhost ? 0.6 : 1
+
   return (
     <>
+      {/* Drag time labels (for drag-and-drop preview) */}
+      {dragTimeLabels && connHeight > 0 && (
+        <div
+          className="absolute pointer-events-none flex justify-center"
+          style={{
+            top:    `${Math.max(connTop - 16, 0)}px`,
+            left:   colLeft,
+            width:  colWidth,
+            zIndex: 30,
+          }}
+        >
+          <span
+            className="inline-flex items-center rounded-[4px] px-1.5 py-[1px] text-[9px] font-[600] font-nb-mono bg-white/95 shadow-sm"
+            style={{ color: borderC }}
+          >
+            {dragTimeLabels.start} — {dragTimeLabels.end}
+          </span>
+        </div>
+      )}
+
       {/* Connector line */}
       <div
         className="absolute pointer-events-none"
@@ -147,8 +202,26 @@ export default function TaskBlock({
           left:            colLeft,
           width:           '2.5px',
           backgroundColor: borderC,
+          opacity:         ghostFactor,
           zIndex:          10,
         }}
+      />
+
+      {/* Invisible hitbox so you can grab the task between steps */}
+      <div
+        className="absolute cursor-pointer"
+        style={{
+          top:    `${connTop}px`,
+          height: `${connHeight}px`,
+          left:   colLeft,
+          width:  colWidth,
+          zIndex: 15,
+          pointerEvents: isDragGhost ? 'none' : 'auto',
+          backgroundColor: 'transparent',
+          opacity: ghostFactor,
+        }}
+        onClick={e => { e.stopPropagation(); onClick?.(task) }}
+        onMouseDown={e => { e.stopPropagation(); onMouseDown?.(e) }}
       />
 
       {/* Busy step blocks — available steps show only via labels */}
@@ -172,7 +245,6 @@ export default function TaskBlock({
                 : isAvailable
                   ? hatchedBg(color)
                   : mixWithWhite(color, 0.9),
-              opacity:     isAvailable ? 0.75 : 1,
               borderLeft:  `2.5px solid ${borderC}`,
               borderTop:   `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
               borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
@@ -180,6 +252,7 @@ export default function TaskBlock({
               borderRadius:'0 4px 4px 0',
               zIndex:      20,
               transition:  'opacity 0.1s',
+              opacity:     (isAvailable ? 0.75 : 1) * ghostFactor,
             }}
             onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
             onMouseDown={e => { e.stopPropagation(); onMouseDown?.(e) }}
@@ -211,26 +284,56 @@ export default function TaskBlock({
         )
       })}
 
-      {/* Available step labels — no boxes, just text at start */}
-      {visibleSteps.filter(v => v.s.stepType === 'available').map(({ s, sTop }) => (
-        <div
-          key={`avail-${s.id}`}
-          className="absolute pointer-events-none"
-          style={{
-            top:    `${sTop + 1}px`,
-            left:   `calc(${colLeft} + 4px)`,
-            width:  `calc(${colWidth} - 6px)`,
-            zIndex: 21,
-          }}
-        >
-          <span
-            className="text-[10px] font-[600] font-nb-mono truncate block"
-            style={{ color: textColor, opacity: 0.75, lineHeight: '12px' }}
+      {/* Available step blocks — 1/3 column width */}
+      {visibleSteps.filter(v => v.s.stepType === 'available').map(({ s, sTop, sHeight }) => {
+        const availWidth = `calc(${colW / 3}% - 2px)`
+        const labelSize  = sHeight >= 14 ? 8 : sHeight >= 8 ? 7 : 6
+        const isHovered  = hoveredStepId === s.id
+
+        return (
+          <div
+            key={`avail-${s.id}`}
+            className="absolute flex flex-col overflow-hidden cursor-pointer"
+            style={{
+              top:         `${sTop}px`,
+              height:      `${sHeight}px`,
+              left:        colLeft,
+              width:       availWidth,
+              background:  conflict ? '#FEF2F2' : hatchedBg(color),
+              borderLeft:  `2.5px solid ${borderC}`,
+              borderTop:   `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
+              borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
+              borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
+              borderRadius:'0 4px 4px 0',
+              zIndex:      20,
+              transition:  'opacity 0.1s',
+            }}
+            onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
+            onMouseDown={e => { e.stopPropagation(); onMouseDown?.(e) }}
+            onMouseEnter={() => setHoveredStepId(s.id)}
+            onMouseLeave={() => setHoveredStepId(prev => prev === s.id ? null : prev)}
           >
-            {s.name || 'Available'}
-          </span>
-        </div>
-      ))}
+            {sHeight >= 8 && (
+              <div className="flex items-center gap-0.5 px-1 flex-1 min-h-0 overflow-hidden">
+                <span style={{ color: textColor, fontSize: `${labelSize}px`, opacity: 0.7, flexShrink: 0 }}>~</span>
+                <span
+                  className="font-nb-mono truncate leading-none"
+                  style={{ color: textColor, fontSize: `${labelSize}px` }}
+                >
+                  {s.name || 'Available'}
+                </span>
+              </div>
+            )}
+
+            {isHovered && (
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ backgroundColor: mixWithWhite(color, 0.82), borderRadius: '0 4px 4px 0' }}
+              />
+            )}
+          </div>
+        )
+      })}
 
       {/* Tooltip on hover */}
       {hoveredStepId && (() => {
@@ -243,60 +346,20 @@ export default function TaskBlock({
         const stepEndDate   = new Date(stepStartDate.getTime() + stepDur * 60_000)
         const stepStartLabel = formatTimeLabel(stepStartDate)
         const stepEndLabel   = formatTimeLabel(stepEndDate)
-        const isAvail = hoveredStep.stepType === 'available'
-        const typeLabel = isAvail
-          ? `Available · ${hoveredStep.availableType}`
-          : 'Busy'
 
         return (
           <div
-            className="absolute z-50 bg-pl-charcoal text-white rounded-[6px] px-3 py-2.5 shadow-xl font-nb-mono pointer-events-none"
+            className="absolute z-50 bg-pl-charcoal text-white rounded-[6px] px-2.5 py-1.5 shadow-xl font-nb-mono pointer-events-none"
             style={{
-              top:   `${hoveredVisible.sTop + hoveredVisible.sHeight + 6}px`,
-              left:  colLeft,
-              width: '240px',
+              top:      `${hoveredVisible.sTop + hoveredVisible.sHeight + 6}px`,
+              left:     colLeft,
+              width:    'auto',
               fontSize: '10px',
+              whiteSpace: 'nowrap',
             }}
           >
-            {/* Task header */}
-            <div className="flex items-center gap-1.5 mb-1.5">
-              {task.placement === 'manual'
-                ? <Hand size={10} className="text-pl-muted-light flex-shrink-0" />
-                : <Sparkles size={10} className="text-pl-orange flex-shrink-0" />
-              }
-              <p className="font-[700] text-[11px] truncate">{task.name}</p>
-              {task.priority !== 'normal' && (
-                <span className={`text-[9px] font-[600] px-1.5 py-0.5 rounded-[3px] flex-shrink-0 ${
-                  task.priority === 'critical' ? 'bg-red-500' : 'bg-pl-muted'
-                }`}>
-                  {task.priority}
-                </span>
-              )}
-            </div>
-
-            {deadlineLabel && (
-              <p className="text-[9px] text-pl-muted-light mb-1">Deadline: {deadlineLabel}</p>
-            )}
-
-            {conflict && conflictReason && (
-              <p className="text-[9px] text-red-300 mb-1.5 flex items-center gap-1">
-                <AlertTriangle size={9} className="flex-shrink-0" />{conflictReason}
-              </p>
-            )}
-
-            {/* Current step */}
-            <div className="border-t border-white/10 pt-1.5 mt-1 space-y-0.5">
-              <p className="text-[9px] font-[600]">{hoveredStep.name || '—'}</p>
-              <p className="text-[9px] text-pl-muted-light">{typeLabel}</p>
-              <p className="text-[9px] text-pl-muted-light">{stepStartLabel} – {stepEndLabel}</p>
-              <p className="text-[9px] text-pl-muted-light">
-                T+{minsToHHMM(hoveredStep.startOffset)} · {stepDur}min
-                {hoveredStep.scheduledDuration && hoveredStep.scheduledDuration !== hoveredStep.duration
-                  ? ` (min: ${hoveredStep.duration}min)`
-                  : ''}
-              </p>
-            </div>
-
+            <p className="text-[10px] font-[600]">{hoveredStep.name || '—'}</p>
+            <p className="text-[9px] text-pl-muted-light">{stepStartLabel} – {stepEndLabel}</p>
           </div>
         )
       })()}

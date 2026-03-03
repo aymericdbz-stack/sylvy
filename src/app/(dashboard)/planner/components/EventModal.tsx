@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { X, Trash2, ExternalLink } from 'lucide-react'
 import Button from '@/components/ui/pl/Button'
 import type { CalendarEvent, CalendarEventInsert, EventColor } from '../types'
-import { googleCalendarUrl } from '../utils/ical'
 import { getTimezone } from '@/lib/preferences'
 import { utcToTzDatetime, tzDatetimeToUTC } from '../utils/timezone'
 
@@ -56,7 +55,7 @@ interface EventModalProps {
   initialDate?:     string                 // YYYY-MM-DD, pre-fill for new
   initialTime?:     string                 // HH:MM, pre-fill for new
   initialEndTime?:  string                 // HH:MM, from drag-to-create
-  onSave:           (data: CalendarEventInsert) => Promise<void>
+  onSave:           (data: CalendarEventInsert | CalendarEventInsert[]) => Promise<void>
   onDelete?:        (id: string) => Promise<void>
   onClose:          () => void
 }
@@ -78,35 +77,37 @@ export default function EventModal({
 
   const [title,   setTitle]   = useState('')
   const [sDate,   setSDate]   = useState(defaultDate)
-  const [sTime,   setSTime]   = useState(defaultTime)
-  const [eDate,   setEDate]   = useState(defaultDate)
-  const [eTime,   setETime]   = useState(defaultEnd)
+  const [sTime,   setSTime]    = useState(defaultTime)
+  const [eDate,   setEDate]    = useState(defaultDate)
+  const [eTime,   setETime]    = useState(defaultEnd)
   const [sTimeDisplay, setSTimeDisplay] = useState(formatTime12(defaultTime))
   const [eTimeDisplay, setETimeDisplay] = useState(formatTime12(defaultEnd))
-  const [color,   setColor]   = useState<EventColor>('orange')
-  const [desc,    setDesc]    = useState('')
-  const [loc,     setLoc]     = useState('')
-  const [saving,  setSaving]  = useState(false)
-  const [deleting,setDeleting]= useState(false)
+  const [desc,    setDesc]     = useState('')
+  const [loc,     setLoc]      = useState('')
+  const [saving,  setSaving]   = useState(false)
+  const [deleting,setDeleting] = useState(false)
+  const [noteOpen,setNoteOpen] = useState(false)
+  const [repeat,  setRepeat]   = useState<'none' | 'daily' | 'weekly'>('none')
 
   // Populate form when editing
   useEffect(() => {
     if (event && event.source === 'event') {
       setTitle(event.title)
-      setColor(event.color)
       setDesc(event.description ?? '')
       setLoc(event.location ?? '')
+      setNoteOpen(!!event.description)
       const s = toLocalDateTimeInputs(event.start_at)
       const e2 = toLocalDateTimeInputs(event.end_at)
       setSDate(s.date); setSTime(s.time)
       setEDate(e2.date); setETime(e2.time)
       setSTimeDisplay(formatTime12(s.time))
       setETimeDisplay(formatTime12(e2.time))
+      setRepeat('none')
     } else {
       setTitle('')
-      setColor('orange')
       setDesc('')
       setLoc('')
+      setNoteOpen(false)
       const nextSDate = initialDate ?? new Date().toISOString().slice(0, 10)
       const nextSTime = initialTime ?? '09:00'
       const nextEDate = initialDate ?? new Date().toISOString().slice(0, 10)
@@ -117,6 +118,7 @@ export default function EventModal({
       setETime(nextETime)
       setSTimeDisplay(formatTime12(nextSTime))
       setETimeDisplay(formatTime12(nextETime))
+      setRepeat('none')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, open])
@@ -136,15 +138,51 @@ export default function EventModal({
     setETime(parsedEnd)
     setSaving(true)
     try {
-      await onSave({
-        title:       title.trim(),
-        description: desc.trim() || null,
-        start_at:    toISO(sDate, parsedStart),
-        end_at:      toISO(eDate, parsedEnd),
-        all_day:     false,
-        color,
-        location:    loc.trim() || null,
-      })
+      // Editing an existing event: always treat as a single instance,
+      // even if a recurrence option is selected.
+      if (isEdit) {
+        await onSave({
+          title:       title.trim(),
+          description: desc.trim() || null,
+          start_at:    toISO(sDate, parsedStart),
+          end_at:      toISO(eDate, parsedEnd),
+          all_day:     false,
+        })
+        onClose()
+        return
+      }
+
+      // New event — optionally create a small series of repeated events.
+      if (repeat === 'none') {
+        await onSave({
+          title:       title.trim(),
+          description: desc.trim() || null,
+          start_at:    toISO(sDate, parsedStart),
+          end_at:      toISO(eDate, parsedEnd),
+          all_day:     false,
+        })
+        onClose()
+        return
+      }
+
+      const firstDate = new Date(`${sDate}T00:00:00`)
+      const occurrences: CalendarEventInsert[] = []
+      const total = repeat === 'daily' ? 30 : 12 // ~1 month of daily, ~3 months of weekly
+
+      for (let i = 0; i < total; i += 1) {
+        const d = new Date(firstDate)
+        d.setDate(firstDate.getDate() + (repeat === 'daily' ? i : i * 7))
+        const dateStr = d.toISOString().slice(0, 10)
+        occurrences.push({
+          title:       title.trim(),
+          description: desc.trim() || null,
+          start_at:    toISO(dateStr, parsedStart),
+          end_at:      toISO(dateStr, parsedEnd),
+          all_day:     false,
+        })
+      }
+
+      await onSave(occurrences)
       onClose()
     } finally {
       setSaving(false)
@@ -281,56 +319,61 @@ export default function EventModal({
               </div>
             </div>
 
-            {/* Color picker */}
+            {/* Note + simple recurrence selector */}
             <div className="space-y-1.5">
-              <label className="text-[10px] text-pl-muted uppercase tracking-[0.06em]">Color</label>
-              <div className="flex items-center gap-2">
-                {COLOR_OPTIONS.map(c => (
-                  <button
-                    key={c.value}
-                    title={c.label}
-                    onClick={() => setColor(c.value)}
-                    className={`w-5 h-5 rounded-full flex-shrink-0 transition-transform ${color === c.value ? 'ring-2 ring-offset-1 ring-pl-charcoal/40 scale-110' : 'hover:scale-110'}`}
-                    style={{ backgroundColor: c.hex }}
-                  />
-                ))}
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNoteOpen(o => !o)}
+                  className="text-[10px] text-pl-muted hover:text-pl-charcoal flex items-center gap-1 font-nb-mono"
+                >
+                  <span className="text-[12px] leading-none">+</span>
+                  <span>Optional note</span>
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-pl-muted font-nb-mono">Recurrence</span>
+                  <div className="flex rounded-[6px] overflow-hidden border border-pl-cream-border bg-white">
+                    {([
+                      ['none',   'None'],
+                      ['daily',  'Daily'],
+                      ['weekly', 'Weekly'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setRepeat(value)}
+                        className={`px-2 py-0.5 text-[10px] font-nb-mono ${
+                          repeat === value
+                            ? 'bg-pl-charcoal text-white'
+                            : 'text-pl-muted hover:text-pl-charcoal'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Description */}
-            <div>
-              <textarea
-                placeholder="Description (optional)"
-                value={desc}
-                onChange={e => setDesc(e.target.value)}
-                rows={2}
-                className="w-full resize-none bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
-              />
-            </div>
+              {noteOpen && (
+                <textarea
+                  placeholder="Optional note"
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                  rows={2}
+                  className="w-full resize-none bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
+                />
+              )}
 
-            {/* Location */}
-            <div>
-              <input
-                type="text"
-                placeholder="Location (optional)"
-                value={loc}
-                onChange={e => setLoc(e.target.value)}
-                className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40 font-nb-mono"
-              />
+              {repeat !== 'none' && !isEdit && (
+                <p className="text-[10px] text-pl-muted-light font-nb-mono">
+                  {repeat === 'daily'
+                    ? 'The event will be created every day (30 occurrences).'
+                    : 'The event will be created every week (12 occurrences).'}
+                </p>
+              )}
             </div>
-
-            {/* Google Calendar link (edit mode) */}
-            {isEdit && event && (
-              <a
-                href={googleCalendarUrl(event)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-[11px] text-pl-orange hover:underline"
-              >
-                <ExternalLink size={11} />
-                Open in Google Calendar
-              </a>
-            )}
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-1">
