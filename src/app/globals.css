@@ -1021,8 +1021,8 @@ body.app-loaded .pwa-loading-shell {
 .hyperspace-hero {
   position: relative;
   width: 100%;
-  min-height: 120vh;
-  min-height: 120svh;
+  min-height: 200vh;
+  min-height: 200svh;
   background: #000;
   overflow: hidden;
 }

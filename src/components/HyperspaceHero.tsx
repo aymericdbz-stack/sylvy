@@ -292,10 +292,134 @@ export default function HyperspaceHero() {
         </div>
       </div>
 
+      {/* Who are we? section */}
+      <div
+        id="team"
+        className="absolute inset-x-0 z-10 mx-auto max-w-5xl px-6 sm:px-12"
+        style={{ bottom: "16rem" }}
+      >
+        <div
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? "translateY(0)" : "translateY(16px)",
+            transition: "opacity 900ms 400ms cubic-bezier(0.33,1,0.68,1), transform 900ms 400ms cubic-bezier(0.33,1,0.68,1)",
+          }}
+        >
+          {/* label */}
+          <div className="mb-10 flex items-center gap-4">
+            <div className="h-px w-10 bg-white/20" />
+            <p className="text-lg font-semibold uppercase tracking-[0.2em] text-white/40">
+              Who are we?
+            </p>
+          </div>
+
+          {/* 2-column founder cards — flip on hover */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            {(
+              [
+                {
+                  name: "Clément Djezvedjian",
+                  title: "CEO",
+                  role: "Biotech Engineer",
+                  photo: "/founders/clement.png",
+                  linkedin: "https://www.linkedin.com/in/cl%C3%A9ment-djezvedjian-bb05581a0/",
+                  bio: "Clément is an engineer in life sciences and chemistry with experience in academic research and pharmaceutical and biotech companies. He leads the vision of Sylvy, providing each lab with a tailor-made scientific intelligence.",
+                  institutionLogos: [
+                    { src: "/founders/logos/berkeley.png", alt: "UC Berkeley", grow: 5 },
+                    { src: "/founders/logos/hec.png", alt: "X-HEC Entrepreneurs", grow: 6 },
+                    { src: "/founders/logos/chimie-paris-psl.png", alt: "Chimie Paris PSL", grow: 3 },
+                  ],
+                  expLogos: [
+                    { src: "/founders/logos/cea.png", alt: "CEA" },
+                    { src: "/founders/logos/merck.png", alt: "Merck" },
+                    { src: "/founders/logos/servier.png", alt: "Servier" },
+                  ],
+                },
+                {
+                  name: "Aymeric Desbazeille",
+                  title: "CTO",
+                  role: "Software Engineer",
+                  photo: "/founders/aymeric.png",
+                  linkedin: "https://www.linkedin.com/in/aymeric-desbazeille-343910235/",
+                  bio: "Aymeric is a software engineer focused on execution and operations. He builds and scales Sylvy with a strong emphasis on reliability and performance, drawing on his experience developing software for the aeronautics industry.",
+                  institutionLogos: [
+                    { src: "/founders/logos/berkeley.png", alt: "UC Berkeley", grow: 5 },
+                    { src: "/founders/logos/hec.png", alt: "X-HEC Entrepreneurs", grow: 6 },
+                    { src: "/founders/logos/isae.png", alt: "ISAE SUPAERO", grow: 3 },
+                  ],
+                  expLogos: [
+                    { src: "/founders/logos/tarmac.png", alt: "Tarmac Technologies" },
+                    { src: "/founders/logos/valley.png", alt: "Valley" },
+                  ],
+                },
+              ] as const
+            ).map(({ name, title, role, photo, linkedin, bio, institutionLogos, expLogos }) => (
+              <div key={name} className="flex h-96 w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                <div className="flex gap-5 flex-1 min-h-0">
+                  {/* LEFT: photo + linkedin */}
+                  <div className="flex w-2/5 shrink-0 flex-col gap-4">
+                    <div className="h-44 shrink-0 overflow-hidden rounded-xl bg-white/5">
+                      <img
+                        src={photo}
+                        alt={name}
+                        className="h-full w-full object-cover object-top"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                    <a
+                      href={linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 text-xs text-white/50 transition-colors hover:text-white"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                      LinkedIn
+                    </a>
+                  </div>
+
+                  {/* RIGHT: nom + title + bio */}
+                  <div className="flex flex-1 flex-col gap-2 py-1 min-w-0">
+                    <div>
+                      <p className="text-sm font-bold leading-tight text-white whitespace-nowrap">{name} <span className="text-white">— {title}</span></p>
+                      <p className="mt-0.5 text-sm text-white/50">{role}</p>
+                    </div>
+                    <p className="text-xs leading-relaxed text-white/65">{bio}</p>
+                  </div>
+                </div>
+
+                {/* BOTTOM: institution logos + exp logos */}
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-3 mt-auto border-t border-white/10">
+                  {institutionLogos.map((l) => (
+                    <img
+                      key={l.alt}
+                      src={l.src}
+                      alt={l.alt}
+                      className={`w-auto object-contain opacity-75 ${l.alt === "UC Berkeley" || l.alt === "X-HEC Entrepreneurs" ? "h-14 max-w-[10rem]" : "h-10 max-w-[8rem]"}`}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 pt-2">
+                  {expLogos.map((l) => (
+                    <img
+                      key={l.alt}
+                      src={l.src}
+                      alt={l.alt}
+                      className="h-8 max-w-[6rem] w-auto object-contain opacity-70"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <button
         type="button"
         onClick={() => document.getElementById("notebook")?.scrollIntoView({ behavior: "smooth" })}
-        className="absolute bottom-56 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 text-white opacity-70 transition-opacity hover:opacity-100"
+        className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-2 text-white opacity-70 transition-opacity hover:opacity-100"
       >
         <span className="text-sm font-medium tracking-widest uppercase">Sylvy products</span>
         <svg

@@ -1087,10 +1087,10 @@ export default function Home() {
                 className="w-auto object-contain"
                 style={{ height: "1.3em" }}
               />
-              <span>notebook</span>
+              <span>snapshot</span>
             </div>
           </div>
-          <div className="mx-auto w-full max-w-5xl px-4 pb-8 sm:px-6">
+          <div className="mx-auto w-full max-w-3xl px-4 pb-8 sm:px-6">
             <NotebookMorphDrag
               beforeSrc={notebookAfter}
               afterSrc={notebookBefore}
@@ -1158,10 +1158,11 @@ export default function Home() {
             </button>
             <div className="mt-6 flex justify-center">
               <a
-                href="/survey"
-                className="inline-flex h-[5.2rem] w-[80vw] max-w-3xl items-center justify-center rounded-xl border-2 bg-transparent text-lg font-semibold transition-all focus-visible:ring-[3px] outline-none survey-cta-button"
+                href="/lab-snapshot"
+                className="inline-flex h-[5.2rem] w-[80vw] max-w-3xl flex-col items-center justify-center rounded-xl border-2 bg-transparent transition-all focus-visible:ring-[3px] outline-none survey-cta-button text-center px-4"
               >
-                Get a 3-month Sylvy for free
+                <span className="text-lg font-semibold">Try Sylvy.snapshot for free and give us feedback</span>
+                <span className="text-sm opacity-70">No registration needed</span>
               </a>
             </div>
           </div>

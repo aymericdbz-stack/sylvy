@@ -21,7 +21,7 @@ const tools = [
   {
     id: 'notebook',
     icon: BookOpen,
-    label: 'Sylvy Notebook',
+    label: 'Sylvy notebook',
     description: 'Log experiments, manage protocols, and generate AI reports.',
     cta: 'Open Notebook',
     href: '/notebook',
@@ -31,7 +31,7 @@ const tools = [
   {
     id: 'planner',
     icon: BarChart2,
-    label: 'Sylvy Planner',
+    label: 'Sylvy planner',
     description: 'Plan and track your lab projects across your team.',
     cta: 'Open Planner',
     href: '/planner',
@@ -41,7 +41,7 @@ const tools = [
   {
     id: 'labmind',
     icon: Brain,
-    label: 'Sylvy Labmind',
+    label: 'Sylvy labmind',
     description: 'AI-powered insights and predictions from your lab data.',
     cta: 'Coming soon',
     href: null,
