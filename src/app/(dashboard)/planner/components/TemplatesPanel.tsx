@@ -320,7 +320,7 @@ export default function TemplatesPanel({
     }
   }
 
-  const usedTemplateColors = templates.map(t => t.color)
+  const usedTemplateColors = templates.map(t => t.color).filter((c): c is string => c !== null)
 
   return (
     <>
