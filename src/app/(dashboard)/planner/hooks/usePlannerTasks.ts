@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/types'
+import { pickDistinctPlannerColor } from '../utils/colors'
 
 export type Placement = 'manual' | 'auto'
 export type Priority  = 'critical' | 'normal' | 'low'
@@ -48,14 +49,6 @@ export interface PlannerTaskInsert {
   steps:            StepData[]
   color?:           string | null
   scheduled_start?: string | null
-}
-
-const TASK_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
-let colorIdx = 0
-function nextColor(): string {
-  const c = TASK_COLORS[colorIdx % TASK_COLORS.length]
-  colorIdx++
-  return c
 }
 
 function parseStep(raw: unknown): StepData {
@@ -121,6 +114,10 @@ export function usePlannerTasks() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
+    // Ensure each new task gets a color not already visible in the calendar.
+    const usedColors = tasks.map(t => t.color)
+    const color = pickDistinctPlannerColor(usedColors, data.color ?? null)
+
     const { data: row, error } = await supabase
       .from('planner_tasks')
       .insert({
@@ -131,8 +128,7 @@ export function usePlannerTasks() {
         placement:       data.placement    ?? 'auto',
         deadline:        data.deadline     ?? null,
         steps:           data.steps        as unknown as Json,
-        // Always assign a fresh color from the palette for new tasks
-        color:           nextColor(),
+        color,
         scheduled_start: data.scheduled_start ?? null,
       })
       .select('id')
@@ -142,7 +138,7 @@ export function usePlannerTasks() {
     setDirty(true)
     await fetchTasks()
     return (row as { id: string }).id
-  }, [fetchTasks])
+  }, [fetchTasks, tasks])
 
   const updateTask = useCallback(async (id: string, data: PlannerTaskInsert) => {
     const supabase = createClient()

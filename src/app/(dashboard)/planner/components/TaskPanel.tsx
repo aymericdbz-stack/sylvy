@@ -11,14 +11,13 @@ import type { PlannerTask, PlannerTaskInsert, StepData, Priority } from '../hook
 import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
 import { getTimezone } from '@/lib/preferences'
 import { tzDatetimeToUTC } from '../utils/timezone'
-
-const STEP_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
+import { PLANNER_COLOR_PALETTE, pickDistinctPlannerColor } from '../utils/colors'
 
 // ── Color picker ───────────────────────────────────────────────────────────────
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
   return (
     <div className="flex gap-2 flex-wrap">
-      {STEP_COLORS.map(c => (
+      {PLANNER_COLOR_PALETTE.map(c => (
         <button key={c} type="button" onClick={() => onChange(c)}
           className={`w-6 h-6 rounded-full border-2 transition-transform ${
             value === c ? 'border-pl-charcoal scale-110' : 'border-transparent hover:scale-105'
@@ -64,13 +63,15 @@ interface TaskPanelProps {
   task?:           PlannerTask | null
   selectedStepId?: string | null
   templates:       TaskTemplate[]
+  /** Colors currently visible on the calendar (to pick a distinct default). */
+  usedColors?:     string[]
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function TaskPanel({
   open, onClose, onSave, onUpdate, onDelete,
   onManualPlace,
-  task, templates,
+  task, templates, usedColors = [],
 }: TaskPanelProps) {
   const isEdit  = !!task
   const nameRef = useRef<HTMLInputElement>(null)
@@ -81,7 +82,7 @@ export default function TaskPanel({
   const [priority,     setPriority]     = useState<Priority>('normal')
   const [deadline,     setDeadline]     = useState('')
   const [steps,        setSteps]        = useState<StepData[]>([emptyStep()])
-  const [color,        setColor]        = useState(STEP_COLORS[0])
+  const [color,        setColor]        = useState(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
   const [selectedTpl,  setSelectedTpl]  = useState('')
   const [saving,       setSaving]       = useState(false)
   const [deleting,     setDeleting]     = useState(false)
@@ -95,7 +96,7 @@ export default function TaskPanel({
       setPriority(task.priority ?? 'normal')
       setDeadline(task.deadline ? task.deadline.slice(0, 10) : '')
       setSteps(task.steps.length > 0 ? task.steps : [emptyStep()])
-      setColor(task.color ?? STEP_COLORS[0])
+      setColor(task.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
       setSelectedTpl('')
       setActiveTab('oneoff')
     } else {
@@ -104,12 +105,12 @@ export default function TaskPanel({
       setPriority('normal')
       setDeadline('')
       setSteps([emptyStep()])
-      setColor(STEP_COLORS[0])
+      setColor(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
       setSelectedTpl('')
       setActiveTab('template')
     }
     setTimeout(() => nameRef.current?.focus(), 100)
-  }, [open, task])
+  }, [open, task, usedColors])
 
   // Load template
   useEffect(() => {
@@ -118,7 +119,7 @@ export default function TaskPanel({
     if (!tpl) return
     const tplSteps = tpl.steps.length > 0 ? tpl.steps.map(s => ({ ...s, id: uid() })) : [emptyStep()]
     setSteps(tplSteps)
-    setColor(tpl.color ?? STEP_COLORS[0])
+    setColor(pickDistinctPlannerColor(usedColors, tpl.color ?? null))
     if (!name) setName(tpl.name)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTpl, templates])

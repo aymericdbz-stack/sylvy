@@ -18,9 +18,10 @@ import { useTaskTemplates }           from './hooks/useTaskTemplates'
 import { getWorkHours, getPlannerWeekendsEnabled, getTimezone } from '@/lib/preferences'
 import { tzDatetimeToUTC }            from './utils/timezone'
 import { downloadIcal, generateIcal } from './utils/ical'
+import { pickDistinctPlannerColor }  from './utils/colors'
 import type { ScheduledTaskBlock }    from './components/TaskBlock'
 import type { PlannerTask, StepData } from './hooks/usePlannerTasks'
-import type { IntercalationResult }   from './engine/solveIntercalation'
+import { solveIntercalation, type IntercalationResult } from './engine/solveIntercalation'
 
 import type {
   CalendarView,
@@ -135,6 +136,16 @@ interface PlacementCheckResult {
   reason?: string
 }
 
+function toISODateLocal(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function minToHHMM(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 function isBusinessDay(date: Date, includeWeekends: boolean): boolean {
   if (includeWeekends) return true
   const dow = date.getDay() // 0=Sun, 1=Mon, ... 6=Sat
@@ -246,6 +257,21 @@ export default function PlannerClient() {
   } = usePlannerTasks()
   const { templates, createTemplate, updateTemplate, deleteTemplate } = useTaskTemplates()
 
+  // When creating a template, ensure its color is distinct from what's currently visible in the planner UI.
+  const createTemplateDistinct = useCallback(async (data: import('./hooks/useTaskTemplates').TaskTemplateInsert) => {
+    const used = [
+      ...tasks.map(t => t.color),
+      ...templates.map(t => t.color),
+    ]
+    const color = pickDistinctPlannerColor(used, data.color ?? null)
+    return createTemplate({ ...data, color })
+  }, [createTemplate, tasks, templates])
+
+  const pendingTask = useMemo(
+    () => (manualPlaceTaskId ? tasks.find(t => t.id === manualPlaceTaskId) ?? null : null),
+    [manualPlaceTaskId, tasks],
+  )
+
   const monday   = getMondayOf(currentDate)
   const weekEvts = getWeekEvents(events, monday)
 
@@ -273,6 +299,69 @@ export default function PlannerClient() {
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
+
+  // Auto-repair: if a task is already outside working hours (legacy bug),
+  // snap it back to the nearest valid in-hours start so it becomes movable again.
+  const repairedOutOfHoursRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!tasks.length) return
+
+    const tz = getTimezone()
+    let cancelled = false
+
+    ;(async () => {
+      for (const t of tasks) {
+        if (cancelled) return
+        if (!t.scheduled_start) continue
+        if (repairedOutOfHoursRef.current.has(t.id)) continue
+
+        const scheduledStartLocal = new Date(t.scheduled_start)
+        const check = validateTaskPlacement(t, scheduledStartLocal, tasks, workHours, includeWeekends)
+        if (check.ok) continue
+
+        // Only auto-repair tasks that violate working-hours/day rules (not generic conflicts).
+        const reason = check.reason ?? ''
+        const looksLikeWorkHoursIssue =
+          reason.includes('working hours') ||
+          reason.includes('non-working days') ||
+          reason.includes('overnight')
+
+        if (!looksLikeWorkHoursIssue) continue
+
+        const startMin = scheduledStartLocal.getHours() * 60 + scheduledStartLocal.getMinutes()
+        const result = solveIntercalation({
+          existingTasks: [],
+          newTask: { taskId: t.id, startMin, steps: t.steps as StepData[] },
+          workHours,
+        })
+        const repaired = result.placements.find(p => p.taskId === t.id)
+        if (!repaired) continue
+        if (repaired.startMin === startMin) continue
+
+        repairedOutOfHoursRef.current.add(t.id)
+
+        const dateISO = toISODateLocal(scheduledStartLocal)
+        const utc = tzDatetimeToUTC(dateISO, minToHHMM(repaired.startMin), tz)
+        try {
+          await updateTask(t.id, {
+            name:            t.name,
+            description:     t.description,
+            priority:        t.priority,
+            placement:       t.placement,
+            deadline:        t.deadline,
+            steps:           t.steps,
+            color:           t.color,
+            scheduled_start: utc,
+          })
+          toast.info(`Moved "${t.name}" back into working hours`)
+        } catch {
+          // If this fails (network, permissions), user can still move manually once it’s in a valid spot.
+        }
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [tasks, workHours, includeWeekends, updateTask])
 
   // Close manual placement mode on Escape
   useEffect(() => {
@@ -381,6 +470,26 @@ export default function PlannerClient() {
     const utc = tzDatetimeToUTC(date, time, tz)
 
     try {
+      // Safety guard: never persist a placement outside working hours.
+      // (The intercalation solver also enforces this, but this prevents any edge cases.)
+      const scheduledStartLocal = new Date(`${date}T${time}:00`)
+      const tasksForValidation = solverResult
+        ? tasks.map(t => {
+            const placement = solverResult.placements.find(p => p.taskId === t.id)
+            return placement ? ({ ...t, steps: placement.steps } as PlannerTask) : t
+          })
+        : tasks
+      const movedPlacement = solverResult?.placements.find(p => p.taskId === taskId)
+      const taskForValidation = movedPlacement
+        ? ({ ...task, steps: movedPlacement.steps } as PlannerTask)
+        : task
+
+      const ok = validateTaskPlacement(taskForValidation, scheduledStartLocal, tasksForValidation, workHours, includeWeekends)
+      if (!ok.ok) {
+        toast.error(ok.reason ?? 'This task cannot be placed here')
+        return
+      }
+
       // If the solver adjusted other tasks (flex steps), persist all changes
       if (solverResult && solverResult.placements.length > 1) {
         const updates = solverResult.placements.map(p => {
@@ -439,6 +548,11 @@ export default function PlannerClient() {
         } else {
           toast.success('Task updated')
         }
+      }
+
+      // If we were in "manual place" mode for this task, exit it after a successful drop.
+      if (manualPlaceTaskId === taskId) {
+        setManualPlaceTaskId(null)
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error updating task')
@@ -517,7 +631,7 @@ export default function PlannerClient() {
       {manualPlaceTaskId && (
         <div className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 bg-pl-charcoal text-white z-20">
           <span className="text-[11px] font-[600] font-nb-mono flex-1">
-            Click on the calendar to set the task start time
+            Drag on the calendar to place the new task
           </span>
           <button
             onClick={() => setManualPlaceTaskId(null)}
@@ -568,6 +682,7 @@ export default function PlannerClient() {
               date={currentDate}
               events={events}
               scheduledTasks={scheduledTaskBlocks}
+              pendingTask={pendingTask}
               onEventClick={handleEventClick}
               onSlotClick={handleSlotClick}
               onTaskClick={(task, stepId) => {
@@ -584,6 +699,7 @@ export default function PlannerClient() {
               weekStart={getMondayOf(currentDate)}
               events={events}
               scheduledTasks={scheduledTaskBlocks}
+              pendingTask={pendingTask}
               onEventClick={handleEventClick}
               onSlotClick={handleSlotClick}
               onTaskClick={(task, stepId) => {
@@ -640,9 +756,10 @@ export default function PlannerClient() {
         task={editTask}
         selectedStepId={selectedStepId}
         templates={templates}
+        usedColors={tasks.map(t => t.color).filter(Boolean) as string[]}
         onClose={() => { setTaskPanelOpen(false); setEditTask(null); setSelectedStepId(null) }}
         onSave={createTask}
-        onSaveTemplate={createTemplate}
+        onSaveTemplate={createTemplateDistinct}
         onUpdate={updateTask}
         onDelete={deleteTask}
         onManualPlace={setManualPlaceTaskId}
@@ -653,7 +770,7 @@ export default function PlannerClient() {
         open={templatesPanelOpen}
         templates={templates}
         onClose={() => setTemplatesPanelOpen(false)}
-        onCreate={createTemplate}
+        onCreate={createTemplateDistinct}
         onUpdate={updateTemplate}
         onDelete={deleteTemplate}
       />

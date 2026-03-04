@@ -7,7 +7,7 @@ import type { ScheduledTaskBlock } from './TaskBlock'
 import { getTimezone } from '@/lib/preferences'
 import { solveIntercalation } from '../engine/solveIntercalation'
 import type { IntercalationResult, TaskPlacement } from '../engine/solveIntercalation'
-import type { StepData } from '../hooks/usePlannerTasks'
+import type { StepData, PlannerTask } from '../hooks/usePlannerTasks'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PX_PER_HOUR_DEFAULT = 52
@@ -15,6 +15,8 @@ const DAY_START = 0
 const DAY_END = 24
 const DAY_START_MIN = DAY_START * 60
 const DAY_END_MIN = DAY_END * 60
+/** Grid snap for task drag (minutes). 5 = smooth 5-min steps; no quarter-hour jump. */
+const SNAP_MINUTES = 5
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -207,6 +209,8 @@ interface DayCalendarProps {
   date: Date
   events: CalendarEvent[]
   scheduledTasks?: ScheduledTaskBlock[]
+  /** Unscheduled task that is being manually placed via drag-to-drop. */
+  pendingTask?: PlannerTask | null
   onEventClick: (event: CalendarEvent) => void
   onSlotClick: (date: string, time: string, endTime?: string) => void
   onTaskClick?: (task: import('../hooks/usePlannerTasks').PlannerTask, stepId?: string) => void
@@ -220,6 +224,7 @@ export default function DayCalendar({
   date,
   events,
   scheduledTasks = [],
+  pendingTask = null,
   onEventClick,
   onSlotClick,
   onTaskClick,
@@ -509,7 +514,7 @@ export default function DayCalendar({
     if (!container) return DAY_START_MIN
     const rect = container.getBoundingClientRect()
     const y = clientY - rect.top + container.scrollTop
-    const min = Math.round(y / PX_PER_MIN / 15) * 15 + DAY_START_MIN
+    const min = Math.round(y / PX_PER_MIN / SNAP_MINUTES) * SNAP_MINUTES + DAY_START_MIN
     return Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, min))
   }
 
@@ -528,10 +533,34 @@ export default function DayCalendar({
     startMin: number
     endMin:   number
   } | null>(null)
+  const [showDragLabels, setShowDragLabels] = useState(false)
+  const showDragLabelsRef = useRef(false)
   const taskDragPreviewRef = useRef<typeof taskDragPreview | null>(null)
   useEffect(() => {
     taskDragPreviewRef.current = taskDragPreview
   }, [taskDragPreview])
+
+  // Drag-to-place for a newly created (unscheduled) task.
+  const pendingDragRef = useRef<{
+    taskId:        string
+    originClientX: number
+    originClientY: number
+    anchorMin:     number
+    durationMin:   number
+    hasStarted:    boolean
+  } | null>(null)
+  const [pendingDragPreview, setPendingDragPreview] = useState<{
+    taskId:   string
+    startMin: number
+    endMin:   number
+  } | null>(null)
+  const [showPendingDragLabels, setShowPendingDragLabels] = useState(false)
+  const showPendingDragLabelsRef = useRef(false)
+  const pendingDragPreviewRef = useRef<typeof pendingDragPreview | null>(null)
+  useEffect(() => {
+    pendingDragPreviewRef.current = pendingDragPreview
+  }, [pendingDragPreview])
+
   const onTaskMoveRef = useRef(onTaskMove)
   useEffect(() => {
     onTaskMoveRef.current = onTaskMove
@@ -540,6 +569,9 @@ export default function DayCalendar({
   useEffect(() => {
     onTaskClickRef.current = onTaskClick
   }, [onTaskClick])
+
+  const pendingTaskRef = useRef<PlannerTask | null>(pendingTask)
+  useEffect(() => { pendingTaskRef.current = pendingTask }, [pendingTask])
 
   // Refs for intercalation solver inputs (avoid stale closures in mousemove)
   const scheduledTasksRef = useRef(scheduledTasks)
@@ -552,10 +584,40 @@ export default function DayCalendar({
   const intercalationPreviewRef = useRef<IntercalationResult | null>(null)
   useEffect(() => { intercalationPreviewRef.current = intercalationPreview }, [intercalationPreview])
 
+  function computeDurationMin(steps: StepData[]): number {
+    return steps.reduce((acc, s) => Math.max(acc, s.startOffset + (s.scheduledDuration ?? s.duration)), 0)
+  }
+
   function handleColMouseDown(e: React.MouseEvent) {
     if (e.button !== 0) return
     e.preventDefault()
     const anchorMin = clientYToMinRef.current(e.clientY)
+
+    if (pendingTask) {
+      const durationMin = computeDurationMin(pendingTask.steps as StepData[])
+      pendingDragRef.current = {
+        taskId:      pendingTask.id,
+        originClientX: e.clientX,
+        originClientY: e.clientY,
+        anchorMin,
+        durationMin,
+        hasStarted: false,
+      }
+
+      const startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - durationMin, anchorMin))
+      setPendingDragPreview({
+        taskId: pendingTask.id,
+        startMin,
+        endMin: startMin + durationMin,
+      })
+      pendingDragPreviewRef.current = {
+        taskId: pendingTask.id,
+        startMin,
+        endMin: startMin + durationMin,
+      }
+      return
+    }
+
     dragRef.current = { dayISO, anchorMin }
     const preview = { startMin: anchorMin, endMin: anchorMin + 15 }
     dragPreviewRef.current = preview
@@ -595,6 +657,66 @@ export default function DayCalendar({
         setDragPreview(preview)
       }
 
+      if (pendingDragRef.current) {
+        const t = pendingDragRef.current
+        const pending = pendingTaskRef.current
+        if (!pending) return
+
+        const pointerMin = clientYToMinRef.current(e.clientY)
+
+        if (!t.hasStarted) {
+          const dx = e.clientX - t.originClientX
+          const dy = e.clientY - t.originClientY
+          const movedEnough = Math.hypot(dx, dy) >= 4
+          if (!movedEnough) {
+            return
+          }
+          t.hasStarted = true
+          if (!showPendingDragLabelsRef.current) {
+            showPendingDragLabelsRef.current = true
+            setShowPendingDragLabels(true)
+          }
+        }
+
+        let startMin = pointerMin
+        startMin = Math.round(startMin / SNAP_MINUTES) * SNAP_MINUTES
+        startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
+
+        // Run intercalation solver (day view = same-day only)
+        const allTasks = scheduledTasksRef.current
+        const existingTasks: TaskPlacement[] = allTasks.map(tb => ({
+          taskId: tb.task.id,
+          startMin: tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes(),
+          steps: tb.task.steps as StepData[],
+        }))
+
+        const result = solveIntercalation({
+          existingTasks,
+          newTask: {
+            taskId: t.taskId,
+            startMin,
+            steps: pending.steps as StepData[],
+          },
+          workHours: workHoursRef.current,
+        })
+
+        setIntercalationPreview(result)
+        intercalationPreviewRef.current = result
+
+        const solvedNew = result.placements.find(p => p.taskId === t.taskId)
+        if (solvedNew) {
+          startMin = solvedNew.startMin
+        }
+
+        const preview = {
+          taskId: t.taskId,
+          startMin,
+          endMin: startMin + t.durationMin,
+        }
+        setPendingDragPreview(preview)
+        pendingDragPreviewRef.current = preview
+      }
+
       if (taskDragRef.current) {
         const t = taskDragRef.current
         const pointerMin = clientYToMinRef.current(e.clientY)
@@ -609,10 +731,14 @@ export default function DayCalendar({
             return
           }
           t.hasStarted = true
+          if (!showDragLabelsRef.current) {
+            showDragLabelsRef.current = true
+            setShowDragLabels(true)
+          }
         }
 
         let startMin = pointerMin - t.pointerOffsetMin
-        startMin = Math.round(startMin / 15) * 15
+        startMin = Math.round(startMin / SNAP_MINUTES) * SNAP_MINUTES
         startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
 
         // Run intercalation solver
@@ -676,8 +802,48 @@ export default function DayCalendar({
       const t = taskDragRef.current
       const taskMoveCb = onTaskMoveRef.current
       const taskClickCb = onTaskClickRef.current
+
+      const p = pendingDragRef.current
+      if (p) {
+        pendingDragRef.current = null
+        showPendingDragLabelsRef.current = false
+        setShowPendingDragLabels(false)
+        const pending = pendingTaskRef.current
+        const prev = pendingDragPreviewRef.current
+        const solverResult = intercalationPreviewRef.current
+
+        const startMin = prev?.startMin ?? Math.max(
+          DAY_START_MIN,
+          Math.min(DAY_END_MIN - p.durationMin, Math.round(p.anchorMin / SNAP_MINUTES) * SNAP_MINUTES),
+        )
+
+        if (pending && taskMoveCb) {
+          const res = taskMoveCb(p.taskId, dayISO, minToHHMM(startMin), solverResult ?? undefined)
+          if (res && typeof (res as any).catch === 'function') {
+            ;(res as Promise<void>).catch(() => {
+              pendingDragPreviewRef.current = null
+              setPendingDragPreview(null)
+              showPendingDragLabelsRef.current = false
+              setShowPendingDragLabels(false)
+              intercalationPreviewRef.current = null
+              setIntercalationPreview(null)
+            })
+          }
+        }
+
+        pendingDragPreviewRef.current = null
+        setPendingDragPreview(null)
+        showPendingDragLabelsRef.current = false
+        setShowPendingDragLabels(false)
+        intercalationPreviewRef.current = null
+        setIntercalationPreview(null)
+      }
+
       if (t) {
         taskDragRef.current = null
+        // Hide drag-time labels immediately on drop; keep ghost until DB updates.
+        showDragLabelsRef.current = false
+        setShowDragLabels(false)
         const prevTask = taskDragPreviewRef.current
         const solverResult = intercalationPreviewRef.current
 
@@ -690,6 +856,8 @@ export default function DayCalendar({
             ;(res as Promise<void>).catch(() => {
               taskDragPreviewRef.current = null
               setTaskDragPreview(null)
+              showDragLabelsRef.current = false
+              setShowDragLabels(false)
               intercalationPreviewRef.current = null
               setIntercalationPreview(null)
             })
@@ -702,12 +870,16 @@ export default function DayCalendar({
           }
           taskDragPreviewRef.current = null
           setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
           intercalationPreviewRef.current = null
           setIntercalationPreview(null)
         } else {
           // No move callback: clear any preview.
           taskDragPreviewRef.current = null
           setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
           intercalationPreviewRef.current = null
           setIntercalationPreview(null)
         }
@@ -741,6 +913,8 @@ export default function DayCalendar({
     if (match) {
       taskDragPreviewRef.current = null
       setTaskDragPreview(null)
+      showDragLabelsRef.current = false
+      setShowDragLabels(false)
       intercalationPreviewRef.current = null
       setIntercalationPreview(null)
     }
@@ -939,121 +1113,183 @@ export default function DayCalendar({
                 }
               })
 
-              const { colMap: taskColMap, maxCols: taskMaxCols } = assignTaskColumns(displayTasks)
-              return displayTasks.map(({ block: tb, dayOffset }) => {
-                const dragState = taskDragRef.current
-                const isOriginDragged =
-                  dragState &&
-                  dragState.taskId === tb.task.id &&
-                  dayOffset === 0 &&
-                  dragState.hasStarted
+              // Stable lane index (0–2) per template for available steps.
+              const AVAIL_LANES = 3
+              const availLaneMap = new Map<string, number>()
+              const primaryTasks = displayTasks
+                .filter(({ dayOffset }) => dayOffset === 0)
+                .slice()
+                .sort((a, b) => {
+                  const aStart = a.block.scheduledStart.getTime()
+                  const bStart = b.block.scheduledStart.getTime()
+                  return aStart - bStart || a.block.task.id.localeCompare(b.block.task.id)
+                })
+              primaryTasks.forEach(({ block: tb }, index) => {
+                const lane = Math.min(index, AVAIL_LANES - 1)
+                availLaneMap.set(tb.task.id, lane)
+              })
 
-                // While a task is being dragged, hide its "real" instance.
-                if (taskDragPreview && taskDragPreview.taskId === tb.task.id) {
-                  if (isOriginDragged) {
+              const { colMap: taskColMap, maxCols: taskMaxCols } = assignTaskColumns(displayTasks)
+              return (
+                <>
+                  {displayTasks.map(({ block: tb, dayOffset }) => {
+                    const dragState = taskDragRef.current
+                    const isOriginDragged =
+                      dragState &&
+                      dragState.taskId === tb.task.id &&
+                      dayOffset === 0 &&
+                      dragState.hasStarted
+
+                    // While a task is being dragged, hide its "real" instance.
+                    if (taskDragPreview && taskDragPreview.taskId === tb.task.id) {
+                      if (isOriginDragged) {
+                        const taskKey = `${tb.task.id}-${dayOffset}`
+                        const taskCol = taskColMap.get(taskKey) ?? 0
+                        return (
+                          <TaskBlock
+                            key={`${tb.task.id}-${dayOffset}`}
+                            block={tb}
+                            col={taskCol}
+                            maxCols={taskMaxCols}
+                            availLaneIndex={availLaneMap.get(tb.task.id) ?? 0}
+                            dayOffset={dayOffset}
+                            pxPerHour={pxPerHour}
+                            onClick={onTaskClick}
+                            isDragGhost
+                          />
+                        )
+                      }
+                      return null
+                    }
+
                     const taskKey = `${tb.task.id}-${dayOffset}`
                     const taskCol = taskColMap.get(taskKey) ?? 0
+
                     return (
                       <TaskBlock
                         key={`${tb.task.id}-${dayOffset}`}
                         block={tb}
                         col={taskCol}
                         maxCols={taskMaxCols}
+                        availLaneIndex={availLaneMap.get(tb.task.id) ?? 0}
                         dayOffset={dayOffset}
                         pxPerHour={pxPerHour}
                         onClick={onTaskClick}
+                        onMouseDown={dayOffset === 0 ? (e) => handleTaskMouseDown(e, tb) : undefined}
+                      />
+                    )
+                  })}
+
+                  {/* Origin placeholder for dragged template — uniform tinted block at previous position */}
+                  {taskDragRef.current && taskDragRef.current.hasStarted && (() => {
+                    const t = taskDragRef.current
+                    const originStart = t.originalStartMin
+                    const originEnd   = originStart + t.durationMin
+                    const top         = (originStart - DAY_START_MIN) * PX_PER_MIN
+                    const height      = Math.max((originEnd - originStart) * PX_PER_MIN, 14)
+
+                    const dragged = tasksForDay.find(({ block }) => block.task.id === t.taskId)?.block
+                    const colorHex = dragged?.task.color ?? '#F97316'
+                    const parseColor = (hex: string) => {
+                      const clean = hex.replace('#', '')
+                      const r = parseInt(clean.slice(0, 2), 16) || 249
+                      const g = parseInt(clean.slice(2, 4), 16) || 115
+                      const b = parseInt(clean.slice(4, 6), 16) || 22
+                      return { r, g, b }
+                    }
+                    const { r, g, b } = parseColor(colorHex)
+
+                    return (
+                      <div
+                        className="absolute z-10 pointer-events-none rounded-[4px] overflow-hidden"
+                        style={{
+                          top,
+                          height,
+                          left:  '3px',
+                          right: '3px',
+                          backgroundColor: `rgba(${r}, ${g}, ${b}, 0.14)`,
+                          border:          `1px solid rgba(${r}, ${g}, ${b}, 0.45)`,
+                        }}
+                      />
+                    )
+                  })()}
+
+                  {/* Pending (new) task drag-preview — place by dragging onto the calendar */}
+                  {pendingDragPreview && pendingTask && (() => {
+                    const solverPlacement = intercalationPreview?.placements.find(
+                      p => p.taskId === pendingDragPreview.taskId,
+                    )
+                    const dragTask: PlannerTask = solverPlacement
+                      ? { ...pendingTask, steps: solverPlacement.steps }
+                      : pendingTask
+
+                    const startMin = pendingDragPreview.startMin
+                    const durMin = computeDurationMin(dragTask.steps as StepData[])
+                    const startDate = new Date(date)
+                    startDate.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
+
+                    const pendingLane = Math.min(availLaneMap.size, 2)
+
+                    return (
+                      <TaskBlock
+                        key={`pending-${pendingDragPreview.taskId}`}
+                        block={{
+                          task: dragTask,
+                          scheduledStart: startDate,
+                          conflict: false,
+                        }}
+                        col={0}
+                        maxCols={1}
+                        availLaneIndex={pendingLane}
+                        dayOffset={0}
+                        pxPerHour={pxPerHour}
+                        onClick={onTaskClick}
+                        dragTimeLabels={showPendingDragLabels ? {
+                          start: minToLabel(startMin),
+                          end:   minToLabel(startMin + durMin),
+                        } : undefined}
                         isDragGhost
                       />
                     )
-                  }
-                  return null
-                }
+                  })()}
 
-                const taskKey = `${tb.task.id}-${dayOffset}`
-                const taskCol = taskColMap.get(taskKey) ?? 0
+                  {/* Full template drag-preview — move the whole block with the cursor */}
+                  {taskDragPreview && (() => {
+                    const draggedIndex = tasksForDay.findIndex(
+                      ({ block: tb, dayOffset }) =>
+                        tb.task.id === taskDragPreview.taskId && dayOffset === 0,
+                    )
+                    if (draggedIndex === -1) return null
+                    const dragged = tasksForDay[draggedIndex]
 
-                return (
-                  <TaskBlock
-                    key={`${tb.task.id}-${dayOffset}`}
-                    block={tb}
-                    col={taskCol}
-                    maxCols={taskMaxCols}
-                    dayOffset={dayOffset}
-                    pxPerHour={pxPerHour}
-                    onClick={onTaskClick}
-                    onMouseDown={dayOffset === 0 ? (e) => handleTaskMouseDown(e, tb) : undefined}
-                  />
-                )
-              })
-            })()}
+                    // Use solver-adjusted steps for the dragged block if available
+                    const solverPlacement = intercalationPreview?.placements.find(
+                      p => p.taskId === taskDragPreview.taskId,
+                    )
+                    const dragBlock = solverPlacement
+                      ? { ...dragged.block, task: { ...dragged.block.task, steps: solverPlacement.steps } }
+                      : dragged.block
 
-            {/* Origin placeholder for dragged template — uniform tinted block at previous position */}
-            {taskDragRef.current && taskDragRef.current.hasStarted && (() => {
-              const t = taskDragRef.current
-              const originStart = t.originalStartMin
-              const originEnd   = originStart + t.durationMin
-              const top         = (originStart - DAY_START_MIN) * PX_PER_MIN
-              const height      = Math.max((originEnd - originStart) * PX_PER_MIN, 14)
-
-              const dragged = tasksForDay.find(({ block }) => block.task.id === t.taskId)?.block
-              const colorHex = dragged?.task.color ?? '#F97316'
-              const parseColor = (hex: string) => {
-                const clean = hex.replace('#', '')
-                const r = parseInt(clean.slice(0, 2), 16) || 249
-                const g = parseInt(clean.slice(2, 4), 16) || 115
-                const b = parseInt(clean.slice(4, 6), 16) || 22
-                return { r, g, b }
-              }
-              const { r, g, b } = parseColor(colorHex)
-
-              return (
-                <div
-                  className="absolute z-10 pointer-events-none rounded-[4px] overflow-hidden"
-                  style={{
-                    top,
-                    height,
-                    left:  '3px',
-                    right: '3px',
-                    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.14)`,
-                    border:          `1px solid rgba(${r}, ${g}, ${b}, 0.45)`,
-                  }}
-                />
-              )
-            })()}
-
-            {/* Full template drag-preview — move the whole block with the cursor */}
-            {taskDragPreview && (() => {
-              const draggedIndex = tasksForDay.findIndex(
-                ({ block: tb, dayOffset }) =>
-                  tb.task.id === taskDragPreview.taskId && dayOffset === 0,
-              )
-              if (draggedIndex === -1) return null
-              const dragged = tasksForDay[draggedIndex]
-
-              // Use solver-adjusted steps for the dragged block if available
-              const solverPlacement = intercalationPreview?.placements.find(
-                p => p.taskId === taskDragPreview.taskId,
-              )
-              const dragBlock = solverPlacement
-                ? { ...dragged.block, task: { ...dragged.block.task, steps: solverPlacement.steps } }
-                : dragged.block
-
-              return (
-                <TaskBlock
-                  key={`drag-${dragged.block.task.id}`}
-                  block={dragBlock}
-                  col={0}
-                  maxCols={1}
-                  dayOffset={0}
-                  pxPerHour={pxPerHour}
-                  onClick={onTaskClick}
-                  dragOverrideStartMin={taskDragPreview.startMin}
-                  dragTimeLabels={{
-                    start: minToLabel(taskDragPreview.startMin),
-                    end:   minToLabel(taskDragPreview.endMin),
-                  }}
-                  isDragGhost
-                />
+                    return (
+                      <TaskBlock
+                        key={`drag-${dragged.block.task.id}`}
+                        block={dragBlock}
+                        col={0}
+                        maxCols={1}
+                        availLaneIndex={availLaneMap.get(dragged.block.task.id) ?? 0}
+                        dayOffset={0}
+                        pxPerHour={pxPerHour}
+                        onClick={onTaskClick}
+                        dragOverrideStartMin={taskDragPreview.startMin}
+                        dragTimeLabels={showDragLabels ? {
+                          start: minToLabel(taskDragPreview.startMin),
+                          end:   minToLabel(taskDragPreview.endMin),
+                        } : undefined}
+                        isDragGhost
+                      />
+                    )
+                  })()}
+                </>
               )
             })()}
           </div>

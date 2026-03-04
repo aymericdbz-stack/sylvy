@@ -7,7 +7,7 @@ import type { ScheduledTaskBlock } from './TaskBlock'
 import { getTimezone } from '@/lib/preferences'
 import { solveIntercalation } from '../engine/solveIntercalation'
 import type { IntercalationResult, TaskPlacement } from '../engine/solveIntercalation'
-import type { StepData } from '../hooks/usePlannerTasks'
+import type { StepData, PlannerTask } from '../hooks/usePlannerTasks'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PX_PER_HOUR_DEFAULT = 52
@@ -17,6 +17,8 @@ const DAY_START    = 0   // 00:00
 const DAY_END      = 24  // 24:00
 const DAY_START_MIN = DAY_START * 60
 const DAY_END_MIN   = DAY_END   * 60
+/** Grid snap for task drag (minutes). 5 = smooth 5-min steps; no quarter-hour jump. */
+const SNAP_MINUTES = 5
 
 const DAY_NAMES  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -241,6 +243,8 @@ interface WeekCalendarProps {
   weekStart:       Date
   events:          CalendarEvent[]
   scheduledTasks?: ScheduledTaskBlock[]
+  /** Unscheduled task that is being manually placed via drag-to-drop. */
+  pendingTask?:    PlannerTask | null
   onEventClick:    (event: CalendarEvent) => void
   onSlotClick:     (date: string, time: string, endTime?: string) => void
   onTaskClick?:    (task: import('../hooks/usePlannerTasks').PlannerTask, stepId?: string) => void
@@ -254,6 +258,7 @@ interface WeekCalendarProps {
 export default function WeekCalendar({
   weekStart, events, scheduledTasks = [], onEventClick, onSlotClick, onTaskClick,
   workStartHour, workEndHour, includeWeekends = false, onTaskMove,
+  pendingTask = null,
 }: WeekCalendarProps) {
   const weekDays   = getWeekDays(weekStart)
   const todayISO   = toISO(new Date())
@@ -563,7 +568,7 @@ export default function WeekCalendar({
     if (!container) return DAY_START_MIN
     const rect = container.getBoundingClientRect()
     const y    = clientY - rect.top + container.scrollTop
-    const min  = Math.round(y / PX_PER_MIN / 15) * 15 + DAY_START_MIN
+    const min  = Math.round(y / PX_PER_MIN / SNAP_MINUTES) * SNAP_MINUTES + DAY_START_MIN
     return Math.max(DAY_START_MIN, Math.min(DAY_END_MIN, min))
   }
   const clientXToDayRef = useRef<(clientX: number) => { dayIdx: number; dayISO: string } | null>(null)
@@ -608,10 +613,38 @@ export default function WeekCalendar({
     startMin: number
     endMin:   number
   } | null>(null)
+  const [showDragLabels, setShowDragLabels] = useState(false)
+  const showDragLabelsRef = useRef(false)
   const taskDragPreviewRef = useRef<typeof taskDragPreview | null>(null)
   useEffect(() => {
     taskDragPreviewRef.current = taskDragPreview
   }, [taskDragPreview])
+
+  // Drag-to-place for a newly created (unscheduled) task.
+  const pendingDragRef = useRef<{
+    taskId:        string
+    originDayISO:  string
+    originDayIdx:  number
+    currentDayISO: string
+    currentDayIdx: number
+    originClientX: number
+    originClientY: number
+    anchorMin:     number
+    durationMin:   number
+    hasStarted:    boolean
+  } | null>(null)
+  const [pendingDragPreview, setPendingDragPreview] = useState<{
+    taskId:   string
+    dayIdx:   number
+    startMin: number
+    endMin:   number
+  } | null>(null)
+  const [showPendingDragLabels, setShowPendingDragLabels] = useState(false)
+  const showPendingDragLabelsRef = useRef(false)
+  const pendingDragPreviewRef = useRef<typeof pendingDragPreview | null>(null)
+  useEffect(() => {
+    pendingDragPreviewRef.current = pendingDragPreview
+  }, [pendingDragPreview])
   const onTaskMoveRef = useRef(onTaskMove)
   useEffect(() => {
     onTaskMoveRef.current = onTaskMove
@@ -620,6 +653,11 @@ export default function WeekCalendar({
   useEffect(() => {
     onTaskClickRef.current = onTaskClick
   }, [onTaskClick])
+
+  const pendingTaskRef = useRef<PlannerTask | null>(pendingTask)
+  useEffect(() => {
+    pendingTaskRef.current = pendingTask
+  }, [pendingTask])
 
   // Refs for intercalation solver inputs (avoid stale closures in mousemove)
   const scheduledTasksRef = useRef(scheduledTasks)
@@ -632,10 +670,48 @@ export default function WeekCalendar({
   const intercalationPreviewRef = useRef<IntercalationResult | null>(null)
   useEffect(() => { intercalationPreviewRef.current = intercalationPreview }, [intercalationPreview])
 
+  function computeDurationMin(steps: StepData[]): number {
+    return steps.reduce((acc, s) => Math.max(acc, s.startOffset + (s.scheduledDuration ?? s.duration)), 0)
+  }
+
   function handleColMouseDown(e: React.MouseEvent, dayISO: string, dayIdx: number) {
     if (e.button !== 0) return
     e.preventDefault()
     const anchorMin = clientYToMinRef.current(e.clientY)
+
+    // If a newly created task is pending placement, start a drag-to-place interaction
+    // instead of the drag-to-create-event interaction.
+    if (pendingTask) {
+      const durationMin = computeDurationMin(pendingTask.steps as StepData[])
+      pendingDragRef.current = {
+        taskId:        pendingTask.id,
+        originDayISO:  dayISO,
+        originDayIdx:  dayIdx,
+        currentDayISO: dayISO,
+        currentDayIdx: dayIdx,
+        originClientX: e.clientX,
+        originClientY: e.clientY,
+        anchorMin,
+        durationMin,
+        hasStarted: false,
+      }
+
+      const startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - durationMin, anchorMin))
+      setPendingDragPreview({
+        taskId: pendingTask.id,
+        dayIdx,
+        startMin,
+        endMin: startMin + durationMin,
+      })
+      pendingDragPreviewRef.current = {
+        taskId: pendingTask.id,
+        dayIdx,
+        startMin,
+        endMin: startMin + durationMin,
+      }
+      return
+    }
+
     dragRef.current = { dayISO, dayIdx, anchorMin }
     // Start with a minimal 15-min block — grows as the user drags
     const preview = { dayIdx, startMin: anchorMin, endMin: anchorMin + 15 }
@@ -687,6 +763,79 @@ export default function WeekCalendar({
         setDragPreview(preview)
       }
 
+      if (pendingDragRef.current) {
+        const t = pendingDragRef.current
+        const pending = pendingTaskRef.current
+        if (!pending) return
+
+        const pointerMin = clientYToMinRef.current(e.clientY)
+        const dayInfo = clientXToDayRef.current?.(e.clientX)
+
+        if (!t.hasStarted) {
+          const horizontalMovedToNewDay = !!dayInfo && dayInfo.dayISO !== t.originDayISO
+          const dx = e.clientX - t.originClientX
+          const dy = e.clientY - t.originClientY
+          const movedEnough = Math.hypot(dx, dy) >= 4
+          if (!movedEnough && !horizontalMovedToNewDay) {
+            return
+          }
+          t.hasStarted = true
+          if (!showPendingDragLabelsRef.current) {
+            showPendingDragLabelsRef.current = true
+            setShowPendingDragLabels(true)
+          }
+        }
+
+        let startMin = pointerMin
+        startMin = Math.round(startMin / SNAP_MINUTES) * SNAP_MINUTES
+        startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
+        let dayIdx = t.currentDayIdx
+        let dayISO = t.currentDayISO
+
+        if (dayInfo) {
+          dayIdx = dayInfo.dayIdx
+          dayISO = dayInfo.dayISO
+          t.currentDayIdx = dayIdx
+          t.currentDayISO = dayISO
+        }
+
+        const allTasks = scheduledTasksRef.current
+        const targetDayTasks: TaskPlacement[] = allTasks
+          .filter(tb => toISO(tb.scheduledStart) === dayISO)
+          .map(tb => ({
+            taskId: tb.task.id,
+            startMin: tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes(),
+            steps: tb.task.steps as StepData[],
+          }))
+
+        const result = solveIntercalation({
+          existingTasks: targetDayTasks,
+          newTask: {
+            taskId: t.taskId,
+            startMin,
+            steps: pending.steps as StepData[],
+          },
+          workHours: workHoursRef.current,
+        })
+
+        setIntercalationPreview(result)
+        intercalationPreviewRef.current = result
+
+        const solvedNew = result.placements.find(p => p.taskId === t.taskId)
+        if (solvedNew) {
+          startMin = solvedNew.startMin
+        }
+
+        const preview = {
+          taskId: t.taskId,
+          dayIdx,
+          startMin,
+          endMin: startMin + t.durationMin,
+        }
+        setPendingDragPreview(preview)
+        pendingDragPreviewRef.current = preview
+      }
+
       if (taskDragRef.current) {
         const t = taskDragRef.current
         const pointerMin = clientYToMinRef.current(e.clientY)
@@ -703,10 +852,14 @@ export default function WeekCalendar({
             return
           }
           t.hasStarted = true
+          if (!showDragLabelsRef.current) {
+            showDragLabelsRef.current = true
+            setShowDragLabels(true)
+          }
         }
 
         let startMin = pointerMin - t.pointerOffsetMin
-        startMin = Math.round(startMin / 15) * 15
+        startMin = Math.round(startMin / SNAP_MINUTES) * SNAP_MINUTES
         startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
         let dayIdx = t.currentDayIdx
         let dayISO = t.currentDayISO
@@ -783,11 +936,51 @@ export default function WeekCalendar({
         }
       }
 
-      const t = taskDragRef.current
+      const p = pendingDragRef.current
       const taskMoveCb = onTaskMoveRef.current
+      if (p) {
+        pendingDragRef.current = null
+        showPendingDragLabelsRef.current = false
+        setShowPendingDragLabels(false)
+        const pending = pendingTaskRef.current
+        const prev = pendingDragPreviewRef.current
+        const solverResult = intercalationPreviewRef.current
+
+        // If we never got a mousemove (click without drag), place at the anchor time.
+        const startMin = prev?.startMin ?? Math.max(
+          DAY_START_MIN,
+          Math.min(DAY_END_MIN - p.durationMin, Math.round(p.anchorMin / SNAP_MINUTES) * SNAP_MINUTES),
+        )
+
+        if (pending && taskMoveCb) {
+          const res = taskMoveCb(p.taskId, p.currentDayISO, minToHHMM(startMin), solverResult ?? undefined)
+          if (res && typeof (res as any).catch === 'function') {
+            ;(res as Promise<void>).catch(() => {
+              pendingDragPreviewRef.current = null
+              setPendingDragPreview(null)
+              showPendingDragLabelsRef.current = false
+              setShowPendingDragLabels(false)
+              intercalationPreviewRef.current = null
+              setIntercalationPreview(null)
+            })
+          }
+        }
+
+        pendingDragPreviewRef.current = null
+        setPendingDragPreview(null)
+        showPendingDragLabelsRef.current = false
+        setShowPendingDragLabels(false)
+        intercalationPreviewRef.current = null
+        setIntercalationPreview(null)
+      }
+
+      const t = taskDragRef.current
       const taskClickCb = onTaskClickRef.current
       if (t) {
         taskDragRef.current = null
+        // Hide drag-time labels immediately on drop; keep ghost until DB updates.
+        showDragLabelsRef.current = false
+        setShowDragLabels(false)
         const prevTask = taskDragPreviewRef.current
         const solverResult = intercalationPreviewRef.current
 
@@ -800,6 +993,8 @@ export default function WeekCalendar({
             ;(res as Promise<void>).catch(() => {
               taskDragPreviewRef.current = null
               setTaskDragPreview(null)
+              showDragLabelsRef.current = false
+              setShowDragLabels(false)
               intercalationPreviewRef.current = null
               setIntercalationPreview(null)
             })
@@ -812,12 +1007,16 @@ export default function WeekCalendar({
           }
           taskDragPreviewRef.current = null
           setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
           intercalationPreviewRef.current = null
           setIntercalationPreview(null)
           return
         } else {
           taskDragPreviewRef.current = null
           setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
           intercalationPreviewRef.current = null
           setIntercalationPreview(null)
           return
@@ -854,6 +1053,8 @@ export default function WeekCalendar({
     if (match) {
       taskDragPreviewRef.current = null
       setTaskDragPreview(null)
+      showDragLabelsRef.current = false
+      setShowDragLabels(false)
       intercalationPreviewRef.current = null
       setIntercalationPreview(null)
     }
@@ -1024,6 +1225,23 @@ export default function WeekCalendar({
                   dayOffset,
                 }
               })
+              // Stable lane index (0–2) per template for available steps, so
+              // overlapping available regions from different templates occupy
+              // distinct thirds of the day column.
+              const AVAIL_LANES = 3
+              const availLaneMap = new Map<string, number>()
+              const primaryDayTasks = dayTasks
+                .filter(({ dayOffset }) => dayOffset === 0)
+                .slice()
+                .sort((a, b) => {
+                  const aStart = a.block.scheduledStart.getTime()
+                  const bStart = b.block.scheduledStart.getTime()
+                  return aStart - bStart || a.block.task.id.localeCompare(b.block.task.id)
+                })
+              primaryDayTasks.forEach(({ block: tb }, index) => {
+                const lane = Math.min(index, AVAIL_LANES - 1)
+                availLaneMap.set(tb.task.id, lane)
+              })
               const { colMap: taskColMap, maxCols: taskMaxCols } = assignTaskColumns(dayTasks)
 
               return (
@@ -1104,6 +1322,7 @@ export default function WeekCalendar({
                             block={tb}
                             col={taskCol}
                             maxCols={taskMaxCols}
+                            availLaneIndex={availLaneMap.get(tb.task.id) ?? 0}
                             dayOffset={dayOffset}
                             pxPerHour={pxPerHour}
                             onClick={onTaskClick}
@@ -1123,6 +1342,7 @@ export default function WeekCalendar({
                         block={tb}
                         col={taskCol}
                         maxCols={taskMaxCols}
+                        availLaneIndex={availLaneMap.get(tb.task.id) ?? 0}
                         dayOffset={dayOffset}
                         pxPerHour={pxPerHour}
                         onClick={onTaskClick}
@@ -1134,6 +1354,45 @@ export default function WeekCalendar({
                       />
                     )
                   })}
+
+                  {/* Pending (new) task drag-preview — place by dragging onto the calendar */}
+                  {pendingDragPreview && pendingTask && pendingDragPreview.dayIdx === dayIdx && (() => {
+                    const solverPlacement = intercalationPreview?.placements.find(
+                      p => p.taskId === pendingDragPreview.taskId,
+                    )
+                    const dragTask: PlannerTask = solverPlacement
+                      ? { ...pendingTask, steps: solverPlacement.steps }
+                      : pendingTask
+
+                    const startMin = pendingDragPreview.startMin
+                    const durMin = computeDurationMin(dragTask.steps as StepData[])
+                    const startDate = new Date(weekDays[dayIdx])
+                    startDate.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0)
+
+                    const pendingLane = Math.min(availLaneMap.size, 2)
+
+                    return (
+                      <TaskBlock
+                        key={`pending-${pendingDragPreview.taskId}`}
+                        block={{
+                          task: dragTask,
+                          scheduledStart: startDate,
+                          conflict: false,
+                        }}
+                        col={0}
+                        maxCols={1}
+                        availLaneIndex={pendingLane}
+                        dayOffset={0}
+                        pxPerHour={pxPerHour}
+                        onClick={onTaskClick}
+                        dragTimeLabels={showPendingDragLabels ? {
+                          start: minToLabel(startMin),
+                          end:   minToLabel(startMin + durMin),
+                        } : undefined}
+                        isDragGhost
+                      />
+                    )
+                  })()}
 
                   {/* Full template drag-preview — move the whole block with the cursor */}
                   {taskDragPreview && taskDragPreview.dayIdx === dayIdx && (() => {
@@ -1154,14 +1413,15 @@ export default function WeekCalendar({
                         block={dragBlock}
                         col={0}
                         maxCols={1}
+                        availLaneIndex={availLaneMap.get(dragged.task.id) ?? 0}
                         dayOffset={0}
                         pxPerHour={pxPerHour}
                         onClick={onTaskClick}
                         dragOverrideStartMin={taskDragPreview.startMin}
-                        dragTimeLabels={{
+                        dragTimeLabels={showDragLabels ? {
                           start: minToLabel(taskDragPreview.startMin),
                           end:   minToLabel(taskDragPreview.endMin),
-                        }}
+                        } : undefined}
                       />
                     )
                   })()}

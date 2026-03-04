@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Json } from '@/lib/supabase/types'
 import type { StepData, FlexDir } from './usePlannerTasks'
+import { pickDistinctPlannerColor } from '../utils/colors'
 
 export interface TaskTemplate {
   id:         string
@@ -80,18 +81,22 @@ export function useTaskTemplates() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
 
+    // Ensure each new template gets a distinct color among existing templates.
+    const usedColors = templates.map(t => t.color)
+    const color = pickDistinctPlannerColor(usedColors, data.color ?? null)
+
     const { error } = await supabase
       .from('task_templates')
       .insert({
         user_id: user.id,
         name:    data.name,
-        color:   data.color ?? null,
+        color,
         steps:   data.steps as unknown as Json,
       })
 
     if (error) throw error
     await fetchTemplates()
-  }, [fetchTemplates])
+  }, [fetchTemplates, templates])
 
   const updateTemplate = useCallback(async (id: string, data: TaskTemplateInsert) => {
     const supabase = createClient()

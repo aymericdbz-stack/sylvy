@@ -116,6 +116,31 @@ function detectOverlaps(placements: TaskPlacement[]): Overlap[] {
   return result
 }
 
+// ── Working-hours validation ───────────────────────────────────────────────────
+
+function placementBusyStepsFitWorkHours(p: TaskPlacement, workHours: WorkHours): boolean {
+  const whStartMin = workHours.start * 60
+  const whEndMin = workHours.end * 60
+
+  const positions = getEffectiveStepPositions(p.startMin, p.steps)
+  let hasBusy = false
+  for (const { step, start, end } of positions) {
+    if (step.stepType !== 'busy') continue
+    hasBusy = true
+    // Busy steps must fit fully inside the working-hours window of the day.
+    // (We treat any cross-midnight / out-of-range minute values as invalid here.)
+    if (start < 0 || end > 1440) return false
+    if (start < whStartMin) return false
+    if (end > whEndMin) return false
+  }
+  // If there are no busy steps, still enforce that the task's start time is within working hours.
+  if (!hasBusy) {
+    if (p.startMin < 0 || p.startMin > 1440) return false
+    return p.startMin >= whStartMin && p.startMin < whEndMin
+  }
+  return true
+}
+
 // ── Flex adjustment ────────────────────────────────────────────────────────────
 
 interface FlexAdjustment {
@@ -278,7 +303,7 @@ function tryResolveWithFlex(placements: TaskPlacement[]): boolean {
 // ── Nearest free slot finder ───────────────────────────────────────────────────
 
 /**
- * Search outward from the desired position (in 15-min increments) for the
+ * Search outward from the desired position (in 5-min increments) for the
  * nearest slot where the new task has no busy-step overlaps.
  */
 function findNearestFreeSlot(
@@ -293,7 +318,11 @@ function findNearestFreeSlot(
   // Get the span of the new task's busy steps (relative to task start)
   const positions = getEffectiveStepPositions(0, newTask.steps)
   const busyPositions = positions.filter(p => p.step.stepType === 'busy')
-  if (busyPositions.length === 0) return desiredStartMin
+  if (busyPositions.length === 0) {
+    // No busy steps: clamp start time into the working-hours window.
+    const clamped = Math.max(whStartMin, Math.min(whEndMin - SNAP_MINUTES, desiredStartMin))
+    return snapToGrid(clamped)
+  }
 
   const firstBusyOffset = busyPositions[0].start
   const lastBusyEnd = busyPositions[busyPositions.length - 1].end
@@ -305,8 +334,8 @@ function findNearestFreeSlot(
   }
   existingBusy.sort((a, b) => a.start - b.start)
 
-  // Search outward in 15-min steps
-  for (let offset = 0; offset <= 1440; offset += 15) {
+  // Search outward in 5-min steps (matches planner drag snap)
+  for (let offset = 0; offset <= 1440; offset += 5) {
     const candidates = offset === 0
       ? [desiredStartMin]
       : [desiredStartMin + offset, desiredStartMin - offset]
@@ -323,7 +352,7 @@ function findNearestFreeSlot(
         existingBusy.some(eb => tb.start < eb.end && tb.end > eb.start),
       )
 
-      if (!hasConflict) return candidate
+      if (!hasConflict) return snapToGrid(candidate)
     }
   }
 
@@ -355,12 +384,22 @@ function minToTimeLabel(min: number): string {
  * 5. Working hours enforced for non-overnight steps
  * 6. Graceful fallback to nearest free slot
  */
+/** Grid granularity for task start (minutes). Must match planner drag snap. */
+const SNAP_MINUTES = 5
+
+function snapToGrid(min: number): number {
+  return Math.round(min / SNAP_MINUTES) * SNAP_MINUTES
+}
+
 export function solveIntercalation(input: {
   existingTasks: TaskPlacement[]
   newTask: TaskPlacement
   workHours: WorkHours
 }): IntercalationResult {
   const { existingTasks, newTask, workHours } = input
+
+  // Normalise la position demandée sur la grille 5 min (évite les sauts 15/30 min)
+  const requestedStart = snapToGrid(newTask.startMin)
 
   // Deep-clone steps to avoid mutating originals
   const clonedExisting = existingTasks.map(t => ({
@@ -369,6 +408,7 @@ export function solveIntercalation(input: {
   }))
   const clonedNew: TaskPlacement = {
     ...newTask,
+    startMin: requestedStart,
     steps: newTask.steps.map(s => ({ ...s })),
   }
 
@@ -376,13 +416,21 @@ export function solveIntercalation(input: {
 
   // Phase 1: Check for overlaps at desired position
   const initialOverlaps = detectOverlaps(allPlacements)
-  if (initialOverlaps.length === 0) {
+  // Even if there are no overlaps, we must enforce working hours (otherwise users
+  // can drop templates into the grey non-working zones).
+  if (initialOverlaps.length === 0 && placementBusyStepsFitWorkHours(clonedNew, workHours)) {
     return { placements: allPlacements, moved: false }
   }
 
   // Phase 2: Try to resolve with flex adjustments
   if (tryResolveWithFlex(allPlacements)) {
+    // Flex adjustments may shift busy steps; ensure the resulting placements are still valid.
+    const allFit = allPlacements.every(p => placementBusyStepsFitWorkHours(p, workHours))
+    if (!allFit) {
+      // Fall through to slot search (phase 3) if flex resolution violates working hours.
+    } else {
     return { placements: allPlacements, moved: false }
+    }
   }
 
   // Phase 3: Reset adjustments and find nearest free slot
@@ -404,17 +452,18 @@ export function solveIntercalation(input: {
   const freeSlot = findNearestFreeSlot(
     clonedExisting,
     clonedNew,
-    newTask.startMin,
+    requestedStart,
     workHours,
   )
-  clonedNew.startMin = freeSlot
+  // Garantir que le créneau libre retourné est bien sur la grille 5 min
+  clonedNew.startMin = snapToGrid(freeSlot)
 
   const finalPlacements = [...clonedExisting, clonedNew]
-  const wasMoved = freeSlot !== newTask.startMin
+  const wasMoved = clonedNew.startMin !== requestedStart
 
   return {
     placements: finalPlacements,
     moved: wasMoved,
-    message: wasMoved ? `Moved to ${minToTimeLabel(freeSlot)}` : undefined,
+    message: wasMoved ? `Moved to ${minToTimeLabel(clonedNew.startMin)}` : undefined,
   }
 }

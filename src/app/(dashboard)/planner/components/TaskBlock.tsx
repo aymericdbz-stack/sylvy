@@ -53,6 +53,8 @@ interface TaskBlockProps {
   block:      ScheduledTaskBlock
   col:        number
   maxCols:    number
+  /** Optional lane index (0–2) for available steps across templates. */
+  availLaneIndex?: number
   dayOffset?: number  // 0 = day-of, 1440 = next-day overflow
   pxPerHour?: number
   onClick?:   (task: PlannerTask, stepId?: string) => void
@@ -81,7 +83,7 @@ function hatchedBg(color: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function TaskBlock({
-  block, col, maxCols, onClick, onMouseDown, dayOffset = 0, pxPerHour,
+  block, col, maxCols, availLaneIndex, onClick, onMouseDown, dayOffset = 0, pxPerHour,
   dragTimeLabels,
   dragOverrideStartMin,
   isDragGhost,
@@ -122,6 +124,20 @@ export default function TaskBlock({
   const colW    = 100 / maxCols
   const colLeft = `calc(${col * colW}% + 1px)`
   const colWidth = `calc(${colW}% - 2px)`
+
+  // Busy (non-available) steps never overlap by design → always render them full-day width.
+  const dayFullLeft  = '1px'
+  const dayFullWidth = 'calc(100% - 2px)'
+
+  // Up to three horizontal lanes for "available" steps across templates.
+  // Lane index is provided by the parent (per-template) so that
+  // template A uses the first third of the day column, template B the second,
+  // and so on, avoiding direct overlap of hatched regions.
+  const AVAIL_LANES        = 3
+  const laneIndexSafe      = Math.min(availLaneIndex ?? 0, AVAIL_LANES - 1)
+  const availLaneWidthPct  = 100 / AVAIL_LANES
+  const availLaneLeft      = `calc(${laneIndexSafe * availLaneWidthPct}% + 1px)`
+  const availLaneWidthCss  = `calc(${availLaneWidthPct}% - 2px)`
 
   const sortedSteps = [...steps].sort((a, b) => a.startOffset - b.startOffset)
 
@@ -179,8 +195,8 @@ export default function TaskBlock({
           className="absolute pointer-events-none flex justify-center"
           style={{
             top:    `${Math.max(connTop - 16, 0)}px`,
-            left:   colLeft,
-            width:  colWidth,
+            left:   dayFullLeft,
+            width:  dayFullWidth,
             zIndex: 30,
           }}
         >
@@ -199,7 +215,7 @@ export default function TaskBlock({
         style={{
           top:             `${connTop}px`,
           height:          `${connHeight}px`,
-          left:            colLeft,
+          left:            dayFullLeft,
           width:           '2.5px',
           backgroundColor: borderC,
           opacity:         ghostFactor,
@@ -213,8 +229,8 @@ export default function TaskBlock({
         style={{
           top:    `${connTop}px`,
           height: `${connHeight}px`,
-          left:   colLeft,
-          width:  colWidth,
+          left:   dayFullLeft,
+          width:  dayFullWidth,
           zIndex: 15,
           pointerEvents: isDragGhost ? 'none' : 'auto',
           backgroundColor: 'transparent',
@@ -237,8 +253,8 @@ export default function TaskBlock({
             style={{
               top:    `${sTop}px`,
               height: `${sHeight}px`,
-              left:   colLeft,
-              width:  colWidth,
+              left:   dayFullLeft,
+              width:  dayFullWidth,
               // Busy: solid tinted background. Available: hatched at reduced opacity.
               background: conflict
                 ? '#FEF2F2'
@@ -250,7 +266,7 @@ export default function TaskBlock({
               borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderRadius:'0 4px 4px 0',
-              zIndex:      20,
+              zIndex:      25,
               transition:  'opacity 0.1s',
               opacity:     (isAvailable ? 0.75 : 1) * ghostFactor,
             }}
@@ -286,7 +302,6 @@ export default function TaskBlock({
 
       {/* Available step blocks — 1/3 column width */}
       {visibleSteps.filter(v => v.s.stepType === 'available').map(({ s, sTop, sHeight }) => {
-        const availWidth = `calc(${colW / 3}% - 2px)`
         const labelSize  = sHeight >= 14 ? 8 : sHeight >= 8 ? 7 : 6
         const isHovered  = hoveredStepId === s.id
 
@@ -297,15 +312,15 @@ export default function TaskBlock({
             style={{
               top:         `${sTop}px`,
               height:      `${sHeight}px`,
-              left:        colLeft,
-              width:       availWidth,
+              left:        availLaneLeft,
+              width:       availLaneWidthCss,
               background:  conflict ? '#FEF2F2' : hatchedBg(color),
               borderLeft:  `2.5px solid ${borderC}`,
               borderTop:   `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
               borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderRadius:'0 4px 4px 0',
-              zIndex:      20,
+              zIndex:      15,
               transition:  'opacity 0.1s',
             }}
             onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
@@ -352,7 +367,7 @@ export default function TaskBlock({
             className="absolute z-50 bg-pl-charcoal text-white rounded-[6px] px-2.5 py-1.5 shadow-xl font-nb-mono pointer-events-none"
             style={{
               top:      `${hoveredVisible.sTop + hoveredVisible.sHeight + 6}px`,
-              left:     colLeft,
+              left:     dayFullLeft,
               width:    'auto',
               fontSize: '10px',
               whiteSpace: 'nowrap',

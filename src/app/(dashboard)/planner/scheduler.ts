@@ -184,9 +184,12 @@ function addBusyIntervals(occupied: Interval[], resolved: ResolvedStep[]): Inter
 
 // ─── Candidate generation ──────────────────────────────────────────────────────
 
+/** Grid granularity for candidate start times (minutes). Matches planner drag (5 min). */
+const CANDIDATE_GRID_MIN = 5
+
 /**
  * Generate candidate start times:
- *   1. 30-minute grid across all Mon-Fri working hours
+ *   1. 5-minute grid across all Mon-Fri working hours (matches planner drag snap)
  *   2. Current time (snapped to next working minute) — critical for mid-week runs
  *   3. Immediately after each existing busy block ends
  *
@@ -202,9 +205,9 @@ function generateCandidates(
   const ws = wh.start * 60
   const we = wh.end   * 60
 
-  // 30-minute grid across Mon-Fri working hours
+  // 5-minute grid across Mon-Fri working hours (smooth placement, no 15/30-min jump)
   for (let d = 0; d < 5; d++) {
-    for (let t = ws; t < we; t += 30) {
+    for (let t = ws; t < we; t += CANDIDATE_GRID_MIN) {
       set.add(d * 1440 + t)
     }
   }

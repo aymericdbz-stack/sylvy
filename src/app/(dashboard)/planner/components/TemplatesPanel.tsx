@@ -7,10 +7,9 @@ import Button from '@/components/ui/pl/Button'
 import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
 import type { StepData } from '../hooks/usePlannerTasks'
 import { StepBuilder, emptyStep } from './StepBuilder'
+import { PLANNER_COLOR_PALETTE, pickDistinctPlannerColor } from '../utils/colors'
 
 function uid() { return crypto.randomUUID() }
-
-const TEMPLATE_COLORS = ['#F97316', '#3B82F6', '#8B5CF6', '#14B8A6', '#EF4444', '#4CAF7D']
 
 // ── Standard template definitions ─────────────────────────────────────────────
 const STANDARD_DEFS = [
@@ -104,11 +103,14 @@ interface FormProps {
   onSave:  (data: TaskTemplateInsert) => Promise<void>
   onBack:  () => void
   onDelete?: () => Promise<void> | void
+  usedColors: string[]
 }
 
-function TemplateForm({ initial, onSave, onBack, onDelete }: FormProps) {
+function TemplateForm({ initial, onSave, onBack, onDelete, usedColors }: FormProps) {
   const [name,   setName]   = useState(initial?.name  ?? '')
-  const [color,  setColor]  = useState(initial?.color ?? TEMPLATE_COLORS[0])
+  const [color,  setColor]  = useState(
+    initial?.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null),
+  )
   const [steps,  setSteps]  = useState<StepData[]>(
     initial && initial.steps.length > 0 ? initial.steps : [emptyStep()]
   )
@@ -118,11 +120,11 @@ function TemplateForm({ initial, onSave, onBack, onDelete }: FormProps) {
   useEffect(() => {
     if (initial) {
       setName(initial.name)
-      setColor(initial.color ?? TEMPLATE_COLORS[0])
+      setColor(initial.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
       setSteps(initial.steps.length > 0 ? initial.steps : [emptyStep()])
     } else {
       setName('')
-      setColor(TEMPLATE_COLORS[0])
+      setColor(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
       setSteps([emptyStep()])
     }
   }, [initial?.id])
@@ -179,7 +181,7 @@ function TemplateForm({ initial, onSave, onBack, onDelete }: FormProps) {
             Color
           </label>
           <div className="flex gap-2 flex-wrap">
-            {TEMPLATE_COLORS.map(c => (
+            {PLANNER_COLOR_PALETTE.map(c => (
               <button
                 key={c}
                 type="button"
@@ -318,6 +320,8 @@ export default function TemplatesPanel({
     }
   }
 
+  const usedTemplateColors = templates.map(t => t.color)
+
   return (
     <>
       {open && <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />}
@@ -413,6 +417,7 @@ export default function TemplatesPanel({
               initial={null}
               onSave={onCreate}
               onBack={() => setView('list')}
+              usedColors={usedTemplateColors}
             />
           </div>
         )}
@@ -427,6 +432,7 @@ export default function TemplatesPanel({
                 await handleDelete(editTarget.id)
                 setView('list')
               }}
+              usedColors={usedTemplateColors.filter(c => c !== editTarget.color)}
             />
           </div>
         )}
