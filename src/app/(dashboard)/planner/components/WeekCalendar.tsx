@@ -631,6 +631,12 @@ export default function WeekCalendar({
     startMin: number
     endMin:   number
   } | null>(null)
+  /** After drop: keep task visually at drop position until parent state has new position (avoids jerk). */
+  const [committedDrop, setCommittedDrop] = useState<{
+    taskId: string
+    startMin: number
+    dayISO: string
+  } | null>(null)
   const [showDragLabels, setShowDragLabels] = useState(false)
   const showDragLabelsRef = useRef(false)
   const taskDragPreviewRef = useRef<typeof taskDragPreview | null>(null)
@@ -789,7 +795,7 @@ export default function WeekCalendar({
     const startMin = tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes()
     const pointerMin = clientYToMinRef.current(e.clientY)
     const lastStep = tb.task.steps.reduce(
-      (acc, s) => Math.max(acc, s.startOffset + (s.scheduledDuration ?? s.duration)),
+      (acc, s) => Math.max(acc, s.startOffset + s.duration),
       0,
     )
     const durationMin = lastStep
@@ -909,8 +915,11 @@ export default function WeekCalendar({
           t.currentDayISO = dayISO
         }
 
+        // Always compute from BASE durations to avoid stale scheduledDuration cascades
+        const pendingSteps = (pending.steps as StepData[]).map(
+          ({ scheduledDuration, ...s }) => s,
+        )
         // Overnight-aware clamping
-        const pendingSteps = pending.steps as StepData[]
         const overnightLimits = computeOvernightDragLimits(
           pendingSteps, workHoursRef.current, DAY_START_MIN, DAY_END_MIN,
         )
@@ -920,17 +929,14 @@ export default function WeekCalendar({
           startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
         }
 
-        // Compute overnight expansions and apply to cloned steps
+        // Compute overnight expansions and apply to base steps
         const dayOfWeek = weekDaysRef.current[dayIdx]?.getDay() ?? 1
         const expansions = computeOvernightExpansions(
           startMin, pendingSteps, workHoursRef.current, dayOfWeek, includeWeekendsRef.current,
         )
         const expandedSteps = pendingSteps.map(s => {
           const exp = expansions.find(e => e.stepId === s.id)
-          if (exp) return { ...s, scheduledDuration: exp.expandedDuration }
-          // Clean up scheduledDuration if no longer overnight
-          const { scheduledDuration, ...rest } = s
-          return rest
+          return exp ? { ...s, scheduledDuration: exp.expandedDuration } : s
         })
 
         const allTasks = scheduledTasksRef.current
@@ -1009,7 +1015,10 @@ export default function WeekCalendar({
         const allTasks = scheduledTasksRef.current
         const draggedTask = allTasks.find(tb => tb.task.id === t.taskId)
         if (draggedTask) {
-          const taskSteps = draggedTask.task.steps as StepData[]
+          // Always compute from BASE durations to avoid stale scheduledDuration cascades
+          const taskSteps = (draggedTask.task.steps as StepData[]).map(
+            ({ scheduledDuration, ...s }) => s,
+          )
 
           // Overnight-aware clamping
           const overnightLimits = computeOvernightDragLimits(
@@ -1021,17 +1030,14 @@ export default function WeekCalendar({
             startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
           }
 
-          // Compute overnight expansions and apply to cloned steps
+          // Compute overnight expansions and apply to base steps
           const dayOfWeek = weekDaysRef.current[dayIdx]?.getDay() ?? 1
           const expansions = computeOvernightExpansions(
             startMin, taskSteps, workHoursRef.current, dayOfWeek, includeWeekendsRef.current,
           )
           const expandedSteps = taskSteps.map(s => {
             const exp = expansions.find(e => e.stepId === s.id)
-            if (exp) return { ...s, scheduledDuration: exp.expandedDuration }
-            // Clean up scheduledDuration if no longer overnight
-            const { scheduledDuration, ...rest } = s
-            return rest
+            return exp ? { ...s, scheduledDuration: exp.expandedDuration } : s
           })
 
           // Existing tasks on the target day (including overflow from previous days)
@@ -1185,22 +1191,19 @@ export default function WeekCalendar({
 
         if (prevTask && taskMoveCb && t.hasStarted) {
           const start = prevTask.startMin
-          // Keep the drag preview in place until the schedule update is applied and painted,
-          // to prevent a snap-back jerk between old/new positions.
+          // Switch to "committed drop" override: show real task at drop position until parent updates.
+          setCommittedDrop({ taskId: t.taskId, startMin: start, dayISO: t.currentDayISO })
+          taskDragPreviewRef.current = null
+          setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
+          intercalationPreviewRef.current = null
+          setIntercalationPreview(null)
+
           const res = taskMoveCb(t.taskId, t.currentDayISO, minToHHMM(start), solverResult ?? undefined)
-          if (res && typeof (res as any).then === 'function') {
-            const clearPreview = () => {
-              taskDragPreviewRef.current = null
-              setTaskDragPreview(null)
-              showDragLabelsRef.current = false
-              setShowDragLabels(false)
-              intercalationPreviewRef.current = null
-              setIntercalationPreview(null)
-            }
-            ;(res as Promise<void>).then(() => {
-              requestAnimationFrame(clearPreview)
-            }).catch(() => {
-              clearPreview()
+          if (res && typeof (res as any).catch === 'function') {
+            ;(res as Promise<void>).catch(() => {
+              setCommittedDrop(null)
             })
           }
         } else if (taskClickCb) {
@@ -1273,37 +1276,24 @@ export default function WeekCalendar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Clear task drag preview once the underlying scheduled task reflects the
-  // new start time. Defer clear to next frame so the optimistic-update paint
-  // is visible before we show the real block (avoids jerk: back to origin then to final).
+  // Clear committed-drop override once parent state has the task at the new position.
   useEffect(() => {
-    const preview = taskDragPreviewRef.current
-    if (!preview) return
-
-    const targetDateIso = toISO(weekDays[preview.dayIdx])
+    const drop = committedDrop
+    if (!drop) return
 
     const match = scheduledTasks.some(tb => {
-      if (tb.task.id !== preview.taskId) return false
+      if (tb.task.id !== drop.taskId) return false
       if (!tb.scheduledStart) return false
       const dateIso = toISO(tb.scheduledStart)
-      if (dateIso !== targetDateIso) return false
+      if (dateIso !== drop.dayISO) return false
       const startMin = tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes()
-      return startMin === preview.startMin
+      return startMin === drop.startMin
     })
 
     if (match) {
-      const clearPreview = () => {
-        taskDragPreviewRef.current = null
-        setTaskDragPreview(null)
-        showDragLabelsRef.current = false
-        setShowDragLabels(false)
-        intercalationPreviewRef.current = null
-        setIntercalationPreview(null)
-      }
-      const raf = requestAnimationFrame(clearPreview)
-      return () => cancelAnimationFrame(raf)
+      setCommittedDrop(null)
     }
-  }, [scheduledTasks, weekDays])
+  }, [scheduledTasks, weekDays, committedDrop])
 
   // Gutter drag-to-zoom
   useEffect(() => {
@@ -1463,7 +1453,7 @@ export default function WeekCalendar({
                   }
                 }
               }
-              const dayTasks = rawDayTasks.map(({ block: tb, dayOffset }) => {
+              let dayTasks = rawDayTasks.map(({ block: tb, dayOffset }) => {
                 const override = overrideMap.get(tb.task.id)
                 if (!override || dayOffset > 0 || (taskDragPreview && taskDragPreview.taskId === tb.task.id)) {
                   return { block: tb, dayOffset }
@@ -1479,6 +1469,18 @@ export default function WeekCalendar({
                   dayOffset,
                 }
               })
+              // After drop: pin the moved task at drop position until parent state updates (no jerk)
+              if (committedDrop && iso === committedDrop.dayISO) {
+                dayTasks = dayTasks.map(({ block: tb, dayOffset }) => {
+                  if (dayOffset !== 0 || tb.task.id !== committedDrop.taskId) return { block: tb, dayOffset }
+                  const dropStart = new Date(weekDays[dayIdx])
+                  dropStart.setHours(Math.floor(committedDrop.startMin / 60), committedDrop.startMin % 60, 0, 0)
+                  return {
+                    block: { ...tb, scheduledStart: dropStart },
+                    dayOffset,
+                  }
+                })
+              }
               // Stable lane index (0–2) per template for available steps, so
               // overlapping available regions from different templates occupy
               // distinct thirds of the day column.
@@ -1582,10 +1584,8 @@ export default function WeekCalendar({
                       dayOffset === 0 &&
                       dragState.hasStarted
 
-                    // While a task is being dragged (and after drop while we wait for
-                    // the DB update to reflect), hide all "real" instances so we don't
-                    // snap back to the origin column before the refetch completes.
-                    if (taskDragPreview && taskDragPreview.taskId === tb.task.id) {
+                    // While dragging, hide real instance; after drop we show it at override (committedDrop).
+                    if (taskDragPreview && taskDragPreview.taskId === tb.task.id && !(committedDrop?.taskId === tb.task.id)) {
                       // Keep a faint ghost at the origin only during the active drag.
                       if (isOriginDragged) {
                         const taskKey = `${tb.task.id}-${dayOffset}`
