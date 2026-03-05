@@ -1,6 +1,7 @@
 'use client'
 
-import { useRef, useEffect, useState, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useState, useMemo, useCallback, Fragment } from 'react'
+import { unstable_batchedUpdates } from 'react-dom'
 import type { CalendarEvent } from '../types'
 import TaskBlock from './TaskBlock'
 import type { ScheduledTaskBlock } from './TaskBlock'
@@ -16,7 +17,8 @@ const DAY_END = 24
 const DAY_START_MIN = DAY_START * 60
 const DAY_END_MIN = DAY_END * 60
 /** Grid snap for task drag (minutes). 5 = smooth 5-min steps; no quarter-hour jump. */
-const SNAP_MINUTES = 5
+/** Snap for task/event drag: 1 = land exactly where the pointer is (to the minute). */
+const SNAP_MINUTES = 1
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -212,6 +214,7 @@ interface DayCalendarProps {
   /** Unscheduled task that is being manually placed via drag-to-drop. */
   pendingTask?: PlannerTask | null
   onEventClick: (event: CalendarEvent) => void
+  onEventMove?: (eventId: string, date: string, startTime: string, endTime: string, endDate?: string) => void | Promise<void>
   onSlotClick: (date: string, time: string, endTime?: string) => void
   onTaskClick?: (task: import('../hooks/usePlannerTasks').PlannerTask, stepId?: string) => void
   workStartHour: number
@@ -226,6 +229,7 @@ export default function DayCalendar({
   scheduledTasks = [],
   pendingTask = null,
   onEventClick,
+  onEventMove,
   onSlotClick,
   onTaskClick,
   workStartHour,
@@ -533,6 +537,12 @@ export default function DayCalendar({
     startMin: number
     endMin:   number
   } | null>(null)
+  /** After drop: keep task visually at drop position until parent state has new position (avoids jerk). */
+  const [committedDrop, setCommittedDrop] = useState<{
+    taskId: string
+    startMin: number
+    dayISO: string
+  } | null>(null)
   const [showDragLabels, setShowDragLabels] = useState(false)
   const showDragLabelsRef = useRef(false)
   const taskDragPreviewRef = useRef<typeof taskDragPreview | null>(null)
@@ -569,6 +579,33 @@ export default function DayCalendar({
   useEffect(() => {
     onTaskClickRef.current = onTaskClick
   }, [onTaskClick])
+  const onEventMoveRef = useRef(onEventMove)
+  useEffect(() => {
+    onEventMoveRef.current = onEventMove
+  }, [onEventMove])
+  const onEventClickRef = useRef(onEventClick)
+  useEffect(() => {
+    onEventClickRef.current = onEventClick
+  }, [onEventClick])
+  const eventsRef = useRef(events)
+  useEffect(() => {
+    eventsRef.current = events
+  }, [events])
+
+  const eventDragRef = useRef<{
+    eventId:           string
+    originClientX:     number
+    originClientY:     number
+    pointerOffsetMin:  number
+    durationMin:       number
+    originalStartMin:  number
+    hasStarted:        boolean
+  } | null>(null)
+  const [eventDragPreview, setEventDragPreview] = useState<{ eventId: string; startMin: number; endMin: number } | null>(null)
+  const eventDragPreviewRef = useRef<typeof eventDragPreview | null>(null)
+  useEffect(() => {
+    eventDragPreviewRef.current = eventDragPreview
+  }, [eventDragPreview])
 
   const pendingTaskRef = useRef<PlannerTask | null>(pendingTask)
   useEffect(() => { pendingTaskRef.current = pendingTask }, [pendingTask])
@@ -583,6 +620,9 @@ export default function DayCalendar({
   const [intercalationPreview, setIntercalationPreview] = useState<IntercalationResult | null>(null)
   const intercalationPreviewRef = useRef<IntercalationResult | null>(null)
   useEffect(() => { intercalationPreviewRef.current = intercalationPreview }, [intercalationPreview])
+
+  const dayColumnRef = useRef<HTMLDivElement>(null)
+  const taskBlocksForHitTestRef = useRef<{ block: ScheduledTaskBlock; dayOffset: number }[]>([])
 
   function computeDurationMin(steps: StepData[]): number {
     return steps.reduce((acc, s) => Math.max(acc, s.startOffset + (s.scheduledDuration ?? s.duration)), 0)
@@ -646,6 +686,66 @@ export default function DayCalendar({
     }
   }
 
+  // Capture-phase hit-test: drag the template whose block is topmost at the cursor.
+  // Don't preventDefault so that a simple click still fires and can open the edit panel.
+  function handleDayColumnMouseDownCapture(e: React.MouseEvent) {
+    if (e.button !== 0) return
+    const col = dayColumnRef.current
+    if (!col) return
+    const elements = document.elementsFromPoint(e.clientX, e.clientY)
+    const taskCandidates = elements.filter(
+      (el): el is HTMLElement => {
+        const id = el.getAttribute?.('data-task-id')
+        return !!id && col.contains(el)
+      },
+    )
+    if (taskCandidates.length === 0) return
+    // Pick the topmost by computed z-index (short tasks have higher zBoost → higher z-index)
+    const taskEl = taskCandidates.reduce((top, el) => {
+      const topZ = parseInt(getComputedStyle(top).zIndex, 10) || 0
+      const elZ = parseInt(getComputedStyle(el).zIndex, 10) || 0
+      return elZ > topZ ? el : top
+    })
+    const taskId = taskEl.getAttribute('data-task-id')
+    if (!taskId) return
+    const entry = taskBlocksForHitTestRef.current.find(
+      entry => entry.block.task.id === taskId && entry.dayOffset === 0,
+    )
+    if (!entry) return
+    e.stopPropagation()
+    e.preventDefault()
+    handleTaskMouseDown(e, entry.block)
+  }
+
+  function handleEventMouseDown(
+    e: React.MouseEvent,
+    event: CalendarEvent,
+    segStartMin: number,
+    segEndMin: number,
+  ) {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    const pointerMin = clientYToMinRef.current(e.clientY)
+    const durationMin = Math.round(
+      (new Date(event.end_at).getTime() - new Date(event.start_at).getTime()) / 60_000,
+    )
+    const pointerOffsetMin = pointerMin - segStartMin
+    eventDragRef.current = {
+      eventId:          event.id,
+      originClientX:    e.clientX,
+      originClientY:    e.clientY,
+      pointerOffsetMin,
+      durationMin,
+      originalStartMin: segStartMin,
+      hasStarted:       false,
+    }
+    const startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - durationMin, segStartMin))
+    const preview = { eventId: event.id, startMin, endMin: startMin + durationMin }
+    eventDragPreviewRef.current = preview
+    setEventDragPreview(preview)
+  }
+
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
       if (dragRef.current) {
@@ -703,11 +803,7 @@ export default function DayCalendar({
         setIntercalationPreview(result)
         intercalationPreviewRef.current = result
 
-        const solvedNew = result.placements.find(p => p.taskId === t.taskId)
-        if (solvedNew) {
-          startMin = solvedNew.startMin
-        }
-
+        // Keep preview at cursor position — do NOT override with solver (no lag)
         const preview = {
           taskId: t.taskId,
           startMin,
@@ -721,12 +817,11 @@ export default function DayCalendar({
         const t = taskDragRef.current
         const pointerMin = clientYToMinRef.current(e.clientY)
 
-        // Start dragging after a small pointer movement.
-        // Before that, treat the interaction as a simple click (no ghost / placeholder).
+        // Start dragging only after clear pointer movement (so a normal click opens edit panel).
         if (!t.hasStarted) {
           const dx = e.clientX - t.originClientX
           const dy = e.clientY - t.originClientY
-          const movedEnough = Math.hypot(dx, dy) >= 4
+          const movedEnough = Math.hypot(dx, dy) >= 10
           if (!movedEnough) {
             return
           }
@@ -766,11 +861,7 @@ export default function DayCalendar({
           setIntercalationPreview(result)
           intercalationPreviewRef.current = result
 
-          // Use solver's position for the dragged task
-          const solvedNew = result.placements.find(p => p.taskId === t.taskId)
-          if (solvedNew) {
-            startMin = solvedNew.startMin
-          }
+          // Keep preview at cursor position — do NOT override with solver (no lag)
         }
 
         const preview = {
@@ -780,6 +871,23 @@ export default function DayCalendar({
         }
         setTaskDragPreview(preview)
         taskDragPreviewRef.current = preview
+      }
+
+      if (eventDragRef.current) {
+        const t = eventDragRef.current
+        const pointerMin = clientYToMinRef.current(e.clientY)
+        if (!t.hasStarted) {
+          const dx = e.clientX - t.originClientX
+          const dy = e.clientY - t.originClientY
+          if (Math.hypot(dx, dy) < 2) return
+          t.hasStarted = true
+        }
+        let startMin = pointerMin - t.pointerOffsetMin
+        startMin = Math.round(startMin / SNAP_MINUTES) * SNAP_MINUTES
+        startMin = Math.max(DAY_START_MIN, Math.min(DAY_END_MIN - t.durationMin, startMin))
+        const preview = { eventId: t.eventId, startMin, endMin: startMin + t.durationMin }
+        setEventDragPreview(preview)
+        eventDragPreviewRef.current = preview
       }
     }
 
@@ -839,49 +947,88 @@ export default function DayCalendar({
         setIntercalationPreview(null)
       }
 
+      const evDrag = eventDragRef.current
+      const eventMoveCb = onEventMoveRef.current
+      if (evDrag) {
+        eventDragRef.current = null
+        const prev = eventDragPreviewRef.current
+        eventDragPreviewRef.current = null
+        setEventDragPreview(null)
+        if (!evDrag.hasStarted) {
+          const ev = eventsRef.current.find(e => e.id === evDrag.eventId)
+          if (ev) onEventClickRef.current(ev)
+        } else if (prev && eventMoveCb) {
+          const endMin = prev.startMin + evDrag.durationMin
+          let endDate: string | undefined
+          let endTime: string
+          if (endMin <= DAY_END_MIN) {
+            endTime = minToHHMM(endMin)
+          } else {
+            const nextDay = new Date(date)
+            nextDay.setDate(nextDay.getDate() + 1)
+            endDate = toISO(nextDay)
+            endTime = minToHHMM(endMin - 1440)
+          }
+          const res = eventMoveCb(evDrag.eventId, dayISO, minToHHMM(prev.startMin), endTime, endDate)
+          if (res && typeof (res as Promise<unknown>).catch === 'function') {
+            ;(res as Promise<void>).catch(() => {
+              eventDragPreviewRef.current = null
+              setEventDragPreview(null)
+            })
+          }
+        }
+      }
+
       if (t) {
         taskDragRef.current = null
-        // Hide drag-time labels immediately on drop; keep ghost until DB updates.
-        showDragLabelsRef.current = false
-        setShowDragLabels(false)
         const prevTask = taskDragPreviewRef.current
         const solverResult = intercalationPreviewRef.current
 
-        if (prevTask && taskMoveCb) {
-          const start = prevTask.startMin
-          // Keep the drag preview in place until the schedule update comes back,
-          // to prevent a snap-back jerk between old/new positions.
+        const clearAllPreview = () => {
+          taskDragPreviewRef.current = null
+          setTaskDragPreview(null)
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
+          intercalationPreviewRef.current = null
+          setIntercalationPreview(null)
+        }
+
+        const clearLabelsOnly = () => {
+          showDragLabelsRef.current = false
+          setShowDragLabels(false)
+          intercalationPreviewRef.current = null
+          setIntercalationPreview(null)
+        }
+
+        // No-op drop (same position or within 2 min): treat as click to open edit panel.
+        const SAME_POSITION_TOLERANCE_MIN = 2
+        const samePosition = prevTask && Math.abs(prevTask.startMin - t.originalStartMin) <= SAME_POSITION_TOLERANCE_MIN
+        if (samePosition && taskClickCb) {
+          const entry = tasksForDay.find(tb => tb.block.task.id === t.taskId)
+          if (entry) taskClickCb(entry.block.task)
+          clearAllPreview()
+        } else if (prevTask && taskMoveCb) {
+          // Ghost followed cursor (no lag during drag).
+          // At drop: use solver's corrected position so overlaps are resolved.
+          const solvedNew = solverResult?.placements.find(p => p.taskId === t.taskId)
+          const start = solvedNew ? solvedNew.startMin : prevTask.startMin
+          clearLabelsOnly()
+          setCommittedDrop({ taskId: t.taskId, startMin: start, dayISO })
           const res = taskMoveCb(t.taskId, dayISO, minToHHMM(start), solverResult ?? undefined)
-          if (res && typeof (res as any).catch === 'function') {
+          if (res && typeof (res as any).then === 'function') {
             ;(res as Promise<void>).catch(() => {
+              // On error, clear everything
               taskDragPreviewRef.current = null
               setTaskDragPreview(null)
-              showDragLabelsRef.current = false
-              setShowDragLabels(false)
-              intercalationPreviewRef.current = null
-              setIntercalationPreview(null)
+              setCommittedDrop(null)
             })
           }
         } else if (taskClickCb) {
-          // Treat small or zero movement as a click on the task.
           const entry = tasksForDay.find(tb => tb.block.task.id === t.taskId)
-          if (entry) {
-            taskClickCb(entry.block.task)
-          }
-          taskDragPreviewRef.current = null
-          setTaskDragPreview(null)
-          showDragLabelsRef.current = false
-          setShowDragLabels(false)
-          intercalationPreviewRef.current = null
-          setIntercalationPreview(null)
+          if (entry) taskClickCb(entry.block.task)
+          clearAllPreview()
         } else {
-          // No move callback: clear any preview.
-          taskDragPreviewRef.current = null
-          setTaskDragPreview(null)
-          showDragLabelsRef.current = false
-          setShowDragLabels(false)
-          intercalationPreviewRef.current = null
-          setIntercalationPreview(null)
+          clearAllPreview()
         }
       }
     }
@@ -895,30 +1042,30 @@ export default function DayCalendar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Clear task drag preview once the underlying scheduled task reflects the
-  // new start time (prevents a snap-back between old/new positions).
+  // Clear committed-drop override when parent state has the task at the new position (fallback if promise never resolves).
   useEffect(() => {
-    const preview = taskDragPreviewRef.current
-    if (!preview) return
+    const drop = committedDrop
+    if (!drop) return
 
-    const match = scheduledTasks.some(tb => {
-      if (tb.task.id !== preview.taskId) return false
-      if (!tb.scheduledStart) return false
-      const dateIso = toISO(tb.scheduledStart)
-      if (dateIso !== dayISO) return false
-      const startMin = tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes()
-      return startMin === preview.startMin
-    })
+    // Use a small delay to allow optimistic state to propagate before clearing
+    const timeoutId = setTimeout(() => {
+      const match = scheduledTasks.some(tb => {
+        if (tb.task.id !== drop.taskId) return false
+        if (!tb.scheduledStart) return false
+        const dateIso = toISO(tb.scheduledStart)
+        if (dateIso !== drop.dayISO) return false
+        const startMin = tb.scheduledStart.getHours() * 60 + tb.scheduledStart.getMinutes()
+        return startMin === drop.startMin
+      })
 
-    if (match) {
-      taskDragPreviewRef.current = null
-      setTaskDragPreview(null)
-      showDragLabelsRef.current = false
-      setShowDragLabels(false)
-      intercalationPreviewRef.current = null
-      setIntercalationPreview(null)
-    }
-  }, [scheduledTasks, dayISO])
+      if (match) {
+        setCommittedDrop(null)
+        setTaskDragPreview(null)
+      }
+    }, 50) // Small delay to ensure optimistic state has propagated
+
+    return () => clearTimeout(timeoutId)
+  }, [scheduledTasks, dayISO, committedDrop])
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
@@ -985,8 +1132,10 @@ export default function DayCalendar({
 
           {/* Day column */}
           <div
+            ref={dayColumnRef}
             className="flex-1 relative border-l border-pl-cream-border select-none"
             style={{ height: `${CAL_HEIGHT}px`, cursor: dragPreview ? 'ns-resize' : 'crosshair' }}
+            onMouseDownCapture={handleDayColumnMouseDownCapture}
             onMouseDown={handleColMouseDown}
           >
             {/* Non-working zones */}
@@ -1069,33 +1218,62 @@ export default function DayCalendar({
               const endMin   = Math.min(seg.endMin,   DAY_END_MIN)
               const top      = (startMin - DAY_START_MIN) * PX_PER_MIN
               const height   = Math.max((endMin - startMin) * PX_PER_MIN, 18)
+              const isDragged = eventDragPreview?.eventId === seg.event.id
+              const ghostTop = eventDragPreview && isDragged
+                ? (eventDragPreview.startMin - DAY_START_MIN) * PX_PER_MIN
+                : top
+              const ghostHeight = eventDragPreview && isDragged
+                ? Math.max((eventDragPreview.endMin - eventDragPreview.startMin) * PX_PER_MIN, 18)
+                : height
+
               return (
-                <EventBlock
-                  key={`${seg.event.id}-${startMin}-${endMin}`}
-                  event={seg.event}
-                  top={top}
-                  height={height}
-                  onClick={e => {
-                    e.stopPropagation()
-                    onEventClick(seg.event)
-                  }}
-                  onMouseDown={e => e.stopPropagation()}
-                />
+                <Fragment key={`${seg.event.id}-${startMin}-${endMin}`}>
+                  <EventBlock
+                    event={seg.event}
+                    top={ghostTop}
+                    height={ghostHeight}
+                    onClick={e => {
+                      e.stopPropagation()
+                      onEventClick(seg.event)
+                    }}
+                    onMouseDown={e => e.stopPropagation()}
+                  />
+                  {onEventMove && !isDragged && (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Drag ${seg.event.title}`}
+                      className="absolute left-[2px] right-[2px] z-[30] cursor-grab active:cursor-grabbing"
+                      style={{ top: `${top}px`, height: `${height}px` }}
+                      onMouseDown={e => handleEventMouseDown(e, seg.event, startMin, endMin)}
+                    />
+                  )}
+                </Fragment>
               )
             })}
 
             {/* Tasks — with intercalation overrides during drag */}
             {(() => {
-              // Build override map from intercalation preview
+              // Build override map from intercalation preview.
+              // For drag previews we only apply solver adjustments visually to the
+              // task being moved (or the pending task), and keep existing tasks
+              // visually fixed so templates never feel "glued together" while
+              // you drag one past another.
               const overrideMap = new Map<string, TaskPlacement>()
               if (intercalationPreview) {
+                const focusTaskId =
+                  pendingDragPreview?.taskId ??
+                  taskDragPreview?.taskId ??
+                  null
                 for (const p of intercalationPreview.placements) {
-                  overrideMap.set(p.taskId, p)
+                  if (!focusTaskId || p.taskId === focusTaskId) {
+                    overrideMap.set(p.taskId, p)
+                  }
                 }
               }
 
               // Apply overrides to non-dragged tasks for visual intercalation preview
-              const displayTasks = tasksForDay.map(({ block: tb, dayOffset }) => {
+              let displayTasks = tasksForDay.map(({ block: tb, dayOffset }) => {
                 const override = overrideMap.get(tb.task.id)
                 if (!override || dayOffset > 0 || (taskDragPreview && taskDragPreview.taskId === tb.task.id)) {
                   return { block: tb, dayOffset }
@@ -1113,6 +1291,20 @@ export default function DayCalendar({
                 }
               })
 
+              // After drop: override moved task position until parent state updates (prevents jerk)
+              if (committedDrop && dayISO === committedDrop.dayISO) {
+                displayTasks = displayTasks.map(({ block: tb, dayOffset }) => {
+                  if (dayOffset !== 0 || tb.task.id !== committedDrop.taskId) return { block: tb, dayOffset }
+                  // Pin task at drop position
+                  const dropStart = new Date(date)
+                  dropStart.setHours(Math.floor(committedDrop.startMin / 60), committedDrop.startMin % 60, 0, 0)
+                  return {
+                    block: { ...tb, scheduledStart: dropStart },
+                    dayOffset,
+                  }
+                })
+              }
+
               // Stable lane index (0–2) per template for available steps.
               const AVAIL_LANES = 3
               const availLaneMap = new Map<string, number>()
@@ -1129,7 +1321,19 @@ export default function DayCalendar({
                 availLaneMap.set(tb.task.id, lane)
               })
 
+              taskBlocksForHitTestRef.current = displayTasks
+
               const { colMap: taskColMap, maxCols: taskMaxCols } = assignTaskColumns(displayTasks)
+
+              // zBoost: shorter tasks get higher z so they render on top and can be grabbed
+              const zBoostMap = new Map<string, number>()
+              const byDuration = primaryTasks.slice().sort((a, b) => {
+                const durA = (a.block.task.steps as StepData[]).reduce((m, s) => Math.max(m, s.startOffset + (s.scheduledDuration ?? s.duration)), 0)
+                const durB = (b.block.task.steps as StepData[]).reduce((m, s) => Math.max(m, s.startOffset + (s.scheduledDuration ?? s.duration)), 0)
+                return durB - durA
+              })
+              byDuration.forEach(({ block: tb }, i) => { zBoostMap.set(tb.task.id, i * 50) })
+
               return (
                 <>
                   {displayTasks.map(({ block: tb, dayOffset }) => {
@@ -1140,30 +1344,14 @@ export default function DayCalendar({
                       dayOffset === 0 &&
                       dragState.hasStarted
 
-                    // While a task is being dragged, hide its "real" instance.
-                    if (taskDragPreview && taskDragPreview.taskId === tb.task.id) {
-                      if (isOriginDragged) {
-                        const taskKey = `${tb.task.id}-${dayOffset}`
-                        const taskCol = taskColMap.get(taskKey) ?? 0
-                        return (
-                          <TaskBlock
-                            key={`${tb.task.id}-${dayOffset}`}
-                            block={tb}
-                            col={taskCol}
-                            maxCols={taskMaxCols}
-                            availLaneIndex={availLaneMap.get(tb.task.id) ?? 0}
-                            dayOffset={dayOffset}
-                            pxPerHour={pxPerHour}
-                            onClick={onTaskClick}
-                            isDragGhost
-                          />
-                        )
-                      }
-                      return null
-                    }
-
                     const taskKey = `${tb.task.id}-${dayOffset}`
                     const taskCol = taskColMap.get(taskKey) ?? 0
+                    const boost = zBoostMap.get(tb.task.id) ?? 0
+
+                    // While dragging: do not render the task in the map (ghost is rendered below with same key so drop is smooth)
+                    if (isOriginDragged && taskDragPreview && taskDragPreview.taskId === tb.task.id) {
+                      return null
+                    }
 
                     return (
                       <TaskBlock
@@ -1176,6 +1364,7 @@ export default function DayCalendar({
                         pxPerHour={pxPerHour}
                         onClick={onTaskClick}
                         onMouseDown={dayOffset === 0 ? (e) => handleTaskMouseDown(e, tb) : undefined}
+                        zBoost={boost}
                       />
                     )
                   })}
@@ -1254,7 +1443,7 @@ export default function DayCalendar({
                   })()}
 
                   {/* Full template drag-preview — move the whole block with the cursor */}
-                  {taskDragPreview && (() => {
+                  {taskDragPreview && !(committedDrop?.taskId === taskDragPreview.taskId) && (() => {
                     const draggedIndex = tasksForDay.findIndex(
                       ({ block: tb, dayOffset }) =>
                         tb.task.id === taskDragPreview.taskId && dayOffset === 0,
@@ -1272,7 +1461,7 @@ export default function DayCalendar({
 
                     return (
                       <TaskBlock
-                        key={`drag-${dragged.block.task.id}`}
+                        key={`${dragged.block.task.id}-0`}
                         block={dragBlock}
                         col={0}
                         maxCols={1}

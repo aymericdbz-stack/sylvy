@@ -83,9 +83,10 @@ export default function TaskPanel({
   const [deadline,     setDeadline]     = useState('')
   const [steps,        setSteps]        = useState<StepData[]>([emptyStep()])
   const [color,        setColor]        = useState(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
-  const [selectedTpl,  setSelectedTpl]  = useState('')
-  const [saving,       setSaving]       = useState(false)
-  const [deleting,     setDeleting]     = useState(false)
+  const [selectedTpl,    setSelectedTpl]    = useState('')
+  const [applyTemplateId, setApplyTemplateId] = useState('')
+  const [saving,         setSaving]         = useState(false)
+  const [deleting,       setDeleting]       = useState(false)
 
   // Populate on open
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function TaskPanel({
       setSteps(task.steps.length > 0 ? task.steps : [emptyStep()])
       setColor(task.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
       setSelectedTpl('')
+      setApplyTemplateId('')
       setActiveTab('oneoff')
     } else {
       setName('')
@@ -112,9 +114,9 @@ export default function TaskPanel({
     setTimeout(() => nameRef.current?.focus(), 100)
   }, [open, task, usedColors])
 
-  // Load template
+  // Load template (create mode only)
   useEffect(() => {
-    if (!selectedTpl) return
+    if (task || !selectedTpl) return
     const tpl = templates.find(t => t.id === selectedTpl)
     if (!tpl) return
     const tplSteps = tpl.steps.length > 0 ? tpl.steps.map(s => ({ ...s, id: uid() })) : [emptyStep()]
@@ -122,7 +124,7 @@ export default function TaskPanel({
     setColor(pickDistinctPlannerColor(usedColors, tpl.color ?? null))
     if (!name) setName(tpl.name)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTpl, templates])
+  }, [selectedTpl, templates, task])
 
   // Escape key
   useEffect(() => {
@@ -266,6 +268,49 @@ export default function TaskPanel({
               className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono placeholder:text-pl-muted-light focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
             />
           </div>
+
+          {/* When editing: apply a template to sync steps (e.g. after updating the template) */}
+          {isEdit && templates.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+                Sync from template
+              </label>
+              <div className="flex gap-2">
+                <select
+                  value={applyTemplateId}
+                  onChange={e => setApplyTemplateId(e.target.value)}
+                  className="flex-1 bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
+                >
+                  <option value="">— Apply a template —</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!applyTemplateId}
+                  onClick={() => {
+                    const tpl = templates.find(t => t.id === applyTemplateId)
+                    if (!tpl) return
+                    const tplSteps = tpl.steps.length > 0
+                      ? tpl.steps.map(s => ({ ...s, id: uid() }))
+                      : [emptyStep()]
+                    setSteps(tplSteps)
+                    setColor(pickDistinctPlannerColor(usedColors, tpl.color ?? null))
+                    setName(tpl.name)
+                    setApplyTemplateId('')
+                    toast.success(`Steps replaced with template "${tpl.name}"`)
+                  }}
+                  className="px-3 py-2 rounded-[6px] text-[11px] font-[600] font-nb-mono bg-pl-orange/10 text-pl-orange hover:bg-pl-orange/20 disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
+              <p className="text-[10px] text-pl-muted font-nb-mono">
+                Replaces this task&apos;s steps with the template. Save to keep.
+              </p>
+            </div>
+          )}
 
           {/* Step builder */}
           <StepBuilder steps={steps} onChange={setSteps} />

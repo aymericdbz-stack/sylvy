@@ -65,6 +65,8 @@ interface TaskBlockProps {
   dragOverrideStartMin?: number
   /** When true, render as a semi-transparent drag "ghost". */
   isDragGhost?: boolean
+  /** Additive z-index boost — shorter tasks should get a higher value so they render on top. */
+  zBoost?: number
 }
 
 // ── Hatched background for available steps ────────────────────────────────────
@@ -87,6 +89,7 @@ export default function TaskBlock({
   dragTimeLabels,
   dragOverrideStartMin,
   isDragGhost,
+  zBoost = 0,
 }: TaskBlockProps) {
   const [hoveredStepId, setHoveredStepId] = useState<string | null>(null)
   const { task, scheduledStart, conflict, conflictReason } = block
@@ -197,7 +200,7 @@ export default function TaskBlock({
             top:    `${Math.max(connTop - 16, 0)}px`,
             left:   dayFullLeft,
             width:  dayFullWidth,
-            zIndex: 30,
+            zIndex: 30 + zBoost,
           }}
         >
           <span
@@ -219,19 +222,20 @@ export default function TaskBlock({
           width:           '2.5px',
           backgroundColor: borderC,
           opacity:         ghostFactor,
-          zIndex:          10,
+          zIndex:          10 + zBoost,
         }}
       />
 
       {/* Invisible hitbox so you can grab the task between steps */}
       <div
+        data-task-id={task.id}
         className="absolute cursor-pointer"
         style={{
           top:    `${connTop}px`,
           height: `${connHeight}px`,
           left:   dayFullLeft,
           width:  dayFullWidth,
-          zIndex: 15,
+          zIndex: 15 + zBoost,
           pointerEvents: isDragGhost ? 'none' : 'auto',
           backgroundColor: 'transparent',
           opacity: ghostFactor,
@@ -249,6 +253,7 @@ export default function TaskBlock({
         return (
           <div
             key={s.id}
+            data-task-id={task.id}
             className="absolute flex flex-col overflow-hidden cursor-pointer"
             style={{
               top:    `${sTop}px`,
@@ -266,7 +271,7 @@ export default function TaskBlock({
               borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderRadius:'0 4px 4px 0',
-              zIndex:      25,
+              zIndex:      25 + zBoost,
               transition:  'opacity 0.1s',
               opacity:     (isAvailable ? 0.75 : 1) * ghostFactor,
             }}
@@ -308,19 +313,20 @@ export default function TaskBlock({
         return (
           <div
             key={`avail-${s.id}`}
+            data-task-id={task.id}
             className="absolute flex flex-col overflow-hidden cursor-pointer"
             style={{
               top:         `${sTop}px`,
               height:      `${sHeight}px`,
               left:        availLaneLeft,
               width:       availLaneWidthCss,
-              background:  conflict ? '#FEF2F2' : hatchedBg(color),
+              backgroundColor: conflict ? '#FEF2F2' : 'transparent',
               borderLeft:  `2.5px solid ${borderC}`,
               borderTop:   `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.25)}`,
               borderRight: `1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderBottom:`1px solid ${conflict ? '#EF444433' : hexToRgba(color, 0.15)}`,
               borderRadius:'0 4px 4px 0',
-              zIndex:      15,
+              zIndex:      15 + zBoost,
               transition:  'opacity 0.1s',
             }}
             onClick={e => { e.stopPropagation(); onClick?.(task, s.id) }}
@@ -364,13 +370,14 @@ export default function TaskBlock({
 
         return (
           <div
-            className="absolute z-50 bg-pl-charcoal text-white rounded-[6px] px-2.5 py-1.5 shadow-xl font-nb-mono pointer-events-none"
+            className="absolute bg-pl-charcoal text-white rounded-[6px] px-2.5 py-1.5 shadow-xl font-nb-mono pointer-events-none"
             style={{
               top:      `${hoveredVisible.sTop + hoveredVisible.sHeight + 6}px`,
               left:     dayFullLeft,
               width:    'auto',
               fontSize: '10px',
               whiteSpace: 'nowrap',
+              zIndex:   50 + zBoost,
             }}
           >
             <p className="text-[10px] font-[600]">{hoveredStep.name || '—'}</p>

@@ -21,7 +21,7 @@ import { downloadIcal, generateIcal } from './utils/ical'
 import { pickDistinctPlannerColor }  from './utils/colors'
 import type { ScheduledTaskBlock }    from './components/TaskBlock'
 import type { PlannerTask, StepData } from './hooks/usePlannerTasks'
-import { solveIntercalation, type IntercalationResult } from './engine/solveIntercalation'
+import { solveIntercalation, getEffectiveStepPositions, type IntercalationResult } from './engine/solveIntercalation'
 
 import type {
   CalendarView,
@@ -134,6 +134,7 @@ function buildTaskEventsForWeek(
 interface PlacementCheckResult {
   ok: boolean
   reason?: string
+  weekendWarning?: boolean
 }
 
 function toISODateLocal(d: Date): string {
@@ -163,23 +164,42 @@ function validateTaskPlacement(
   const dayStartMin = workHours.start * 60
   const dayEndMin   = workHours.end * 60
 
-  const busyIntervals: Array<{ start: Date; end: Date }> = []
+  // Use getEffectiveStepPositions to correctly compute positions with cumulative
+  // deltas from expanded overnight steps (scheduledDuration may differ from duration)
+  const taskStartMin = scheduledStartLocal.getHours() * 60 + scheduledStartLocal.getMinutes()
+  const taskDateMidnight = new Date(scheduledStartLocal)
+  taskDateMidnight.setHours(0, 0, 0, 0)
 
-  for (const step of steps) {
-    const dur = step.scheduledDuration ?? step.duration
-    const stepStart = new Date(scheduledStartLocal.getTime() + step.startOffset * 60_000)
-    const stepEnd   = new Date(stepStart.getTime() + dur * 60_000)
+  const positions = getEffectiveStepPositions(taskStartMin, steps)
+  const busyIntervals: Array<{ start: Date; end: Date }> = []
+  let weekendWarning = false
+
+  for (const { step, start: absStart, end: absEnd } of positions) {
+    // Convert absolute minutes-from-midnight to Date objects (handles multi-day)
+    const startDayOff   = Math.floor(absStart / 1440)
+    const startMinInDay = absStart % 1440
+    const endDayOff     = Math.floor(absEnd / 1440)
+    const endMinInDay   = absEnd % 1440
+
+    const stepStart = new Date(taskDateMidnight)
+    stepStart.setDate(taskDateMidnight.getDate() + startDayOff)
+    stepStart.setHours(Math.floor(startMinInDay / 60), startMinInDay % 60, 0, 0)
+
+    const stepEnd = new Date(taskDateMidnight)
+    stepEnd.setDate(taskDateMidnight.getDate() + endDayOff)
+    stepEnd.setHours(Math.floor(endMinInDay / 60), endMinInDay % 60, 0, 0)
 
     if (!isBusinessDay(stepStart, includeWeekends) || !isBusinessDay(stepEnd, includeWeekends)) {
-      // Busy steps can never run on non-working days; available steps only if explicitly overnight
       if (step.stepType === 'busy' || !step.overnight) {
         return { ok: false, reason: 'This template cannot cross into non-working days here.' }
       }
+      // Overnight available step spans a weekend — warn but allow
+      if (!includeWeekends) weekendWarning = true
     }
 
-    const sameDay = stepStart.toDateString() === stepEnd.toDateString()
-    const startMinutes = stepStart.getHours() * 60 + stepStart.getMinutes()
-    const endMinutes   = stepEnd.getHours() * 60 + stepEnd.getMinutes()
+    const sameDay       = startDayOff === endDayOff
+    const startMinutes  = startMinInDay
+    const endMinutes    = endMinInDay
 
     if (step.stepType === 'busy') {
       // Busy steps must fit entirely inside one working day window
@@ -188,25 +208,36 @@ function validateTaskPlacement(
       }
       busyIntervals.push({ start: stepStart, end: stepEnd })
     } else {
-      // Available steps: only overnight ones are allowed to cross working-hours boundaries
+      // Available steps: only overnight ones may cross working-hours boundaries
       const crossesBounds = !sameDay || startMinutes < dayStartMin || endMinutes > dayEndMin
       if (crossesBounds && !step.overnight) {
         return { ok: false, reason: 'Only overnight steps may cross your working hours.' }
       }
-      // Available steps do not consume busy time; no interval added
     }
   }
 
   // Overlap check against other tasks' busy intervals
   const others = allTasks.filter(t => t.id !== task.id && t.scheduled_start)
   for (const other of others) {
-    const otherStart = new Date(other.scheduled_start!)
+    const otherStartLocal = new Date(other.scheduled_start!)
+    const otherStartMin = otherStartLocal.getHours() * 60 + otherStartLocal.getMinutes()
+    const otherDateMidnight = new Date(otherStartLocal)
+    otherDateMidnight.setHours(0, 0, 0, 0)
     const otherSteps = other.steps as StepData[]
-    for (const s of otherSteps) {
+    for (const { step: s, start: sAbsStart, end: sAbsEnd } of getEffectiveStepPositions(otherStartMin, otherSteps)) {
       if (s.stepType !== 'busy') continue
-      const dur = s.scheduledDuration ?? s.duration
-      const sStart = new Date(otherStart.getTime() + s.startOffset * 60_000)
-      const sEnd   = new Date(sStart.getTime() + dur * 60_000)
+      const sDayOff = Math.floor(sAbsStart / 1440)
+      const sMinInDay = sAbsStart % 1440
+      const sEndDayOff = Math.floor(sAbsEnd / 1440)
+      const sEndMinInDay = sAbsEnd % 1440
+
+      const sStart = new Date(otherDateMidnight)
+      sStart.setDate(otherDateMidnight.getDate() + sDayOff)
+      sStart.setHours(Math.floor(sMinInDay / 60), sMinInDay % 60, 0, 0)
+
+      const sEnd = new Date(otherDateMidnight)
+      sEnd.setDate(otherDateMidnight.getDate() + sEndDayOff)
+      sEnd.setHours(Math.floor(sEndMinInDay / 60), sEndMinInDay % 60, 0, 0)
 
       for (const bi of busyIntervals) {
         if (bi.start < sEnd && bi.end > sStart) {
@@ -216,7 +247,7 @@ function validateTaskPlacement(
     }
   }
 
-  return { ok: true }
+  return { ok: true, weekendWarning: weekendWarning || undefined }
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -411,6 +442,25 @@ export default function PlannerClient() {
     setEditEvent(event); setSlotDate(undefined); setSlotTime(undefined); setModalOpen(true)
   }
 
+  async function handleEventMove(
+    eventId: string,
+    date: string,
+    startTime: string,
+    endTime: string,
+    endDate?: string,
+  ) {
+    const tz = getTimezone()
+    const startUTC = tzDatetimeToUTC(date, startTime, tz)
+    const endUTC = tzDatetimeToUTC(endDate ?? date, endTime, tz)
+    try {
+      await updateEvent(eventId, { start_at: startUTC, end_at: endUTC })
+      toast.success('Event moved')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error moving event')
+      throw e
+    }
+  }
+
   function handleSlotClick(date: string, time: string, endTime?: string) {
     // If in manual placement mode, place the pending task here
     if (manualPlaceTaskId) {
@@ -469,6 +519,9 @@ export default function PlannerClient() {
     const tz  = getTimezone()
     const utc = tzDatetimeToUTC(date, time, tz)
 
+    // Note: optimistic state is now handled at the usePlannerTasks level
+    // We don't set optimisticTaskMove here anymore to avoid dual state management
+
     try {
       // Safety guard: never persist a placement outside working hours.
       // (The intercalation solver also enforces this, but this prevents any edge cases.)
@@ -488,6 +541,9 @@ export default function PlannerClient() {
       if (!ok.ok) {
         toast.error(ok.reason ?? 'This task cannot be placed here')
         return
+      }
+      if (ok.weekendWarning) {
+        toast.info('This template spans the weekend. It will resume Monday morning.')
       }
 
       // If the solver adjusted other tasks (flex steps), persist all changes
@@ -580,6 +636,22 @@ export default function PlannerClient() {
   async function handleDelete(id: string) {
     try { await deleteEvent(id); toast.success('Event deleted') }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Error'); throw e }
+  }
+
+  // ── Template drag-to-calendar ──────────────────────────────────────────────
+  async function handleTemplateDragStart(template: import('./hooks/useTaskTemplates').TaskTemplate) {
+    try {
+      const taskId = await createTask({
+        name:  template.name,
+        steps: template.steps,
+        color: template.color,
+        placement: 'manual',
+      })
+      setManualPlaceTaskId(taskId)
+      setTemplatesPanelOpen(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error creating task from template')
+    }
   }
 
   // ── Keyboard shortcuts for view switching (D/W/M/Y) ──────────────────────────
@@ -684,6 +756,7 @@ export default function PlannerClient() {
               scheduledTasks={scheduledTaskBlocks}
               pendingTask={pendingTask}
               onEventClick={handleEventClick}
+              onEventMove={handleEventMove}
               onSlotClick={handleSlotClick}
               onTaskClick={(task, stepId) => {
                 setEditTask(task)
@@ -701,6 +774,7 @@ export default function PlannerClient() {
               scheduledTasks={scheduledTaskBlocks}
               pendingTask={pendingTask}
               onEventClick={handleEventClick}
+              onEventMove={handleEventMove}
               onSlotClick={handleSlotClick}
               onTaskClick={(task, stepId) => {
                 setEditTask(task)
@@ -773,6 +847,7 @@ export default function PlannerClient() {
         onCreate={createTemplateDistinct}
         onUpdate={updateTemplate}
         onDelete={deleteTemplate}
+        onTemplateDragStart={handleTemplateDragStart}
       />
 
       {/* Event modal */}

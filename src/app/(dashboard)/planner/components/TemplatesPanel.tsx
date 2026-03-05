@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Plus, Trash2, Pencil, ChevronRight, Save } from 'lucide-react'
+import { X, Plus, Trash2, Pencil, ChevronRight, Save, GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
 import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
@@ -244,10 +244,11 @@ interface TemplatesPanelProps {
   onCreate:       (data: TaskTemplateInsert) => Promise<void>
   onUpdate:       (id: string, data: TaskTemplateInsert) => Promise<void>
   onDelete:       (id: string) => Promise<void>
+  onTemplateDragStart?: (template: TaskTemplate) => void
 }
 
 export default function TemplatesPanel({
-  open, templates, onClose, onCreate, onUpdate, onDelete,
+  open, templates, onClose, onCreate, onUpdate, onDelete, onTemplateDragStart,
 }: TemplatesPanelProps) {
   const [view,       setView]       = useState<'list' | 'create' | 'edit'>('list')
   const [editTarget, setEditTarget] = useState<TaskTemplate | null>(null)
@@ -351,9 +352,25 @@ export default function TemplatesPanel({
               {templates.map(tpl => (
                 <div
                   key={tpl.id}
-                  className="flex items-center gap-3 bg-white border border-pl-cream-border rounded-[8px] px-3 py-2.5 cursor-pointer hover:bg-pl-cream-dark/60 transition-colors"
+                  className="flex items-center gap-3 bg-white border border-pl-cream-border rounded-[8px] px-3 py-2.5 cursor-pointer hover:bg-pl-cream-dark/60 transition-colors group"
                   onClick={() => { setEditTarget(tpl); setView('edit') }}
                 >
+                  {/* Drag handle */}
+                  {onTemplateDragStart && (
+                    <button
+                      onMouseDown={e => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        onTemplateDragStart(tpl)
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="flex-shrink-0 text-pl-muted-light opacity-40 group-hover:opacity-100 cursor-grab hover:text-pl-charcoal transition-all"
+                      title="Drag to calendar"
+                    >
+                      <GripVertical size={14} />
+                    </button>
+                  )}
+
                   {/* Color dot */}
                   <span
                     className="w-3 h-3 rounded-full flex-shrink-0"

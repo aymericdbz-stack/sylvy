@@ -31,6 +31,14 @@ export interface IntercalationResult {
   message?: string
 }
 
+export interface OvernightExpansion {
+  stepId: string
+  /** New scheduledDuration for the overnight step (covers the full night gap) */
+  expandedDuration: number
+  /** Whether this overnight spans a weekend (Fri→Mon) */
+  crossesWeekend: boolean
+}
+
 // ── Internal types ─────────────────────────────────────────────────────────────
 
 interface BusyInterval {
@@ -116,8 +124,186 @@ function detectOverlaps(placements: TaskPlacement[]): Overlap[] {
   return result
 }
 
+// ── Grid granularity ──────────────────────────────────────────────────────────
+
+/** Grid granularity for task start (minutes). Must match planner drag snap. */
+const SNAP_MINUTES = 5
+
+function snapToGrid(min: number): number {
+  return Math.round(min / SNAP_MINUTES) * SNAP_MINUTES
+}
+
+// ── Overnight expansion ──────────────────────────────────────────────────────
+
+/**
+ * Walk through a task's steps at a given startMin and detect which overnight
+ * steps cross working-hours boundaries. For each, compute the expanded duration
+ * that covers the full night gap so subsequent steps resume at next-day WH start.
+ *
+ * @param startMin       Task start in minutes from midnight
+ * @param steps          The task's steps (not mutated)
+ * @param workHours      User's working hours
+ * @param startDayOfWeek 0=Sun … 6=Sat — the day of week for the task's start date
+ * @param includeWeekends Whether weekends are working days
+ */
+export function computeOvernightExpansions(
+  startMin: number,
+  steps: StepData[],
+  workHours: WorkHours,
+  startDayOfWeek: number,
+  includeWeekends: boolean,
+): OvernightExpansion[] {
+  const whStartMin = workHours.start * 60
+  const whEndMin = workHours.end * 60
+  const nightGap = (24 * 60 - whEndMin) + whStartMin // minutes from WH end to next WH start
+
+  const positions = getEffectiveStepPositions(startMin, steps)
+  const expansions: OvernightExpansion[] = []
+
+  // Track cumulative extra delta from previous expansions in this pass
+  let extraDelta = 0
+  // Track which "logical day" we're on (0 = start day, 1 = next day, etc.)
+  let currentDay = 0
+
+  for (const { step, start: rawStart, end: rawEnd } of positions) {
+    const start = rawStart + extraDelta
+    const end = rawEnd + extraDelta
+
+    // Current day's WH boundaries (shifted by overnight crossings)
+    const dayWhEnd = currentDay * 1440 + whEndMin
+    const dayWhStart = currentDay * 1440 + whStartMin
+
+    // Check drag DOWN: step crosses end of current day's WH
+    if (end > dayWhEnd && start < dayWhEnd) {
+      if (step.overnight) {
+        // Compute how many weekend days to skip
+        const stepDayOfWeek = (startDayOfWeek + currentDay) % 7
+        let weekendDays = 0
+        let crossesWeekend = false
+        if (!includeWeekends) {
+          // Check if the night crosses into weekend days
+          let checkDay = (stepDayOfWeek + 1) % 7
+          while (checkDay === 0 || checkDay === 6) {
+            weekendDays++
+            checkDay = (checkDay + 1) % 7
+            crossesWeekend = true
+          }
+        }
+
+        const totalNightGap = nightGap + weekendDays * 1440
+        // The step's time before WH end
+        const timeBeforeEnd = dayWhEnd - start
+        // Expanded duration = time before WH end + total night gap
+        // The step finishes exactly at next business day's WH start
+        const expandedDuration = timeBeforeEnd + totalNightGap
+
+        expansions.push({
+          stepId: step.id,
+          expandedDuration,
+          crossesWeekend,
+        })
+
+        // Shift subsequent steps: the expansion adds extra time
+        const originalDur = step.scheduledDuration ?? step.duration
+        extraDelta += expandedDuration - originalDur
+
+        // Move to next logical day
+        currentDay += 1 + weekendDays
+      } else {
+        // Non-overnight step crosses WH end → blocked, stop here
+        break
+      }
+    }
+
+    // Check drag UP: step crosses start of current day's WH
+    if (start < dayWhStart && end > dayWhStart) {
+      if (step.overnight) {
+        // Going backward into previous evening
+        const stepDayOfWeek = (startDayOfWeek + currentDay) % 7
+        let weekendDays = 0
+        let crossesWeekend = false
+        if (!includeWeekends) {
+          let checkDay = (stepDayOfWeek - 1 + 7) % 7
+          while (checkDay === 0 || checkDay === 6) {
+            weekendDays++
+            checkDay = (checkDay - 1 + 7) % 7
+            crossesWeekend = true
+          }
+        }
+
+        const totalNightGap = nightGap + weekendDays * 1440
+        // The step's time after WH start
+        const timeAfterStart = end - dayWhStart
+        const expandedDuration = timeAfterStart + totalNightGap
+
+        expansions.push({
+          stepId: step.id,
+          expandedDuration,
+          crossesWeekend,
+        })
+
+        const originalDur = step.scheduledDuration ?? step.duration
+        extraDelta += expandedDuration - originalDur
+      } else {
+        break
+      }
+    }
+  }
+
+  return expansions
+}
+
+/**
+ * Compute the maximum drag extent for overnight-aware clamping.
+ * Returns the furthest startMin allowed, or null if no overnight step exists
+ * (meaning default clamp should apply).
+ */
+export function computeOvernightDragLimits(
+  steps: StepData[],
+  workHours: WorkHours,
+  dayStartMin: number,
+  dayEndMin: number,
+): { maxStart: number; minStart: number } | null {
+  const whStartMin = workHours.start * 60
+  const whEndMin = workHours.end * 60
+
+  const sorted = [...steps].sort((a, b) => a.startOffset - b.startOffset)
+
+  // Find the first overnight step — this determines the drag limit
+  let hasOvernight = false
+  let firstOvernightOffset = 0
+  let cumulativeDelta = 0
+
+  for (const step of sorted) {
+    const dur = step.scheduledDuration ?? step.duration
+    if (step.overnight) {
+      hasOvernight = true
+      firstOvernightOffset = step.startOffset + cumulativeDelta
+      break
+    }
+    const delta = dur - step.duration
+    if (delta !== 0) cumulativeDelta += delta
+  }
+
+  if (!hasOvernight) return null
+
+  // Max start: the overnight step must start at least SNAP_MINUTES before WH end
+  const maxStart = whEndMin - firstOvernightOffset - SNAP_MINUTES
+
+  // Min start: for drag up, find the last overnight step and ensure it ends
+  // at least SNAP_MINUTES after WH start. For simplicity, keep normal min.
+  const minStart = dayStartMin
+
+  return { maxStart, minStart }
+}
+
 // ── Working-hours validation ───────────────────────────────────────────────────
 
+/**
+ * Check that all busy steps fit within working hours.
+ * Supports multi-day tasks: busy steps with positions >1440 are checked
+ * against the corresponding day's WH window.
+ */
 function placementBusyStepsFitWorkHours(p: TaskPlacement, workHours: WorkHours): boolean {
   const whStartMin = workHours.start * 60
   const whEndMin = workHours.end * 60
@@ -125,13 +311,18 @@ function placementBusyStepsFitWorkHours(p: TaskPlacement, workHours: WorkHours):
   const positions = getEffectiveStepPositions(p.startMin, p.steps)
   let hasBusy = false
   for (const { step, start, end } of positions) {
+    // Skip overnight available steps — they're allowed to cross WH
+    if (step.overnight && step.stepType !== 'busy') continue
     if (step.stepType !== 'busy') continue
     hasBusy = true
-    // Busy steps must fit fully inside the working-hours window of the day.
-    // (We treat any cross-midnight / out-of-range minute values as invalid here.)
-    if (start < 0 || end > 1440) return false
-    if (start < whStartMin) return false
-    if (end > whEndMin) return false
+
+    // Determine which logical day this busy step falls on
+    const dayIndex = Math.floor(start / 1440)
+    const dayWhStart = dayIndex * 1440 + whStartMin
+    const dayWhEnd = dayIndex * 1440 + whEndMin
+
+    if (start < dayWhStart) return false
+    if (end > dayWhEnd) return false
   }
   // If there are no busy steps, still enforce that the task's start time is within working hours.
   if (!hasBusy) {
@@ -139,6 +330,90 @@ function placementBusyStepsFitWorkHours(p: TaskPlacement, workHours: WorkHours):
     return p.startMin >= whStartMin && p.startMin < whEndMin
   }
   return true
+}
+
+// ── Placements for a given day (including overflow from previous days) ────────
+
+export interface ScheduledBlock {
+  task: { id: string; steps: StepData[] }
+  scheduledStart: Date
+}
+
+/**
+ * Build TaskPlacement[] for a single day for use with solveIntercalation.
+ * Includes tasks that start on that day and "overflow" placements for tasks
+ * that started on a previous day but have busy steps on the target day.
+ */
+export function getPlacementsForDay(
+  blocks: ScheduledBlock[],
+  dayISO: string,
+  excludeTaskId?: string,
+): TaskPlacement[] {
+  const placements: TaskPlacement[] = []
+  const dayDate = new Date(dayISO + 'T00:00:00')
+
+  for (const block of blocks) {
+    if (block.task.id === excludeTaskId) continue
+
+    const startDate = new Date(block.scheduledStart)
+    const startDateISO = startDate.getFullYear() + '-' +
+      String(startDate.getMonth() + 1).padStart(2, '0') + '-' +
+      String(startDate.getDate()).padStart(2, '0')
+    const startMinOfDay = startDate.getHours() * 60 + startDate.getMinutes()
+
+    const startDayTime = new Date(startDateISO + 'T00:00:00').getTime()
+    const targetDayTime = dayDate.getTime()
+    const daysDiff = Math.round((targetDayTime - startDayTime) / 86400000)
+
+    if (daysDiff < 0) continue
+    if (daysDiff > 0) {
+      // Overflow: task started on a previous day; add synthetic placement for busy segments on dayISO
+      // Positions from getEffectiveStepPositions are in "minutes from start day midnight"
+      const dayStart = daysDiff * 1440
+      const dayEnd = (daysDiff + 1) * 1440
+      const positions = getEffectiveStepPositions(startMinOfDay, block.task.steps)
+      const busyOnDay: Array<{ start: number; end: number }> = []
+      for (const { step, start, end } of positions) {
+        if (step.stepType !== 'busy') continue
+        const segStart = Math.max(start, dayStart)
+        const segEnd = Math.min(end, dayEnd)
+        if (segEnd > segStart) {
+          busyOnDay.push({ start: segStart - dayStart, end: segEnd - dayStart })
+        }
+      }
+      if (busyOnDay.length === 0) continue
+      busyOnDay.sort((a, b) => a.start - b.start)
+      const steps: StepData[] = busyOnDay.map((seg, i) => ({
+        id: `overflow-${block.task.id}-${dayISO}-${i}`,
+        name: '',
+        description: '',
+        duration: seg.end - seg.start,
+        startOffset: seg.start,
+        stepType: 'busy' as const,
+        availableType: 'flexible' as const,
+        overnight: false,
+      }))
+      const firstStart = busyOnDay[0].start
+      placements.push({
+        taskId: block.task.id,
+        startMin: firstStart,
+        steps: steps.map((s, i) => ({
+          ...s,
+          startOffset: busyOnDay[i].start - firstStart,
+        })),
+      })
+      continue
+    }
+
+    // Task starts on this day: full placement
+    placements.push({
+      taskId: block.task.id,
+      startMin: startMinOfDay,
+      steps: block.task.steps,
+    })
+  }
+
+  return placements
 }
 
 // ── Flex adjustment ────────────────────────────────────────────────────────────
@@ -384,12 +659,6 @@ function minToTimeLabel(min: number): string {
  * 5. Working hours enforced for non-overnight steps
  * 6. Graceful fallback to nearest free slot
  */
-/** Grid granularity for task start (minutes). Must match planner drag snap. */
-const SNAP_MINUTES = 5
-
-function snapToGrid(min: number): number {
-  return Math.round(min / SNAP_MINUTES) * SNAP_MINUTES
-}
 
 export function solveIntercalation(input: {
   existingTasks: TaskPlacement[]

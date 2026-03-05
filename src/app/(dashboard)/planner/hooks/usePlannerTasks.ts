@@ -141,6 +141,22 @@ export function usePlannerTasks() {
   }, [fetchTasks, tasks])
 
   const updateTask = useCallback(async (id: string, data: PlannerTaskInsert) => {
+    // Optimistic update: move the task in UI immediately so drag-drop has no jerk
+    setTasks(prev => prev.map(t => {
+      if (t.id !== id) return t
+      return {
+        ...t,
+        name:            data.name,
+        description:     data.description ?? t.description,
+        priority:        data.priority ?? t.priority,
+        placement:       data.placement ?? t.placement,
+        deadline:        data.deadline ?? t.deadline,
+        steps:           data.steps,
+        color:           data.color ?? t.color,
+        scheduled_start: data.scheduled_start ?? t.scheduled_start,
+      }
+    }))
+
     const supabase = createClient()
     const { error } = await supabase
       .from('planner_tasks')
@@ -155,9 +171,13 @@ export function usePlannerTasks() {
         scheduled_start: data.scheduled_start ?? null,
       })
       .eq('id', id)
-    if (error) throw error
+    if (error) {
+      await fetchTasks()
+      throw error
+    }
     setDirty(true)
-    await fetchTasks()
+    // Don't fetchTasks after success: optimistic state is already correct.
+    // Fetching can cause a jerk if DB read returns stale data before write is replicated.
   }, [fetchTasks])
 
   const deleteTask = useCallback(async (id: string) => {
@@ -180,6 +200,22 @@ export function usePlannerTasks() {
       steps?:          StepData[]
     }[]
   ) => {
+    // Optimistic update: move tasks in UI immediately so drag-drop has no jerk
+    setTasks(prev => {
+      const updateMap = new Map(updates.map(u => [u.id, u]))
+      return prev.map(t => {
+        const u = updateMap.get(t.id)
+        if (!u) return t
+        return {
+          ...t,
+          scheduled_start: u.scheduled_start ?? t.scheduled_start,
+          conflict:        u.conflict,
+          conflict_reason: u.conflict_reason ?? t.conflict_reason,
+          steps:           u.steps ?? t.steps,
+        }
+      })
+    })
+
     const supabase = createClient()
     for (const u of updates) {
       const payload: Record<string, unknown> = {
@@ -192,10 +228,13 @@ export function usePlannerTasks() {
         .from('planner_tasks')
         .update(payload)
         .eq('id', u.id)
-      if (error) throw error
+      if (error) {
+        await fetchTasks()
+        throw error
+      }
     }
     setDirty(false)
-    await fetchTasks()
+    // Don't fetchTasks after success: optimistic state is already correct.
   }, [fetchTasks])
 
   return {
