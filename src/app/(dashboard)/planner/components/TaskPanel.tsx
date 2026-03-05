@@ -1,16 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Trash2, Hand, Clock, Save, Sparkles } from 'lucide-react'
+import { X, Trash2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import Button from '@/components/ui/pl/Button'
-import { StepBuilder, emptyStep, TOffsetInput as _TOffsetInput } from './StepBuilder'
+import { StepBuilder, emptyStep } from './StepBuilder'
 
-function uid() { return crypto.randomUUID() }
-import type { PlannerTask, PlannerTaskInsert, StepData, Priority } from '../hooks/usePlannerTasks'
-import type { TaskTemplate, TaskTemplateInsert } from '../hooks/useTaskTemplates'
-import { getTimezone } from '@/lib/preferences'
-import { tzDatetimeToUTC } from '../utils/timezone'
+import type { PlannerTask, PlannerTaskInsert, StepData } from '../hooks/usePlannerTasks'
+import type { TaskTemplate } from '../hooks/useTaskTemplates'
 import { PLANNER_COLOR_PALETTE, pickDistinctPlannerColor } from '../utils/colors'
 
 // ── Color picker ───────────────────────────────────────────────────────────────
@@ -29,102 +26,41 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
   )
 }
 
-// ── Priority picker ────────────────────────────────────────────────────────────
-const PRIO_STYLES: Record<Priority, string> = {
-  critical: 'data-[active=true]:bg-red-500 data-[active=true]:text-white data-[active=true]:border-red-500',
-  normal:   'data-[active=true]:bg-pl-charcoal data-[active=true]:text-white data-[active=true]:border-pl-charcoal',
-  low:      'data-[active=true]:bg-pl-muted data-[active=true]:text-white data-[active=true]:border-pl-muted',
-}
-
-function PriorityPicker({ value, onChange }: { value: Priority; onChange: (p: Priority) => void }) {
-  return (
-    <div className="flex gap-1.5">
-      {(['critical', 'normal', 'low'] as Priority[]).map(p => (
-        <button key={p} type="button" onClick={() => onChange(p)}
-          data-active={value === p}
-          className={`flex-1 py-1.5 rounded-[6px] text-[11px] font-[600] font-nb-mono border border-pl-cream-border bg-white text-pl-muted transition-colors capitalize hover:text-pl-charcoal ${PRIO_STYLES[p]}`}
-        >
-          {p}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // ── Props ──────────────────────────────────────────────────────────────────────
 interface TaskPanelProps {
   open:            boolean
   onClose:         () => void
-  onSave:          (data: PlannerTaskInsert) => Promise<string>
-  onSaveTemplate?: (data: TaskTemplateInsert) => Promise<void>
   onUpdate?:       (id: string, data: PlannerTaskInsert) => Promise<void>
   onDelete?:       (id: string) => Promise<void>
-  onManualPlace?:  (taskId: string) => void
   task?:           PlannerTask | null
   selectedStepId?: string | null
   templates:       TaskTemplate[]
-  /** Colors currently visible on the calendar (to pick a distinct default). */
   usedColors?:     string[]
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────────
+// ── Main (edit-only) ────────────────────────────────────────────────────────────
 export default function TaskPanel({
-  open, onClose, onSave, onUpdate, onDelete,
-  onManualPlace,
+  open, onClose, onUpdate, onDelete,
   task, templates, usedColors = [],
 }: TaskPanelProps) {
-  const isEdit  = !!task
   const nameRef = useRef<HTMLInputElement>(null)
 
-  const [activeTab,    setActiveTab]    = useState<'oneoff' | 'template'>('template')
   const [name,         setName]         = useState('')
-  const [description,  setDescription]  = useState('')
-  const [priority,     setPriority]     = useState<Priority>('normal')
-  const [deadline,     setDeadline]     = useState('')
   const [steps,        setSteps]        = useState<StepData[]>([emptyStep()])
-  const [color,        setColor]        = useState(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
-  const [selectedTpl,    setSelectedTpl]    = useState('')
+  const [color,        setColor]        = useState(PLANNER_COLOR_PALETTE[0] ?? '#F97316')
   const [applyTemplateId, setApplyTemplateId] = useState('')
   const [saving,         setSaving]         = useState(false)
   const [deleting,       setDeleting]       = useState(false)
 
-  // Populate on open
+  // Populate on open (edit mode only)
   useEffect(() => {
-    if (!open) return
-    if (task) {
-      setName(task.name)
-      setDescription(task.description ?? '')
-      setPriority(task.priority ?? 'normal')
-      setDeadline(task.deadline ? task.deadline.slice(0, 10) : '')
-      setSteps(task.steps.length > 0 ? task.steps : [emptyStep()])
-      setColor(task.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
-      setSelectedTpl('')
-      setApplyTemplateId('')
-      setActiveTab('oneoff')
-    } else {
-      setName('')
-      setDescription('')
-      setPriority('normal')
-      setDeadline('')
-      setSteps([emptyStep()])
-      setColor(pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
-      setSelectedTpl('')
-      setActiveTab('template')
-    }
+    if (!open || !task) return
+    setName(task.name)
+    setSteps(task.steps.length > 0 ? task.steps : [emptyStep()])
+    setColor(task.color ?? pickDistinctPlannerColor(usedColors, PLANNER_COLOR_PALETTE[0] ?? null))
+    setApplyTemplateId('')
     setTimeout(() => nameRef.current?.focus(), 100)
   }, [open, task, usedColors])
-
-  // Load template (create mode only)
-  useEffect(() => {
-    if (task || !selectedTpl) return
-    const tpl = templates.find(t => t.id === selectedTpl)
-    if (!tpl) return
-    const tplSteps = tpl.steps.length > 0 ? tpl.steps.map(s => ({ ...s, id: uid() })) : [emptyStep()]
-    setSteps(tplSteps)
-    setColor(pickDistinctPlannerColor(usedColors, tpl.color ?? null))
-    if (!name) setName(tpl.name)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTpl, templates, task])
 
   // Escape key
   useEffect(() => {
@@ -134,55 +70,31 @@ export default function TaskPanel({
     return () => window.removeEventListener('keydown', handler)
   }, [open, onClose])
 
+  // Don't render if no task (edit-only)
+  if (!task) return null
+
   function validate() {
-    if (!name.trim())                       { toast.error('Task name is required');    return false }
-    if (steps.some(s => !s.name.trim()))    { toast.error('Every step needs a name'); return false }
-    if (steps.some(s => s.duration < 1))   { toast.error('Minimum duration: 1 min'); return false }
+    if (!name.trim())                       { toast.error('Name is required');          return false }
+    if (steps.some(s => !s.name.trim()))    { toast.error('Every step needs a name');  return false }
+    if (steps.some(s => s.duration < 1))   { toast.error('Minimum duration: 1 min');  return false }
     return true
-  }
-
-  function buildPayload(placement: 'manual' | 'auto', scheduled_start?: string | null): PlannerTaskInsert {
-    const tz = getTimezone()
-    return {
-      name:            name.trim(),
-      description:     description.trim() || null,
-      priority,
-      placement,
-      deadline:        deadline ? tzDatetimeToUTC(deadline, '23:59', tz) : null,
-      steps,
-      color,
-      scheduled_start: scheduled_start ?? null,
-    }
-  }
-
-  async function handleManualPlace() {
-    if (!validate()) return
-    setSaving(true)
-    try {
-      const id = await onSave(buildPayload('manual'))
-      toast.success('Click the calendar to set the start time')
-      onClose()
-      onManualPlace?.(id)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
-    finally { setSaving(false) }
   }
 
   async function handleUpdate() {
     if (!validate() || !task || !onUpdate) return
-    const tz = getTimezone()
     setSaving(true)
     try {
       await onUpdate(task.id, {
         name:            name.trim(),
-        description:     description.trim() || null,
-        priority,
+        description:     task.description,
+        priority:        task.priority,
         placement:       task.placement,
-        deadline:        deadline ? tzDatetimeToUTC(deadline, '23:59', tz) : null,
+        deadline:        task.deadline,
         steps,
         color,
         scheduled_start: task.scheduled_start,
       })
-      toast.success('Task updated')
+      toast.success('Template updated')
       onClose()
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     finally { setSaving(false) }
@@ -193,7 +105,7 @@ export default function TaskPanel({
     setDeleting(true)
     try {
       await onDelete(task.id)
-      toast.success('Task deleted')
+      toast.success('Template deleted')
       onClose()
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     finally { setDeleting(false) }
@@ -210,55 +122,20 @@ export default function TaskPanel({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-pl-cream-border flex-shrink-0">
           <h2 className="text-[13px] font-[700] text-pl-charcoal font-nb-mono">
-            {isEdit ? 'Edit task' : 'New task'}
+            Edit template
           </h2>
           <button onClick={onClose} className="p-1 text-pl-muted hover:text-pl-charcoal transition-colors">
             <X size={16} />
           </button>
         </div>
 
-        {/* Tab bar (create only) */}
-        {!isEdit && (
-          <div className="flex px-5 pt-3 gap-1 flex-shrink-0">
-            {([['oneoff', 'One-off'], ['template', 'From template']] as const).map(([tab, label]) => (
-              <button key={tab} type="button"
-                onClick={() => { setActiveTab(tab); setSelectedTpl('') }}
-                className={`flex-1 py-1.5 rounded-[6px] text-[11px] font-[600] font-nb-mono border transition-colors ${
-                  activeTab === tab
-                    ? 'bg-white border-pl-cream-border text-pl-charcoal shadow-sm'
-                    : 'border-transparent text-pl-muted hover:text-pl-charcoal'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
-          {/* Template selector */}
-          {!isEdit && activeTab === 'template' && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-                Template
-              </label>
-              <select
-                value={selectedTpl}
-                onChange={e => setSelectedTpl(e.target.value)}
-                className="w-full bg-white border border-pl-cream-border rounded-[6px] px-3 py-2 text-[12px] text-pl-charcoal font-nb-mono focus:outline-none focus:ring-1 focus:ring-pl-orange/40"
-              >
-                <option value="">— Select a template —</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          {/* Task name */}
+          {/* Name */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
-              Task name *
+              Name *
             </label>
             <input
               ref={nameRef}
@@ -269,8 +146,16 @@ export default function TaskPanel({
             />
           </div>
 
-          {/* When editing: apply a template to sync steps (e.g. after updating the template) */}
-          {isEdit && templates.length > 0 && (
+          {/* Color */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
+              Color
+            </label>
+            <ColorPicker value={color} onChange={setColor} />
+          </div>
+
+          {/* Sync from template */}
+          {templates.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-[600] text-pl-muted uppercase tracking-[0.06em] font-nb-mono">
                 Sync from template
@@ -293,7 +178,7 @@ export default function TaskPanel({
                     const tpl = templates.find(t => t.id === applyTemplateId)
                     if (!tpl) return
                     const tplSteps = tpl.steps.length > 0
-                      ? tpl.steps.map(s => ({ ...s, id: uid() }))
+                      ? tpl.steps.map(s => ({ ...s, id: crypto.randomUUID() }))
                       : [emptyStep()]
                     setSteps(tplSteps)
                     setColor(pickDistinctPlannerColor(usedColors, tpl.color ?? null))
@@ -307,7 +192,7 @@ export default function TaskPanel({
                 </button>
               </div>
               <p className="text-[10px] text-pl-muted font-nb-mono">
-                Replaces this task&apos;s steps with the template. Save to keep.
+                Replaces this template&apos;s steps with the selected workflow. Save to keep.
               </p>
             </div>
           )}
@@ -319,25 +204,17 @@ export default function TaskPanel({
 
         {/* Footer */}
         <div className="flex-shrink-0 px-5 py-4 border-t border-pl-cream-border">
-          {isEdit ? (
-            <div className="flex items-center gap-2">
-              {onDelete && (
-                <Button variant="danger" size="md" onClick={handleDelete} loading={deleting}>
-                  <Trash2 size={13} /> Delete
-                </Button>
-              )}
-              <Button variant="primary" size="md" className="flex-1" onClick={handleUpdate} loading={saving}>
-                <Save size={13} className="mr-2" />
-                Save
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <Button variant="danger" size="md" onClick={handleDelete} loading={deleting}>
+                <Trash2 size={13} /> Delete
               </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="md" className="flex-1" onClick={handleManualPlace} loading={saving}>
-                <Hand size={13} /> Place manually
-              </Button>
-            </div>
-          )}
+            )}
+            <Button variant="primary" size="md" className="flex-1" onClick={handleUpdate} loading={saving}>
+              <Save size={13} className="mr-2" />
+              Save
+            </Button>
+          </div>
         </div>
 
       </div>

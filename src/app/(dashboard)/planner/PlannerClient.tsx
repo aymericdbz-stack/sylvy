@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
-import { Plus, BookTemplate, Loader2, RotateCcw } from 'lucide-react'
+import { BookTemplate, Loader2, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 
 import CalendarHeader                 from './components/CalendarHeader'
@@ -265,9 +265,6 @@ export default function PlannerClient() {
 
   const [modalOpen,   setModalOpen]   = useState(false)
   const [editEvent,   setEditEvent]   = useState<CalendarEvent | null>(null)
-  const [slotDate,    setSlotDate]    = useState<string | undefined>()
-  const [slotTime,    setSlotTime]    = useState<string | undefined>()
-  const [slotEndTime, setSlotEndTime] = useState<string | undefined>()
 
   const [workHours, setWorkHoursState] = useState(() => getWorkHours())
   const [includeWeekends, setIncludeWeekends] = useState(() => getPlannerWeekendsEnabled())
@@ -384,7 +381,7 @@ export default function PlannerClient() {
             color:           t.color,
             scheduled_start: utc,
           })
-          toast.info(`Moved "${t.name}" back into working hours`)
+          toast.info(`Moved "${t.name}" back into working hours.`)
         } catch {
           // If this fails (network, permissions), user can still move manually once it’s in a valid spot.
         }
@@ -439,7 +436,7 @@ export default function PlannerClient() {
 
   // ── Event interaction ────────────────────────────────────────────────────────
   function handleEventClick(event: CalendarEvent) {
-    setEditEvent(event); setSlotDate(undefined); setSlotTime(undefined); setModalOpen(true)
+    setEditEvent(event); setModalOpen(true)
   }
 
   async function handleEventMove(
@@ -468,7 +465,45 @@ export default function PlannerClient() {
       setManualPlaceTaskId(null)
       return
     }
-    setEditEvent(null); setSlotDate(date); setSlotTime(time); setSlotEndTime(endTime); setModalOpen(true)
+
+    // Create a single-step template (busy, not overnight) and place it immediately
+    const tz = getTimezone()
+    const utc = tzDatetimeToUTC(date, time, tz)
+
+    let durationMin = 60
+    if (endTime) {
+      const [sh, sm] = time.split(':').map(Number)
+      const [eh, em] = endTime.split(':').map(Number)
+      durationMin = (eh * 60 + em) - (sh * 60 + sm)
+      if (durationMin < 15) durationMin = 30
+    }
+
+    const step: StepData = {
+      id: crypto.randomUUID(),
+      name: '',
+      description: '',
+      duration: durationMin,
+      startOffset: 0,
+      stepType: 'busy',
+      availableType: 'flexible',
+      overnight: false,
+    }
+
+    const usedColors = [
+      ...tasks.map(t => t.color),
+      ...templates.map(t => t.color),
+    ]
+    const color = pickDistinctPlannerColor(usedColors, null)
+
+    createTask({
+      name: 'New block',
+      steps: [step],
+      color,
+      placement: 'manual',
+      scheduled_start: utc,
+    })
+      .then(() => toast.success('Block created'))
+      .catch(e => toast.error(e instanceof Error ? e.message : 'Error'))
   }
 
   function handleDayClick(date: string) {
@@ -488,7 +523,7 @@ export default function PlannerClient() {
       const scheduledStartLocal = new Date(`${date}T${time}:00`)
       const ok = validateTaskPlacement(task, scheduledStartLocal, tasks, workHours, includeWeekends)
       if (!ok.ok) {
-        toast.error(ok.reason ?? 'This task cannot be placed here')
+        toast.error(ok.reason ?? 'This template cannot be placed here')
         return
       }
 
@@ -502,9 +537,9 @@ export default function PlannerClient() {
         color:           task.color,
         scheduled_start: utc,
       })
-      toast.success('Task placed')
+      toast.success('Template placed')
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error placing task')
+      toast.error(e instanceof Error ? e.message : 'Error placing template')
     }
   }
 
@@ -539,7 +574,7 @@ export default function PlannerClient() {
 
       const ok = validateTaskPlacement(taskForValidation, scheduledStartLocal, tasksForValidation, workHours, includeWeekends)
       if (!ok.ok) {
-        toast.error(ok.reason ?? 'This task cannot be placed here')
+        toast.error(ok.reason ?? 'This template cannot be placed here')
         return
       }
       if (ok.weekendWarning) {
@@ -584,7 +619,7 @@ export default function PlannerClient() {
         if (solverResult.moved && solverResult.message) {
           toast.info(solverResult.message)
         } else {
-          toast.success('Task updated')
+          toast.success('Template updated')
         }
       } else {
         // Simple move — no intercalation adjustments needed
@@ -602,7 +637,7 @@ export default function PlannerClient() {
         if (solverResult?.moved && solverResult.message) {
           toast.info(solverResult.message)
         } else {
-          toast.success('Task updated')
+          toast.success('Template updated')
         }
       }
 
@@ -611,7 +646,7 @@ export default function PlannerClient() {
         setManualPlaceTaskId(null)
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error updating task')
+      toast.error(e instanceof Error ? e.message : 'Error updating template')
       throw e
     }
   }
@@ -650,7 +685,7 @@ export default function PlannerClient() {
       setManualPlaceTaskId(taskId)
       setTemplatesPanelOpen(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error creating task from template')
+      toast.error(e instanceof Error ? e.message : 'Error placing template')
     }
   }
 
@@ -703,7 +738,7 @@ export default function PlannerClient() {
       {manualPlaceTaskId && (
         <div className="flex-shrink-0 flex items-center gap-3 px-5 py-2.5 bg-pl-charcoal text-white z-20">
           <span className="text-[11px] font-[600] font-nb-mono flex-1">
-            Drag on the calendar to place the new task
+            Drag on the calendar to place the new template
           </span>
           <button
             onClick={() => setManualPlaceTaskId(null)}
@@ -804,27 +839,18 @@ export default function PlannerClient() {
         </div>
       </div>
 
-      {/* Floating actions: new task + templates */}
+      {/* Floating action: templates */}
       <div className="fixed right-8 bottom-8 z-30 flex flex-col items-end gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => { setTemplatesPanelOpen(true) }}
-            className="w-11 h-11 rounded-full bg-pl-cream-dark text-pl-charcoal shadow-lg flex items-center justify-center hover:bg-pl-cream border border-pl-cream-border transition-colors"
-            title="Task templates"
-          >
-            <BookTemplate size={18} />
-          </button>
-          <button
-            onClick={() => { setEditTask(null); setTaskPanelOpen(true) }}
-            className="w-11 h-11 rounded-full bg-pl-orange text-white shadow-lg flex items-center justify-center hover:bg-pl-orange-dark transition-colors"
-            title="New task"
-          >
-            <Plus size={20} />
-          </button>
-        </div>
+        <button
+          onClick={() => { setTemplatesPanelOpen(true) }}
+          className="w-11 h-11 rounded-full bg-pl-orange text-white shadow-lg flex items-center justify-center hover:bg-pl-orange-dark transition-colors"
+          title="Workflow templates"
+        >
+          <BookTemplate size={18} />
+        </button>
       </div>
 
-      {/* Task panel */}
+      {/* Edit panel (for clicking on scheduled templates) */}
       <TaskPanel
         open={taskPanelOpen}
         task={editTask}
@@ -832,11 +858,8 @@ export default function PlannerClient() {
         templates={templates}
         usedColors={tasks.map(t => t.color).filter(Boolean) as string[]}
         onClose={() => { setTaskPanelOpen(false); setEditTask(null); setSelectedStepId(null) }}
-        onSave={createTask}
-        onSaveTemplate={createTemplateDistinct}
         onUpdate={updateTask}
         onDelete={deleteTask}
-        onManualPlace={setManualPlaceTaskId}
       />
 
       {/* Templates panel */}
@@ -850,16 +873,13 @@ export default function PlannerClient() {
         onTemplateDragStart={handleTemplateDragStart}
       />
 
-      {/* Event modal */}
+      {/* Event modal (edit existing calendar events only) */}
       <EventModal
         open={modalOpen}
         event={editEvent}
-        initialDate={slotDate}
-        initialTime={slotTime}
-        initialEndTime={slotEndTime}
         onSave={handleSave}
         onDelete={handleDelete}
-        onClose={() => { setModalOpen(false); setEditEvent(null); setSlotEndTime(undefined) }}
+        onClose={() => { setModalOpen(false); setEditEvent(null) }}
       />
 
     </div>

@@ -100,7 +100,7 @@ export function usePlannerTasks() {
       })))
     } catch (e) {
       console.error('[usePlannerTasks]', e)
-      setError(e instanceof Error ? e.message : 'Failed to load tasks')
+      setError(e instanceof Error ? e.message : 'Failed to load templates')
     } finally {
       setLoading(false)
     }
