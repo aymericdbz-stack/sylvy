@@ -267,6 +267,32 @@ const copy = {
       success: "Thanks. We will reach out.",
       error: "Something went wrong.",
     },
+    faq: {
+      badge: "",
+      title: "Frequently asked questions",
+      items: [
+        {
+          question: "Is Sylvy compliant with GxP and 21 CFR Part 11?",
+          answer:
+            "Yes. Sylvy is built on a validated cloud infrastructure that meets GxP requirements and 21 CFR Part 11 standards. Every action is logged in a tamper-evident audit trail, electronic signatures are supported, and our infrastructure undergoes regular validation to support your IQ/OQ/PQ documentation.",
+        },
+        {
+          question: "How does Sylvy integrate with our existing lab tools?",
+          answer:
+            "Sylvy connects with the software your team already uses — including SnapGene, Benchling exports, Excel, MATLAB, R, Python, and more. Our open API and developer platform let you build custom integrations, and our team works directly with you to ensure a smooth data migration from your existing ELN or LIMS.",
+        },
+        {
+          question: "How long does it take to onboard a lab?",
+          answer:
+            "Most labs are fully operational within 2 to 4 weeks. Our onboarding team handles configuration, template migration, and user training. For larger multi-site deployments, we provide a dedicated implementation manager and a structured rollout plan to minimize disruption to ongoing research.",
+        },
+        {
+          question: "Is our experimental data secure and private?",
+          answer:
+            "Absolutely. Your data is encrypted in transit and at rest, stored in isolated environments, and never used to train any AI model. Each lab gets a private, dedicated AI environment. We are SOC 2 Type II certified and offer optional single-tenant cloud deployments for organizations with strict data sovereignty requirements.",
+        },
+      ],
+    },
   },
   fr: {
     topBar: {
@@ -498,6 +524,32 @@ const copy = {
       success: "Merci. Nous vous recontactons.",
       error: "Une erreur est survenue.",
     },
+    faq: {
+      badge: "FAQ",
+      title: "Questions frequentes",
+      items: [
+        {
+          question: "Sylvy est-il conforme GxP et 21 CFR Part 11 ?",
+          answer:
+            "Oui. Sylvy est construit sur une infrastructure cloud validee qui repond aux exigences GxP et aux normes 21 CFR Part 11. Chaque action est tracee dans un journal d'audit inalterable, les signatures electroniques sont supportees, et notre infrastructure fait l'objet de validations regulieres pour supporter vos documentations IQ/OQ/PQ.",
+        },
+        {
+          question: "Comment Sylvy s'integre-t-il a nos outils existants ?",
+          answer:
+            "Sylvy se connecte aux logiciels deja utilises par votre equipe — dont SnapGene, les exports Benchling, Excel, MATLAB, R, Python, et bien d'autres. Notre API ouverte et notre plateforme developpeur permettent de creer des integrations personnalisees, et notre equipe vous accompagne pour migrer vos donnees depuis votre ELN ou LIMS existant.",
+        },
+        {
+          question: "Combien de temps dure l'onboarding ?",
+          answer:
+            "La plupart des labos sont operationnels en 2 a 4 semaines. Notre equipe prend en charge la configuration, la migration des templates et la formation. Pour les deploiements multi-sites, nous fournissons un chef de projet dedie et un plan de deploiement structure pour minimiser les interruptions.",
+        },
+        {
+          question: "Nos donnees experimentales sont-elles securisees et privees ?",
+          answer:
+            "Absolument. Vos donnees sont chiffrees en transit et au repos, stockees dans des environnements isoles, et ne sont jamais utilisees pour entrainer un modele IA. Chaque labo dispose d'un environnement IA prive et dedie. Nous sommes certifies SOC 2 Type II et proposons des deploiements cloud mono-tenant pour les organisations soumises a des exigences strictes de souverainete des donnees.",
+        },
+      ],
+    },
   },
 } as const;
 
@@ -578,6 +630,7 @@ export default function Home() {
   const [isNotebookExpanded, setIsNotebookExpanded] = useState(false);
   const [isPlannerExpanded, setIsPlannerExpanded] = useState(false);
   const [isLabmindExpanded, setIsLabmindExpanded] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<FormStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -1469,6 +1522,56 @@ export default function Home() {
               >
                 Get a 3-month Sylvy for free
               </a>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section className="snap-section bg-white">
+          <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 sm:py-24">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              {t.faq.badge}
+            </p>
+            <h2 className="mt-4 text-balance text-3xl font-medium leading-tight text-neutral-900 sm:text-5xl">
+              {t.faq.title}
+            </h2>
+            <div className="mt-12 divide-y divide-neutral-200">
+              {t.faq.items.map((item, idx) => {
+                const isOpen = openFaqIndex === idx;
+                return (
+                  <div key={item.question}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                      className="flex w-full items-start justify-between gap-6 py-6 text-left"
+                    >
+                      <span className="text-base font-semibold text-neutral-900 sm:text-lg">
+                        {item.question}
+                      </span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                    <div
+                      className="overflow-hidden transition-all duration-300 ease-in-out"
+                      style={{ maxHeight: isOpen ? "20rem" : "0" }}
+                    >
+                      <p className="pb-6 text-base leading-relaxed text-neutral-600">
+                        {item.answer}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </section>
