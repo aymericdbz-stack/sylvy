@@ -271,26 +271,26 @@ const copy = {
       badge: "",
       title: "Frequently asked questions",
       items: [
-        {
-          question: "Is Sylvy compliant with GxP and 21 CFR Part 11?",
-          answer:
-            "Yes. Sylvy is built on a validated cloud infrastructure that meets GxP requirements and 21 CFR Part 11 standards. Every action is logged in a tamper-evident audit trail, electronic signatures are supported, and our infrastructure undergoes regular validation to support your IQ/OQ/PQ documentation.",
-        },
-        {
-          question: "How does Sylvy integrate with our existing lab tools?",
-          answer:
-            "Sylvy connects with the software your team already uses — including SnapGene, Benchling exports, Excel, MATLAB, R, Python, and more. Our open API and developer platform let you build custom integrations, and our team works directly with you to ensure a smooth data migration from your existing ELN or LIMS.",
-        },
+      //  {
+      //    question: "Is Sylvy compliant with GxP and 21 CFR Part 11?",
+      //    answer:
+      //      "Yes. Sylvy is built on a validated cloud infrastructure that meets GxP requirements and 21 CFR Part 11 standards. Every action is logged in a tamper-evident audit trail, electronic signatures are supported, and our infrastructure undergoes regular validation to support your IQ/OQ/PQ documentation.",
+      //  },
+      //  {
+      //    question: "How does Sylvy integrate with our existing lab tools?",
+      //    answer:
+      //      "Sylvy connects with the software your team already uses — including SnapGene, Benchling exports, Excel, MATLAB, R, Python, and more. Our open API and developer platform let you build custom integrations, and our team works directly with you to ensure a smooth data migration from your existing ELN or LIMS.",
+      //  },
         {
           question: "How long does it take to onboard a lab?",
           answer:
-            "Most labs are fully operational within 2 to 4 weeks. Our onboarding team handles configuration, template migration, and user training. For larger multi-site deployments, we provide a dedicated implementation manager and a structured rollout plan to minimize disruption to ongoing research.",
+            "2 days.",
         },
-        {
-          question: "Is our experimental data secure and private?",
-          answer:
-            "Absolutely. Your data is encrypted in transit and at rest, stored in isolated environments, and never used to train any AI model. Each lab gets a private, dedicated AI environment. We are SOC 2 Type II certified and offer optional single-tenant cloud deployments for organizations with strict data sovereignty requirements.",
-        },
+      //  {
+      //    question: "Is our experimental data secure and private?",
+      //    answer:
+      //      "Absolutely. Your data is encrypted in transit and at rest, stored in isolated environments, and never used to train any AI model. Each lab gets a private, dedicated AI environment. We are SOC 2 Type II certified and offer optional single-tenant cloud deployments for organizations with strict data sovereignty requirements.",
+      //  },
       ],
     },
   },
