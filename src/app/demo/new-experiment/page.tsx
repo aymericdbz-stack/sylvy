@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -28,6 +28,7 @@ const templates = [
 
 const templateSections: Record<string, { title: string; placeholder: string }[]> = {
   assay: [
+    { title: 'Tags', placeholder: 'Keywords and categories for this experiment...' },
     { title: 'Abstract', placeholder: 'Brief summary of the assay objectives and key findings...' },
     { title: 'Methods', placeholder: 'Detailed experimental procedures and materials used...' },
     { title: 'Results', placeholder: 'Quantitative and qualitative results from the assay...' },
@@ -35,6 +36,7 @@ const templateSections: Record<string, { title: string; placeholder: string }[]>
     { title: 'Conclusion', placeholder: 'Summary of findings and next steps...' },
   ],
   protein: [
+    { title: 'Tags', placeholder: 'Keywords and categories for this experiment...' },
     { title: 'Abstract', placeholder: 'Overview of protein analysis objectives...' },
     { title: 'Sample Preparation', placeholder: 'Protein extraction and purification steps...' },
     { title: 'Analysis Methods', placeholder: 'SDS-PAGE, Western blot, mass spectrometry details...' },
@@ -43,6 +45,7 @@ const templateSections: Record<string, { title: string; placeholder: string }[]>
     { title: 'Conclusion', placeholder: 'Key findings and recommendations...' },
   ],
   cell: [
+    { title: 'Tags', placeholder: 'Keywords and categories for this experiment...' },
     { title: 'Abstract', placeholder: 'Cell experiment overview and hypothesis...' },
     { title: 'Cell Culture', placeholder: 'Cell line, passage number, culture conditions...' },
     { title: 'Treatment Protocol', placeholder: 'Reagents, concentrations, and exposure times...' },
@@ -83,6 +86,13 @@ const SparkleIcon = () => (
   </svg>
 )
 
+/* ─── Loading Messages ─── */
+const loadingMessages = [
+  'Generating report...',
+  'Structuring experimental context...',
+  'Preparing first draft...',
+]
+
 /* ─── New Experiment Page ─── */
 export default function NewExperimentPage() {
   const router = useRouter()
@@ -91,9 +101,29 @@ export default function NewExperimentPage() {
   const [dragOver, setDragOver] = useState(false)
   const [guidelinesText, setGuidelinesText] = useState('')
   const [guidelinesFocused, setGuidelinesFocused] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [loadingStep, setLoadingStep] = useState(0)
 
   const sections = selectedTemplate ? templateSections[selectedTemplate] || [] : []
   const selectedName = templates.find(t => t.id === selectedTemplate)?.name
+
+  const handleGenerate = useCallback(() => {
+    if (!selectedTemplate || generating) return
+    setGenerating(true)
+    setLoadingStep(0)
+
+    // Store selected template for the report page
+    localStorage.setItem('sylvy-demo-current-template', selectedTemplate)
+
+    // Cycle through loading messages then navigate
+    const t1 = setTimeout(() => setLoadingStep(1), 1000)
+    const t2 = setTimeout(() => setLoadingStep(2), 2200)
+    const t3 = setTimeout(() => {
+      router.push('/demo/report')
+    }, 3200)
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [selectedTemplate, generating, router])
 
   return (
     <div
@@ -362,12 +392,15 @@ export default function NewExperimentPage() {
           className="flex justify-end mt-8 mb-6"
         >
           <motion.button
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={!generating ? { scale: 1.02, y: -2 } : {}}
+            whileTap={!generating ? { scale: 0.97 } : {}}
+            onClick={handleGenerate}
             className="flex items-center gap-2 rounded-[14px] px-7 py-3.5 text-[14px] font-semibold text-white cursor-pointer"
             style={{
               background: 'linear-gradient(135deg, #E8A838 0%, #D4943C 100%)',
               boxShadow: '0 2px 8px rgba(228,168,56,0.25), 0 8px 24px rgba(228,168,56,0.15), 0 0.5px 0 0 rgba(255,255,255,0.2) inset',
+              opacity: !selectedTemplate ? 0.5 : 1,
+              pointerEvents: !selectedTemplate ? 'none' : 'auto',
             }}
           >
             <SparkleIcon />
@@ -375,6 +408,62 @@ export default function NewExperimentPage() {
           </motion.button>
         </motion.div>
       </div>
+
+      {/* ─── Loading Overlay ─── */}
+      <AnimatePresence>
+        {generating && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease }}
+            className="fixed inset-0 z-[100] flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(145deg, #c8ddb8 0%, #a8c8a0 25%, #b8d4a8 50%, #c0d8b0 75%, #d0e0c0 100%)',
+            }}
+          >
+            <div className="flex flex-col items-center gap-6">
+              {/* Animated logo */}
+              <motion.div
+                animate={{ scale: [1, 1.08, 1], rotate: [0, 3, -3, 0] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Image src={logoBlack} alt="Sylvy" width={48} height={48} className="object-contain" />
+              </motion.div>
+
+              {/* Spinner ring */}
+              <div className="relative w-10 h-10">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
+                  className="w-10 h-10 rounded-full"
+                  style={{
+                    border: '2.5px solid rgba(0,0,0,0.06)',
+                    borderTopColor: '#4CAF7D',
+                  }}
+                />
+              </div>
+
+              {/* Loading messages */}
+              <div className="h-6 relative">
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={loadingStep}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3, ease }}
+                    className="text-[14px] text-[#3c3c43] font-medium"
+                    style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif" }}
+                  >
+                    {loadingMessages[loadingStep]}
+                  </motion.p>
+                </AnimatePresence>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

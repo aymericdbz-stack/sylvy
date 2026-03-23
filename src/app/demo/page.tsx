@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import logoBlack from '../../../logo/Logo Noir sans Fond.webp'
+import sylvyBrain from '../../../logo/Sylvy brain.webp'
+
 type WidthOption = '1/4' | '1/2' | '3/4' | '4/4'
-type CardItem = { id: string; width: WidthOption; slot: number }
+type CardItem = { id: string; width: WidthOption }
+type LayoutItem = { card: CardItem; row: number; col: number; index: number }
 
 const WIDTH_SPANS: Record<WidthOption, number> = { '1/4': 1, '1/2': 2, '3/4': 3, '4/4': 4 }
 const WIDTH_OPTIONS: WidthOption[] = ['1/4', '1/2', '3/4', '4/4']
@@ -14,32 +17,33 @@ const GRID_TOTAL = 4
 const CARD_HEIGHT = 231
 const GAP = 16
 
-/* ─── Slot helpers ─── */
-function canPlace(row: CardItem[], slot: number, span: number, excludeId?: string): boolean {
-  if (slot < 0 || slot + span > GRID_TOTAL) return false
-  for (const card of row) {
-    if (card.id === excludeId) continue
-    const cEnd = card.slot + WIDTH_SPANS[card.width] - 1
-    if (slot <= cEnd && slot + span - 1 >= card.slot) return false
-  }
-  return true
-}
-
-/* ─── Initial card layout (rows with slots) ─── */
-const INITIAL_ROWS: CardItem[][] = [
-  [{ id: 'schedule', width: '3/4', slot: 0 }, { id: 'activity', width: '1/4', slot: 3 }],
-  [{ id: 'upload', width: '1/4', slot: 0 }, { id: 'projects', width: '3/4', slot: 1 }],
-  [{ id: 'tools', width: '4/4', slot: 0 }],
+const INITIAL_CARDS: CardItem[] = [
+  { id: 'schedule', width: '3/4' },
+  { id: 'activity', width: '1/4' },
+  { id: 'upload', width: '1/4' },
+  { id: 'projects', width: '3/4' },
+  { id: 'labmind', width: '1/2' },
+  { id: 'tools', width: '1/2' },
+  { id: 'profile', width: '1/4' },
 ]
+
+/* ─── Compute flow-based layout from flat card array ─── */
+function computeLayout(cards: CardItem[]): LayoutItem[] {
+  const result: LayoutItem[] = []
+  let row = 0, col = 0
+  cards.forEach((card, index) => {
+    const span = WIDTH_SPANS[card.width]
+    if (col + span > GRID_TOTAL) { row++; col = 0 }
+    result.push({ card, row, col, index })
+    col += span
+  })
+  return result
+}
 
 /* ─── Inline SVG Icons ─── */
 const BrainIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2C9.5 2 8 3.5 8 5.5c0 .5.1 1 .3 1.4C6.4 7.5 5 9.2 5 11.2c0 1.5.7 2.8 1.8 3.7-.5.8-.8 1.7-.8 2.6C6 19.5 7.8 21 10 21.5" stroke="#b0b0b0" />
-    <path d="M12 2c2.5 0 4 1.5 4 3.5 0 .5-.1 1-.3 1.4 1.9.6 3.3 2.3 3.3 4.3 0 1.5-.7 2.8-1.8 3.7.5.8.8 1.7.8 2.6 0 2-1.8 3.5-4 4" stroke="#b0b0b0" />
-    <path d="M12 2v20" stroke="#c8c8c8" />
-    <path d="M8 8h8" stroke="#c8c8c8" />
-    <path d="M9 14h6" stroke="#c8c8c8" />
+  <svg width="18" height="18" viewBox="0 0 24 24" className="text-[#b0b0b0]" fill="currentColor">
+    <path d="M21.33,12.91C21.42,14.46 20.71,15.95 19.44,16.86L20.21,18.35C20.44,18.8 20.47,19.33 20.27,19.8C20.08,20.27 19.69,20.64 19.21,20.8L18.42,21.05C18.25,21.11 18.06,21.14 17.88,21.14C17.37,21.14 16.89,20.91 16.56,20.5L14.44,18C13.55,17.85 12.71,17.47 12,16.9C11.5,17.05 11,17.13 10.5,17.13C9.62,17.13 8.74,16.86 8,16.34C7.47,16.5 6.93,16.57 6.38,16.56C5.59,16.57 4.81,16.41 4.08,16.11C2.65,15.47 1.7,14.07 1.65,12.5C1.57,11.78 1.69,11.05 2,10.39C1.71,9.64 1.68,8.82 1.93,8.06C2.3,7.11 3,6.32 3.87,5.82C4.45,4.13 6.08,3 7.87,3.12C9.47,1.62 11.92,1.46 13.7,2.75C14.12,2.64 14.56,2.58 15,2.58C16.36,2.55 17.65,3.15 18.5,4.22C20.54,4.75 22,6.57 22.08,8.69C22.13,9.8 21.83,10.89 21.22,11.82C21.29,12.18 21.33,12.54 21.33,12.91M16.33,11.5C16.9,11.57 17.35,12 17.35,12.57A1,1 0 0,1 16.35,13.57H15.72C15.4,14.47 14.84,15.26 14.1,15.86C14.35,15.95 14.61,16 14.87,16.07C20,16 19.4,12.87 19.4,12.82C19.34,11.39 18.14,10.27 16.71,10.33A1,1 0 0,1 15.71,9.33A1,1 0 0,1 16.71,8.33C17.94,8.36 19.12,8.82 20.04,9.63C20.09,9.34 20.12,9.04 20.12,8.74C20.06,7.5 19.5,6.42 17.25,6.21C16,3.25 12.85,4.89 12.85,5.81V5.81C12.82,6.04 13.06,6.53 13.1,6.56A1,1 0 0,1 14.1,7.56C14.1,8.11 13.65,8.56 13.1,8.56V8.56C12.57,8.54 12.07,8.34 11.67,8C11.19,8.31 10.64,8.5 10.07,8.56V8.56C9.5,8.61 9.03,8.21 9,7.66C8.92,7.1 9.33,6.61 9.88,6.56C10.04,6.54 10.82,6.42 10.82,5.79V5.79C10.82,5.13 11.07,4.5 11.5,4C10.58,3.75 9.59,4.08 8.59,5.29C6.75,5 6,5.25 5.45,7.2C4.5,7.67 4,8 3.78,9C4.86,8.78 5.97,8.87 7,9.25C7.5,9.44 7.78,10 7.59,10.54C7.4,11.06 6.82,11.32 6.3,11.13C5.57,10.81 4.75,10.79 4,11.07C3.68,11.34 3.68,11.9 3.68,12.34C3.68,13.08 4.05,13.77 4.68,14.17C5.21,14.44 5.8,14.58 6.39,14.57C6.24,14.31 6.11,14.04 6,13.76C5.81,13.22 6.1,12.63 6.64,12.44C7.18,12.25 7.77,12.54 7.96,13.08C8.36,14.22 9.38,15 10.58,15.13C11.95,15.06 13.17,14.25 13.77,13C14,11.62 15.11,11.5 16.33,11.5M18.33,18.97L17.71,17.67L17,17.83L18,19.08L18.33,18.97M13.68,10.36C13.7,9.83 13.3,9.38 12.77,9.33C12.06,9.29 11.37,9.53 10.84,10C10.27,10.58 9.97,11.38 10,12.19A1,1 0 0,0 11,13.19C11.57,13.19 12,12.74 12,12.19C12,11.92 12.07,11.65 12.23,11.43C12.35,11.33 12.5,11.28 12.66,11.28C13.21,11.31 13.68,10.9 13.68,10.36Z" />
   </svg>
 )
 
@@ -261,22 +265,84 @@ function ToolsContent() {
   )
 }
 
+function ProfileContent() {
+  return (
+    <div className="h-full flex flex-col p-5">
+      <h2 className="text-[15px] font-semibold text-[#2c2c2e]">Profile</h2>
+      <div className="flex-1 flex flex-col items-center justify-center -mt-1">
+        <div
+          className="w-[72px] h-[72px] rounded-full overflow-hidden mb-3"
+          style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/profile.jpg" alt="Clément Djezvedjian" className="w-full h-full object-cover" />
+        </div>
+        <p className="text-[13px] font-semibold text-[#2c2c2e] text-center leading-tight">Clément Djezvedjian</p>
+        <p className="text-[11px] text-[#8e8e93] mt-0.5">PhD</p>
+      </div>
+    </div>
+  )
+}
+
+function LabmindContent() {
+  return (
+    <div className="h-full flex flex-col p-5">
+      <h2 className="text-[15px] font-semibold text-[#2c2c2e]">Labmind</h2>
+      <div className="flex-1 flex items-center justify-center">
+        <Image src={sylvyBrain} alt="Sylvy brain" width={80} height={80} className="object-contain" />
+      </div>
+    </div>
+  )
+}
+
 const CARD_CONTENT: Record<string, () => React.ReactNode> = {
   schedule: () => <ScheduleContent />,
   activity: () => <ActivityContent />,
   upload: () => <UploadContent />,
   projects: () => <ProjectsContent />,
   tools: () => <ToolsContent />,
+  labmind: () => <LabmindContent />,
+  profile: () => <ProfileContent />,
 }
+
+/* ─── Spring config for layout animations ─── */
+const LAYOUT_SPRING = { type: 'spring' as const, stiffness: 400, damping: 34, mass: 0.8 }
 
 /* ─── Dashboard Component ─── */
 function Dashboard() {
   const router = useRouter()
   const [searchFocused, setSearchFocused] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [rows, setRows] = useState<CardItem[][]>(INITIAL_ROWS.map(r => [...r]))
+  const [cards, setCards] = useState<CardItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      /* Try new flat format first */
+      const saved = localStorage.getItem('sylvy-demo-layout-v2')
+      if (saved) {
+        try { return JSON.parse(saved) } catch { /* fall through */ }
+      }
+      /* Migrate from old row-based format */
+      const old = localStorage.getItem('sylvy-demo-layout')
+      if (old) {
+        try {
+          const rows = JSON.parse(old)
+          return (rows as { id: string; width: WidthOption }[][]).flat().map(({ id, width }) => ({ id, width }))
+        } catch { /* fall through */ }
+      }
+    }
+    return INITIAL_CARDS
+  })
   const [wiggling, setWiggling] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
+  const isResizing = useRef(false)
+  const cardsRef = useRef(cards)
+  cardsRef.current = cards
+
+  /* Entrance animation phase — layout animations activate after entrance completes */
+  const [entranceDone, setEntranceDone] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setEntranceDone(true), 1600)
+    return () => clearTimeout(t)
+  }, [])
 
   /* Drag state */
   const [dragId, setDragId] = useState<string | null>(null)
@@ -285,16 +351,13 @@ function Dashboard() {
   const [dragSize, setDragSize] = useState({ w: 0, h: 0 })
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
-  /* Drop target: row + slot */
-  const [dropTarget, setDropTarget] = useState<{ rowIdx: number; slot: number } | null>(null)
-  const dropTargetRef = useRef<{ rowIdx: number; slot: number } | null>(null)
-  dropTargetRef.current = dropTarget
+  /* Computed layout from flat card array */
+  const layout = useMemo(() => computeLayout(cards), [cards])
 
-  const rowsRef = useRef(rows)
-  rowsRef.current = rows
-
-  /* Resize guard — prevents drag when resizing */
-  const isResizing = useRef(false)
+  /* Persist layout to localStorage */
+  useEffect(() => {
+    localStorage.setItem('sylvy-demo-layout-v2', JSON.stringify(cards))
+  }, [cards])
 
   /* Wiggle every 5s while editing */
   useEffect(() => {
@@ -308,25 +371,6 @@ function Dashboard() {
     return () => { clearInterval(interval); clearTimeout(initialTimeout) }
   }, [editing])
 
-  /* Change card width (adjust slot if needed) */
-  const changeWidth = useCallback((cardId: string, newWidth: WidthOption) => {
-    setRows(prev => {
-      const next = prev.map(r => [...r])
-      for (let ri = 0; ri < next.length; ri++) {
-        const ci = next[ri].findIndex(c => c.id === cardId)
-        if (ci === -1) continue
-        const card = next[ri][ci]
-        const newSpan = WIDTH_SPANS[newWidth]
-        let newSlot = card.slot
-        if (newSlot + newSpan > GRID_TOTAL) newSlot = GRID_TOTAL - newSpan
-        if (!canPlace(next[ri], newSlot, newSpan, cardId)) return prev
-        next[ri][ci] = { ...card, width: newWidth, slot: newSlot }
-        return next
-      }
-      return prev
-    })
-  }, [])
-
   /* Resize by dragging edge — snaps to 1/4, 1/2, 3/4, 4/4 */
   const handleResizeStart = useCallback((e: React.PointerEvent, cardId: string, edge: 'left' | 'right') => {
     e.preventDefault()
@@ -337,49 +381,23 @@ function Dashboard() {
     const gridWidth = gridRef.current?.offsetWidth ?? 940
     const colWidth = (gridWidth + GAP) / GRID_TOTAL
 
-    /* Find card info */
-    const currentRows = rowsRef.current
-    let srcRi = -1, srcCi = -1
-    for (let ri = 0; ri < currentRows.length; ri++) {
-      const ci = currentRows[ri].findIndex(c => c.id === cardId)
-      if (ci !== -1) { srcRi = ri; srcCi = ci; break }
-    }
-    if (srcRi === -1) return
-    const originalCard = currentRows[srcRi][srcCi]
-    const originalSpan = WIDTH_SPANS[originalCard.width]
-    const originalSlot = originalCard.slot
+    const card = cardsRef.current.find(c => c.id === cardId)
+    if (!card) return
+    const originalSpan = WIDTH_SPANS[card.width]
 
     const onMove = (ev: PointerEvent) => {
       const deltaCols = Math.round((ev.clientX - startX) / colWidth)
+      const newSpan = edge === 'right'
+        ? Math.max(1, Math.min(GRID_TOTAL, originalSpan + deltaCols))
+        : Math.max(1, Math.min(GRID_TOTAL, originalSpan - deltaCols))
+      if (![1, 2, 3, 4].includes(newSpan)) return
+      const newWidth = WIDTH_OPTIONS[newSpan - 1]
 
-      let newSpan: number
-      let newSlot: number
-
-      if (edge === 'right') {
-        newSpan = Math.max(1, Math.min(GRID_TOTAL, originalSpan + deltaCols))
-        newSlot = originalSlot
-        /* Clamp so card doesn't exceed grid */
-        if (newSlot + newSpan > GRID_TOTAL) newSpan = GRID_TOTAL - newSlot
-      } else {
-        newSpan = Math.max(1, Math.min(GRID_TOTAL, originalSpan - deltaCols))
-        newSlot = originalSlot + (originalSpan - newSpan)
-        if (newSlot < 0) { newSpan += newSlot; newSlot = 0 }
-      }
-
-      /* Snap to valid WidthOption */
-      const validSpans = [1, 2, 3, 4]
-      if (!validSpans.includes(newSpan)) return
-      const newWidth = WIDTH_OPTIONS[validSpans.indexOf(newSpan)]
-
-      /* Check overlap */
-      const row = rowsRef.current[srcRi]
-      if (!canPlace(row, newSlot, newSpan, cardId)) return
-
-      setRows(prev => {
-        const next = prev.map(r => [...r])
-        const ci = next[srcRi].findIndex(c => c.id === cardId)
-        if (ci === -1) return prev
-        next[srcRi][ci] = { ...next[srcRi][ci], width: newWidth, slot: newSlot }
+      setCards(prev => {
+        const idx = prev.findIndex(c => c.id === cardId)
+        if (idx === -1 || prev[idx].width === newWidth) return prev
+        const next = [...prev]
+        next[idx] = { ...next[idx], width: newWidth }
         return next
       })
     }
@@ -394,34 +412,11 @@ function Dashboard() {
     window.addEventListener('pointerup', onUp)
   }, [])
 
-  /* Done: clean empty rows */
-  const handleDone = useCallback(() => {
-    setRows(prev => prev.filter(r => r.length > 0))
-    setEditing(false)
-  }, [])
-
-  /* Get slot index from cursor X relative to a row element */
-  const getSlotFromX = useCallback((clientX: number, rowEl: Element, span: number): number => {
-    const rect = rowEl.getBoundingClientRect()
-    const relX = clientX - rect.left
-    const slotWidth = rect.width / GRID_TOTAL
-    const raw = Math.max(0, Math.min(GRID_TOTAL - 1, Math.floor(relX / slotWidth)))
-    return Math.min(raw, GRID_TOTAL - span)
-  }, [])
-
-  /* Find card across all rows */
-  const findCard = useCallback((id: string, sourceRows: CardItem[][]) => {
-    for (let ri = 0; ri < sourceRows.length; ri++) {
-      const ci = sourceRows[ri].findIndex(c => c.id === id)
-      if (ci !== -1) return { ri, ci, card: sourceRows[ri][ci] }
-    }
-    return null
-  }, [])
-
-  /* Drag to reorder with slot-based placement */
+  /* Drag to reorder — real-time reflow with Framer Motion layout animations */
   const handleDragStart = useCallback((e: React.PointerEvent, cardId: string) => {
     if (isResizing.current) return
     e.preventDefault()
+
     const el = e.currentTarget as HTMLElement
     const rect = el.getBoundingClientRect()
 
@@ -430,7 +425,6 @@ function Dashboard() {
     setDragPos({ x: e.clientX, y: e.clientY })
     setDragId(cardId)
     setDragActive(false)
-    setDropTarget(null)
 
     const startX = e.clientX
     const startY = e.clientY
@@ -442,87 +436,68 @@ function Dashboard() {
         setDragActive(true)
       }
       setDragPos({ x: ev.clientX, y: ev.clientY })
+
       if (!activated || !gridRef.current) return
 
-      const currentRows = rowsRef.current
-      const dragCard = currentRows.flatMap(r => r).find(c => c.id === cardId)
-      if (!dragCard) return
-      const span = WIDTH_SPANS[dragCard.width]
+      /* Compute the insertion index from cursor position */
+      const gridRect = gridRef.current.getBoundingClientRect()
+      const relY = ev.clientY - gridRect.top
+      const rowHeight = CARD_HEIGHT + GAP
+      const targetRow = Math.max(0, Math.floor(relY / rowHeight))
 
-      /* Find which row the cursor is over */
-      const rowEls = gridRef.current.querySelectorAll('[data-row-idx]')
-      let targetRowIdx: number | null = null
-      let targetRowEl: Element | null = null
+      const currentCards = cardsRef.current
+      const withoutDragged = currentCards.filter(c => c.id !== cardId)
+      const layoutWithout = computeLayout(withoutDragged)
 
-      for (const el of rowEls) {
-        const r = el.getBoundingClientRect()
-        if (ev.clientY >= r.top && ev.clientY <= r.bottom) {
-          targetRowIdx = parseInt(el.getAttribute('data-row-idx')!)
-          targetRowEl = el
-          break
+      const colWidth = gridRect.width / GRID_TOTAL
+      const relX = ev.clientX - gridRect.left
+
+      /* Find cards in the target row */
+      const rowCards = layoutWithout.filter(l => l.row === targetRow)
+
+      let insertIndex: number
+
+      if (rowCards.length === 0) {
+        /* No cards in this row — insert after all cards in previous rows */
+        const prevCards = layoutWithout.filter(l => l.row < targetRow)
+        insertIndex = prevCards.length
+      } else {
+        /* Find insertion point by comparing cursor X to card centers */
+        insertIndex = rowCards[rowCards.length - 1].index + 1
+        for (const rc of rowCards) {
+          const cardCenterX = (rc.col + WIDTH_SPANS[rc.card.width] / 2) * colWidth
+          if (relX < cardCenterX) {
+            insertIndex = rc.index
+            break
+          }
         }
       }
 
-      if (targetRowIdx === null || !targetRowEl) {
-        setDropTarget(null)
-        return
-      }
-
-      /* Compute target slot from X position */
-      const slot = getSlotFromX(ev.clientX, targetRowEl, span)
-      const isNewRow = targetRowIdx >= currentRows.length
-
-      if (isNewRow || canPlace(currentRows[targetRowIdx], slot, span, cardId)) {
-        setDropTarget({ rowIdx: targetRowIdx, slot })
-      } else {
-        setDropTarget(null)
-      }
+      /* Reorder the flat array — Framer Motion layout animations handle the visual */
+      setCards(prev => {
+        const dragged = prev.find(c => c.id === cardId)
+        if (!dragged) return prev
+        const without = prev.filter(c => c.id !== cardId)
+        const next = [...without]
+        next.splice(insertIndex, 0, dragged)
+        /* Only update state if the order actually changed */
+        if (next.every((c, i) => c.id === prev[i]?.id)) return prev
+        return next
+      })
     }
 
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-
-      const target = dropTargetRef.current
-
-      if (activated && target) {
-        setRows(prev => {
-          const next = prev.map(r => [...r])
-
-          /* Remove card from source row */
-          let card: CardItem | null = null
-          for (let ri = 0; ri < next.length; ri++) {
-            const ci = next[ri].findIndex(c => c.id === cardId)
-            if (ci !== -1) {
-              card = { ...next[ri][ci] }
-              next[ri].splice(ci, 1)
-              break
-            }
-          }
-          if (!card) return prev
-
-          /* Place at target slot */
-          card.slot = target.slot
-
-          if (target.rowIdx >= next.length) {
-            next.push([card])
-          } else {
-            if (!canPlace(next[target.rowIdx], target.slot, WIDTH_SPANS[card.width])) return prev
-            next[target.rowIdx].push(card)
-          }
-
-          return next
-        })
-      }
-
       setDragId(null)
       setDragActive(false)
-      setDropTarget(null)
     }
 
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-  }, [findCard, getSlotFromX])
+  }, [])
+
+  const handleDone = useCallback(() => setEditing(false), [])
 
   return (
     <div
@@ -597,127 +572,105 @@ function Dashboard() {
           </div>
         </motion.div>
 
-        {/* Card Grid */}
+        {/* Card Grid — single CSS grid, cards reflow via Framer Motion layout */}
         <LayoutGroup>
           <motion.div
             ref={gridRef}
-            className="space-y-4"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${GRID_TOTAL}, 1fr)`,
+              gridAutoRows: CARD_HEIGHT,
+              gap: GAP,
+            }}
           >
-            {rows.map((row, rowIdx) => {
-              if (row.length === 0) return null
-              const dragCard = dragId ? rows.flatMap(r => r).find(c => c.id === dragId) : null
-              const dragSpan = dragCard ? WIDTH_SPANS[dragCard.width] : 0
-              const showPlaceholder = dropTarget?.rowIdx === rowIdx && dragActive
-              /* Card index offset for staggered entrance */
-              const cardOffset = rows.slice(0, rowIdx).reduce((s, r) => s + r.length, 0)
+            {layout.map((item, i) => {
+              const { card, row, col } = item
+              const span = WIDTH_SPANS[card.width]
+              const isBeingDragged = dragId === card.id && dragActive
+              const entranceDelay = 0.3 + i * 0.08
 
               return (
-                <div
-                  key={rowIdx}
-                  data-row-idx={rowIdx}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${GRID_TOTAL}, 1fr)`,
-                    gap: GAP,
-                    position: 'relative',
+                <motion.div
+                  key={card.id}
+                  layout={entranceDone}
+                  initial={{ opacity: 0, scale: 0.92, filter: 'blur(8px)' }}
+                  animate={{
+                    opacity: isBeingDragged ? 0 : 1,
+                    scale: isBeingDragged ? 0.97 : 1,
+                    filter: 'blur(0px)',
                   }}
+                  transition={
+                    entranceDone
+                      ? {
+                          layout: LAYOUT_SPRING,
+                          opacity: { duration: 0.15 },
+                          scale: { duration: 0.15 },
+                          filter: { duration: 0.2 },
+                        }
+                      : {
+                          delay: entranceDelay,
+                          duration: 0.6,
+                          ease: [0.22, 1, 0.36, 1],
+                        }
+                  }
+                  className={`rounded-[16px] overflow-hidden relative select-none ${
+                    wiggling && !dragId ? 'card-wiggle' : ''
+                  }`}
+                  style={{
+                    ...cardStyle,
+                    gridRow: row + 1,
+                    gridColumn: `${col + 1} / span ${span}`,
+                    cursor: editing ? (isBeingDragged ? 'grabbing' : 'grab') : 'default',
+                    willChange: entranceDone ? 'transform' : 'auto',
+                    ...(editing && !isBeingDragged ? {
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05), 0 0 0 2px rgba(0,0,0,0.04)',
+                    } : {}),
+                    animationDelay: wiggling ? `${(card.id.charCodeAt(0) % 5) * 30}ms` : '0ms',
+                  }}
+                  onPointerDown={editing ? (e) => handleDragStart(e, card.id) : undefined}
+                  onClick={
+                    !editing && card.id === 'projects' ? () => router.push('/demo/projects')
+                    : !editing && card.id === 'upload' ? () => router.push('/demo/new-experiment')
+                    : !editing && card.id === 'labmind' ? () => router.push('/demo/labmind')
+                    : undefined
+                  }
                 >
-                  {row.map((card, cardIdx) => {
-                    const span = WIDTH_SPANS[card.width]
-                    const isBeingDragged = dragId === card.id && dragActive
-                    const entranceDelay = 0.3 + (cardOffset + cardIdx) * 0.1
+                  {CARD_CONTENT[card.id]?.()}
 
-                    return (
-                      <motion.div
-                        key={card.id}
-                        data-card-id={card.id}
-                        layout
-                        layoutId={card.id}
-                        initial={{ opacity: 0, y: 30, scale: 0.92, filter: 'blur(8px)' }}
-                        animate={{ opacity: isBeingDragged ? 0.25 : 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                        transition={{
-                          type: 'spring', stiffness: 400, damping: 30, mass: 0.8,
-                          opacity: { delay: entranceDelay, duration: 0.5 },
-                          y: { delay: entranceDelay, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-                          scale: { delay: entranceDelay, duration: 0.6, ease: [0.22, 1, 0.36, 1] },
-                          filter: { delay: entranceDelay, duration: 0.5 },
-                        }}
-                        className={`rounded-[16px] overflow-hidden relative select-none ${
-                          wiggling && !dragId ? 'card-wiggle' : ''
-                        }`}
-                        style={{
-                          ...cardStyle,
-                          height: CARD_HEIGHT,
-                          gridRow: 1,
-                          gridColumn: `${card.slot + 1} / span ${span}`,
-                          cursor: editing ? 'grab' : 'default',
-                          ...(editing ? {
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05), 0 0 0 2px rgba(0,0,0,0.04)',
-                          } : {}),
-                          animationDelay: wiggling ? `${(card.id.charCodeAt(0) % 5) * 30}ms` : '0ms',
-                        }}
-                        onPointerDown={editing ? (e) => handleDragStart(e, card.id) : undefined}
-                        onClick={!editing && card.id === 'projects' ? () => router.push('/demo/projects') : !editing && card.id === 'upload' ? () => router.push('/demo/new-experiment') : undefined}
+                  {/* Resize handles */}
+                  {editing && (
+                    <>
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 group"
+                        onPointerDown={(e) => handleResizeStart(e, card.id, 'left')}
                       >
-                        {CARD_CONTENT[card.id]?.()}
-
-                        {/* Resize handles */}
-                        {editing && (
-                          <>
-                            <div
-                              className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 group"
-                              onPointerDown={(e) => handleResizeStart(e, card.id, 'left')}
-                            >
-                              <div className="absolute left-1 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-full bg-[#a0a0a5] opacity-0 group-hover:opacity-80 transition-opacity duration-150" />
-                            </div>
-                            <div
-                              className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 group"
-                              onPointerDown={(e) => handleResizeStart(e, card.id, 'right')}
-                            >
-                              <div className="absolute right-1 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-full bg-[#a0a0a5] opacity-0 group-hover:opacity-80 transition-opacity duration-150" />
-                            </div>
-                          </>
-                        )}
-                      </motion.div>
-                    )
-                  })}
-
-                  {/* Drop placeholder */}
-                  {showPlaceholder && (
-                    <div
-                      style={{
-                        gridRow: 1,
-                        gridColumn: `${dropTarget.slot + 1} / span ${dragSpan}`,
-                        height: CARD_HEIGHT,
-                        border: '2px dashed rgba(107,158,107,0.5)',
-                        borderRadius: 16,
-                        background: 'rgba(107,158,107,0.06)',
-                        transition: 'all 0.15s ease',
-                      }}
-                    />
+                        <div className="absolute left-1 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-full bg-[#a0a0a5] opacity-0 group-hover:opacity-80 transition-opacity duration-150" />
+                      </div>
+                      <div
+                        className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-20 group"
+                        onPointerDown={(e) => handleResizeStart(e, card.id, 'right')}
+                      >
+                        <div className="absolute right-1 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-full bg-[#a0a0a5] opacity-0 group-hover:opacity-80 transition-opacity duration-150" />
+                      </div>
+                    </>
                   )}
-                </div>
+                </motion.div>
               )
             })}
-
-            {/* Invisible new-row drop zone */}
-            {editing && (
-              <div
-                data-row-idx={rows.length}
-                style={{ minHeight: 120 }}
-              />
-            )}
           </motion.div>
         </LayoutGroup>
 
-        {/* Drag ghost */}
+        {/* Floating drag overlay — follows cursor precisely, no lag */}
         <AnimatePresence>
           {dragId && dragActive && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1.04, rotate: 2 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              initial={{ scale: 1, opacity: 0.9 }}
+              animate={{ scale: 1.025, opacity: 1 }}
+              exit={{ scale: 1, opacity: 0 }}
+              transition={{
+                scale: { type: 'spring', stiffness: 500, damping: 30 },
+                opacity: { duration: 0.12 },
+              }}
               className="fixed pointer-events-none z-[9999] rounded-[16px] overflow-hidden"
               style={{
                 left: dragPos.x - dragOffset.x,
@@ -725,8 +678,8 @@ function Dashboard() {
                 width: dragSize.w,
                 height: dragSize.h,
                 ...cardStyle,
-                background: 'rgba(255,255,255,0.92)',
-                boxShadow: '0 16px 48px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.12)',
+                background: 'rgba(255,255,255,0.95)',
+                boxShadow: '0 22px 70px rgba(0,0,0,0.14), 0 8px 22px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(255,255,255,0.5)',
               }}
             >
               {CARD_CONTENT[dragId]?.()}
