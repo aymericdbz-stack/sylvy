@@ -230,7 +230,8 @@ export default function SylvyProjectsPage() {
               alt="Sylvy"
               width={32}
               height={32}
-              className="object-contain flex-shrink-0"
+              className="object-contain flex-shrink-0 cursor-pointer"
+              onClick={() => router.push('/demo')}
             />
             <h1 className="text-[22px] font-semibold tracking-[0.08em] text-[#1d1d1f] uppercase">
               Projects

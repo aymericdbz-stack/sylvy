@@ -313,24 +313,24 @@ function Dashboard() {
   const router = useRouter()
   const [searchFocused, setSearchFocused] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [cards, setCards] = useState<CardItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      /* Try new flat format first */
-      const saved = localStorage.getItem('sylvy-demo-layout-v2')
-      if (saved) {
-        try { return JSON.parse(saved) } catch { /* fall through */ }
-      }
-      /* Migrate from old row-based format */
-      const old = localStorage.getItem('sylvy-demo-layout')
-      if (old) {
-        try {
-          const rows = JSON.parse(old)
-          return (rows as { id: string; width: WidthOption }[][]).flat().map(({ id, width }) => ({ id, width }))
-        } catch { /* fall through */ }
-      }
+  const [cards, setCards] = useState<CardItem[]>(INITIAL_CARDS)
+
+  /* Hydrate layout from localStorage after mount to avoid SSR mismatch */
+  useEffect(() => {
+    /* Try new flat format first */
+    const saved = localStorage.getItem('sylvy-demo-layout-v2')
+    if (saved) {
+      try { setCards(JSON.parse(saved)); return } catch { /* fall through */ }
     }
-    return INITIAL_CARDS
-  })
+    /* Migrate from old row-based format */
+    const old = localStorage.getItem('sylvy-demo-layout')
+    if (old) {
+      try {
+        const rows = JSON.parse(old)
+        setCards((rows as { id: string; width: WidthOption }[][]).flat().map(({ id, width }) => ({ id, width })))
+      } catch { /* fall through */ }
+    }
+  }, [])
   const [wiggling, setWiggling] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
   const isResizing = useRef(false)

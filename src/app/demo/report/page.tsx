@@ -647,7 +647,7 @@ export default function ReportPage() {
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </motion.button>
-            <Image src={logoBlack} alt="Sylvy" width={24} height={24} className="object-contain" />
+            <Image src={logoBlack} alt="Sylvy" width={24} height={24} className="object-contain cursor-pointer" onClick={() => router.push('/demo')} />
             <span className="text-[13px] font-medium text-[#1d1d1f]">{report.templateName}</span>
 
             {/* Save status */}

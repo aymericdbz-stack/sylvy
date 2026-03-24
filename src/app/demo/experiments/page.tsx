@@ -389,7 +389,7 @@ function ExperimentsContent() {
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </motion.button>
-            <Image src={logoBlack} alt="Sylvy" width={24} height={24} className="object-contain" />
+            <Image src={logoBlack} alt="Sylvy" width={24} height={24} className="object-contain cursor-pointer" onClick={() => router.push('/demo')} />
             {projectName && (
               <div className="flex items-center gap-2">
                 <div className="w-[8px] h-[8px] rounded-full" style={{ background: accentColor }} />
