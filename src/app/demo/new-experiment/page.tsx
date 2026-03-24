@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -99,6 +99,8 @@ export default function NewExperimentPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [guidelinesText, setGuidelinesText] = useState('')
   const [guidelinesFocused, setGuidelinesFocused] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -190,6 +192,17 @@ export default function NewExperimentPage() {
                 <h2 className="text-[15px] font-semibold text-[#1d1d1f]">Upload Resources</h2>
               </div>
               <div className="px-6 pb-6">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || [])
+                    if (files.length > 0) setUploadedFiles((prev) => [...prev, ...files])
+                    e.target.value = ''
+                  }}
+                />
                 <div
                   className="relative rounded-[16px] border-[1.5px] border-dashed transition-all duration-200 cursor-pointer"
                   style={{
@@ -199,7 +212,13 @@ export default function NewExperimentPage() {
                   }}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
                   onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false) }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragOver(false)
+                    const files = Array.from(e.dataTransfer.files)
+                    if (files.length > 0) setUploadedFiles((prev) => [...prev, ...files])
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <div className="flex flex-col items-center justify-center h-full py-14 gap-4">
                     <motion.div
@@ -214,11 +233,37 @@ export default function NewExperimentPage() {
                         <span className="text-[#4CAF7D] font-medium cursor-pointer hover:underline">browse</span>
                       </p>
                       <p className="text-[11px] text-[#b0b0b5] mt-1.5">
-                        PNG, JPEG, PDF, XLS, DOCX...
+                        All file types accepted
                       </p>
                     </div>
                   </div>
                 </div>
+
+                {/* Uploaded files list */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    {uploadedFiles.map((file, i) => (
+                      <div
+                        key={`${file.name}-${i}`}
+                        className="flex items-center justify-between rounded-[10px] px-3 py-2 text-[12px]"
+                        style={{ background: 'rgba(0,0,0,0.03)' }}
+                      >
+                        <span className="text-[#1d1d1f] truncate mr-2">{file.name}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setUploadedFiles((prev) => prev.filter((_, idx) => idx !== i))
+                          }}
+                          className="text-[#b0b0b5] hover:text-[#ff3b30] transition-colors flex-shrink-0 cursor-pointer"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
 
